@@ -78,6 +78,24 @@ This KB is the grounding for every other namht Kit command.
   **source-only** scan (recommended when docs may be stale).
 - Output dir: `knowledge-base/` (configurable).
 
+### codelens (optional)
+`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
+scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
+language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
+`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
+report it as one. Playbook: `docs/codelens.md`.
+
+**Here:**
+- `codelens status` → the coverage numbers for the KB's own honesty section; a KB built on a thin
+  index should say which languages were resolved and which were read by eye.
+- `codelens hotspots` → the core modules for `06-modules.md`, and the invariants for
+  `16-architecture-patterns.md` ("nothing may bypass X" is checkable when X is a named hub).
+- `codelens cycles` → layering violations with evidence, for the same document.
+- `codelens dead` → surface area the KB must **not** document as live business behaviour.
+- Everything here is input to a document you still write from the code. Do not paste graph output
+  into the KB; a number without the business meaning is not knowledge.
+
 ## What to produce
 Generate the **16 section docs** specified in `references/kb-steps.md` (read it now). Each
 file is `knowledge-base/NN-name.md`. Obey the golden rules: always cite real file paths +

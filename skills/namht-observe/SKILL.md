@@ -23,6 +23,22 @@ them there.
 - Learn the **downstream schema** and emit its exact field names. If the team's Splunk uses
   `cai_app` / `cai_enviroment`, those are the field keys you write — not `app` / `env`.
 
+### codelens (optional)
+`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
+scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
+language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
+`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
+report it as one. Playbook: `docs/codelens.md`.
+
+**Here:**
+- `codelens explore "<entry point>"` — the real call chain a request takes, so the correlation id
+  and the log fields follow the flow rather than the file layout.
+- `codelens hotspots` — the highest fan-in symbols are where structured context earns the most; a
+  log line there is read by every flow that passes through.
+- `codelens callers <error path>` — who can reach the failure you are about to instrument, which is
+  what makes the error context groupable instead of merely present.
+
 ## The instrumentation model (what "good" looks like)
 **One correlation ID, end to end.** Generate it at the edge (HTTP filter / first consumer), carry it
 through every log line, and **propagate it across service hops**:

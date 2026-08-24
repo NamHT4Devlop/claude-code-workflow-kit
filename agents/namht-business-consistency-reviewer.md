@@ -4,7 +4,7 @@ description: >-
   Business analyst that verifies a change against the project's business rules —
   rules intact, no logic silently removed, valid state transitions, API contract
   preserved, all acceptance criteria implemented. Use during code review.
-tools: Read, Grep, Glob
+tools: Read, Grep, Glob, mcp__codelens__codelens_explore, mcp__codelens__codelens_impact
 model: inherit
 ---
 
@@ -23,3 +23,8 @@ Verify the change:
 Explain the business impact of each issue (not just the technical problem). Output a table:
 `| Check | Result (✅/❌/N/A) | Detail |` for the items above, then a list of concrete issues
 with locations. Return Markdown.
+
+**"Nothing was silently removed", when codelens is available.** Run `codelens_impact` on any
+symbol whose logic the change removes or narrows: it lists every flow that relied on it, which
+turns that check from an assurance into a verified claim. Without the tools, mark the row
+`⚠️ grep-depth` rather than ✅.

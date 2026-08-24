@@ -25,6 +25,21 @@ every unavoidable technical term (inline the first time, and in the closing glos
 ## Input
 The topic to document (a feature, entity/model, or module).
 
+### codelens (optional)
+`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
+scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
+language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
+`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
+report it as one. Playbook: `docs/codelens.md`.
+
+**Here:**
+- `codelens explore "<Entity>"` — the real field list with line numbers for the Business ↔ Code
+  mapping table. Every row must come from this or from source you read; an invented field is the
+  exact failure this document exists to prevent.
+- `codelens callers "<Entity>#<field>"` — which flows actually read a field, for the flow section.
+- A field with no callers is worth a line in **Assumptions & gaps**, not silent omission.
+
 ## Gather context
 1. Load relevant `knowledge-base/` docs plus, by default, the business/domain/architecture
    docs and any matching `knowledge-base/modules/<module>.md`.

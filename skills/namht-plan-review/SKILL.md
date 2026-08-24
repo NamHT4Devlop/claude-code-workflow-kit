@@ -19,6 +19,21 @@ The plan / user stories (pasted, or a file under `namht-sessions/`). Identify th
 modules/entities it targets. Ground in KB (`13-business-rules`, `16-architecture-patterns`,
 `10-core-flows`) and by tracing callers (blast radius of the proposed changes).
 
+### codelens (optional)
+`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
+scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
+language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
+`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
+report it as one. Playbook: `docs/codelens.md`.
+
+**Here:**
+- The plan's own blast-radius claim is **checkable**: `codelens impact <symbol>`. If the plan says
+  "3 call sites" and impact returns 27, that is a ❌ blocker in the Architecture/Eng lens, not a ⚠️ —
+  the plan is sized against a number that is wrong.
+- `codelens dead` on something the plan proposes to build around: if it is already unreachable, the
+  plan is extending code nobody runs.
+
 ## Lenses (score each: ✅ ok / ⚠️ concern / ❌ blocker)
 1. **Product** — is this the *right* thing? Is there a simpler version that delivers most value?
    Scope creep? Does it match the success metric? Anything that should be cut or deferred?

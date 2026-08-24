@@ -13,6 +13,22 @@ description: >-
 A native port of Auto Spec extension's `/rescan`. Keep `knowledge-base/` accurate without paying
 for a full rebuild. If there is no existing KB, fall back to a full `/namht-scan`.
 
+### codelens (optional)
+`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
+scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
+language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
+`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
+report it as one. Playbook: `docs/codelens.md`.
+
+**Here:**
+- `git diff --name-only <last-scan-commit>..HEAD | codelens affected` — the changed symbols **and**
+  everything that transitively reaches them. That reached set is the list of KB pages to re-read,
+  and it is strictly larger than the set of changed files: a rescan driven by `git diff` alone
+  leaves documentation describing a caller whose callee changed underneath it.
+- `codelens status` after the sync — if coverage dropped, the code moved somewhere the resolver no
+  longer follows, and the KB section for that area should say so.
+
 ## Procedure
 1. **Confirm the branch + diff base, then find what changed.** The rescan reads the **working tree
    of the currently checked-out branch** (it does NOT switch branches). Get the branch with

@@ -49,6 +49,23 @@ must show the exact bad code and the complete fixed code — never "add X here".
   conventions, architecture patterns) and `git` context (how the file changed vs the
   default branch) for Phase 2.
 
+### codelens (optional)
+`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
+scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
+language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
+`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
+report it as one. Playbook: `docs/codelens.md`.
+
+**Here:**
+- `git diff --name-only | codelens affected` — the downstream consumers this diff actually reaches.
+  A finding that says "this breaks X" now cites a resolved edge, with its confidence.
+- **Phase 2** — `codelens impact <symbol>` on anything whose logic was removed or narrowed shows
+  every flow that relied on it. "No business logic was silently removed" is then a checked claim
+  rather than an assurance.
+- Quote the `via`/confidence when a finding rests on an edge below `direct`; a 0.4 `unique-name`
+  edge is a lead, not a verdict.
+
 ## Phase 1 — Code quality
 Go through **every section** of the review checklist as a gate. For each section, list
 issues (citing file · function · ~line) or mark `✅ Clean` — do not skip sections. Cover at

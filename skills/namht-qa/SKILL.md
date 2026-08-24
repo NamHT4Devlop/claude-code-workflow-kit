@@ -33,6 +33,22 @@ the code (real endpoints/handlers). This is **test design** — it does NOT writ
   suggest `/namht-scan`. Read the relevant controllers/handlers to find the exact
   endpoints/handlers/state machines involved.
 
+### codelens (optional)
+`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
+scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
+language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
+`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
+report it as one. Playbook: `docs/codelens.md`.
+
+**Here:**
+- `git diff --name-only | codelens affected` — its `tests:` list names the existing tests that
+  already cover the change (your regression set), and its **absence** is proof of the gap rather
+  than a worry about one.
+- `codelens impact <changed symbol>` — the old flows that need regression cases. Each becomes a row
+  in the traceability matrix, with the resolved caller as the evidence column.
+- A regression case you cannot tie to a real consumer is a guess: label it, or drop it.
+
 ## Procedure
 1. **Understand the story.** Restate role/action/benefit + each AC. List the entities, endpoints,
    states, roles and rules involved.

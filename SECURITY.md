@@ -76,6 +76,11 @@ declares a CSP whose `script-src` carries a nonce, and no external host is conta
 
 ## Data flow & egress
 - **KB / analyzer**: 100% local. The `knowledge-base/` never leaves the machine.
+- **codelens** (optional, external tool): also 100% local — it indexes into `.codelens/` inside
+  the repo and makes no network calls of any kind. It is not vendored here; the kit only names
+  its commands. The sub-agents are granted its **read-only MCP tools** and never `Bash`, so the
+  read-only guarantee in the agent roster is unchanged. Add `.codelens/` to your gitignore —
+  `onboard-project.sh` does it for you — since the index describes the whole codebase.
 - **The real egress is the AI agent itself**: when Claude reads code (via `Read`),
   that source enters the LLM context (Anthropic). This is inherent to using
   an AI coding assistant — **not added by this toolkit**. It is acceptable under a company
@@ -92,6 +97,7 @@ declares a CSP whose `script-src` carries a nonce, and no external host is conta
   uninstall, **only removes symlinks whose target points back into this repo** (`case "$SRC"/*`).
   It cannot delete arbitrary files.
 - `onboard-project.sh` **writes into a target project** (`.gitignore` += `namht-sessions/`,
+  `knowledge-base/`, `.codelens/`,
   and a starter `CLAUDE.md` if absent). Do **not** run it on a shared/team repo if you want zero
   footprint — review its diff first.
 

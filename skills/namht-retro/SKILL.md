@@ -24,6 +24,20 @@ A periodic look-back grounded in real history.
 - Optional signals: `namht-sessions/` reports (fixes/reviews/qa) from the window; open TODO/FIXME
   added; test coverage gaps on changed areas (test-debt trend).
 
+### codelens (optional)
+`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
+scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
+language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
+`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
+report it as one. Playbook: `docs/codelens.md`.
+
+**Here:**
+- `codelens hotspots` crossed with the window's churn — a period that repeatedly touched a hub is
+  the concrete signal for **Quality & risk signals**, replacing "this area felt painful".
+- `git diff --name-only <since>..HEAD | codelens affected --fail-if-untested` — test debt as a fact
+  with a symbol list, which is what makes an action item ownable.
+
 ## Produce (dual-audience; chat + save `namht-sessions/retro/<date>.md`)
 ```
 ## In plain words            ← the period in 3 bullets (shipped / notable / watch-outs)

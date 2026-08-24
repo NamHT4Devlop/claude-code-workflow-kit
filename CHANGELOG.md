@@ -14,6 +14,71 @@ noted per release when it changed.
 
 ---
 
+## [2.7.0] — 2026-08-25
+
+### Added — codelens, as an optional call-graph dependency
+
+The kit could describe what a system *means* (the Knowledge Base) but had to **grep** for what it
+*does*. Grep finds a string; an impact analysis needs a call. Every skill that reasoned about
+who-calls-what was therefore working one level below its own claims — and never said so.
+
+[`codelens`](https://github.com/NamHT4Devlop/codelens) is now wired in as an **optional** dependency.
+Nothing requires it and nothing breaks without it:
+
+- **`docs/codelens.md`** — the playbook: what it covers (Java · Ruby · TS/JS **only**), the two ways
+  a skill reaches it (read-only MCP tools vs the CLI), the commands by the question they answer, and
+  the five-point contract every integrated skill follows.
+- **25 of the 30 skills** carry a `### codelens (optional)` block: the same paragraph verbatim, then
+  the specific commands that skill uses. The shared paragraph includes the fallback sentence, so a
+  skill that degrades to grep now writes `⚠️ grep-depth only (no codelens index)` in its output
+  instead of presenting a grep hit as a resolved call.
+- **The five that opt out** — `discover`, `issues`, `pdf`, `qa-integration`, `splunk-report` — never
+  reason about a call graph. They are listed in `tests/consistency.test.sh` with a reason, not
+  silently skipped.
+- **`/namht-build`'s approval gate is now counted from the graph.** The **>3 callers** trigger
+  reads `codelens callers --json`; a grep hit count and a caller count are different numbers and
+  only one of them is the blast radius. Step 3.5's safety net gained
+  `affected --fail-if-untested`, whose exit code 2 (production code changed, no test reaches it) is
+  treated as a blocker.
+- **`/namht-map` is hybrid, not replaced** — and the choice is made in code, not left to the
+  model. New `skills/namht-map/references/codelens-graph.cjs` turns `codelens export` into the
+  viewer's own node/edge shape; `build-map.cjs` tries it first and falls back to the regex analyzer,
+  printing why. The viewer's meta bar now reads `codelens (resolved call graph)` or
+  `static import/inheritance scan`, because those edges are not worth the same. On the bindings
+  fixture the resolved graph carries **27 edges against the regex scan's 8**, including the
+  cross-language SQS hop. Languages codelens cannot cover (Python, Go, C#, PHP, Rust, Kotlin,
+  Scala, Swift, C/C++) are detected on disk and named, so a dropped service is admitted rather than
+  silently missing. `CODELENS=0` forces the regex path for a side-by-side.
+- **`/namht-system-map` cross-service edges can be *confirmed*.** A producer and a consumer sharing
+  a queue name or an endpoint URI are joined across repos and languages, so an edge no longer rests
+  on KB prose alone.
+- **The seven sub-agents can reach it** — `tools:` now lists the read-only
+  `mcp__codelens__codelens_*` tools. Deliberately **not** `Bash`: handing a review specialist a
+  shell to reach `codelens dead` would trade a read-only guarantee for one command. The parent skill
+  runs the CLI-only commands and passes the result into the prompt instead.
+
+### Changed
+
+- `scripts/onboard-project.sh` adds **`.codelens/`** to the target project's `.gitignore` (a
+  rebuildable index describing the whole codebase — it must never reach a team repo) and reports
+  whether the repo is indexed. It never indexes on its own; that walks the tree and is the user's call.
+- `/namht-drift` referenced `.codegraph/` and `codegraph_explore`, which no longer exist under those
+  names. Renamed to `.codelens/` and `codelens explore`.
+- `docs/skill-anatomy.md` gained the block as part of the written standard, plus an
+  **Honest about depth** rule. `/namht-skillify` now scaffolds it, and requires a new skill to be in
+  the block list or the opt-out list — there is no third option.
+
+### Tests
+
+- `tests/smoke.test.sh` covers the new adapter: a graph must name its source, `buildFromCodelens`
+  must report *why* it declined rather than throw, and a language it cannot cover must be named.
+- `tests/consistency.test.sh` gained a guard: every skill is in exactly one of the two lists, the
+  block keeps its fallback sentence and its skill-specific commands, `docs/codelens.md` exists, the
+  three fan-out agents can actually reach codelens, and **no** agent grants `Bash`. A skill in
+  neither list fails the suite — which is what stops the standard from ending at the last one written.
+
+---
+
 ## [2.6.1] — 2026-08-13
 
 ### Documentation

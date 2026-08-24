@@ -45,6 +45,25 @@ joiner can produce the cross-service map from the hub alone, without cloning a s
 - **Confirm edges by reading code:** when a service's KB is thin, read its HTTP-client calls /
   endpoint handlers / queue producers-consumers directly to confirm the real cross-service edges.
 
+### codelens (optional)
+`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
+scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
+language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
+`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
+report it as one. Playbook: `docs/codelens.md`.
+
+**Here:**
+- Index each service once (`cd <svc> && codelens init .`), then query from the **workspace root** —
+  `codelens serve` and the MCP server both accept a folder of checkouts and answer across all of them.
+- Cross-service edges stop being inferred. A producer and a consumer sharing a queue name or an
+  endpoint URI are linked by the binding layer, **across languages** (a Java publisher to a Ruby
+  worker). Mark those edges **confirmed**; keep "inferred" for the ones only KB prose supports.
+- `codelens path <symbol in A> <symbol in B>` walks a chain that crosses the repo boundary — that is
+  an end-to-end flow proven, and it is what the sequence diagram should be drawn from.
+- Services you could not index (unsupported language, no checkout) must be named in the output. A
+  map that silently omits a service is worse than one that admits a hole.
+
 ## What to build
 For each service, read its KB: `11-api-docs.md` (endpoints it **exposes**), `14-integrations.md`
 (systems/services/queues it **calls out to**), `17-async-events.md` (its Event/Contract Catalog),

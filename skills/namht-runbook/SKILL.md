@@ -40,6 +40,22 @@ Read **both** halves, and cite files for everything:
 | Data recovery | migration tool (Flyway/Prisma/Liquibase), backup config, queue redrive settings |
 | Alerts | monitoring config in the repo, log/metric names actually emitted |
 
+### codelens (optional)
+`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
+scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
+language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
+`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
+report it as one. Playbook: `docs/codelens.md`.
+
+**Here:**
+- `codelens explore "<entry point>"` — the real call chain behind an alert, so symptom → diagnosis
+  points at the function that actually runs rather than the one with the matching name.
+- `codelens hotspots` — the components whose failure is widest earn a playbook first; that is the
+  ordering an on-call reader needs at 2am.
+- `codelens path <entry point> <external call>` — where a downstream dependency enters the flow,
+  which is what a "third party is down" playbook has to name.
+
 ## Procedure
 1. **Pick the scope and name the service** the way the team says it out loud, not the folder name.
 2. **Harvest the operational facts** from the table above. When two sources disagree (the README

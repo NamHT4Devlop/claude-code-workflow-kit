@@ -15,6 +15,23 @@ The dangerous moment in a microservice system is changing something **other serv
 whole skill is one idea: **never flip a breaking change in one step** — run old and new in parallel,
 move consumers, then remove the old only once nothing uses it.
 
+### codelens (optional)
+`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
+scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
+language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
+`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
+report it as one. Playbook: `docs/codelens.md`.
+
+**Here:**
+- `codelens impact <symbol|handler>` — every transitive consumer, including the ones grep cannot
+  reach through an interface or a mixin. This is the consumer list the expand→migrate→contract plan
+  is built from; a missed consumer is a broken contract.
+- **Across services:** index each repo (`codelens init .`), then query from the workspace root — a
+  shared queue name or endpoint URI links a producer in one repo to a consumer in another, across
+  languages. Those are precisely the consumers a contract change breaks and the ones prose misses.
+- A consumer you cannot find in the graph is not proof of absence: say which repos were indexed.
+
 ## Step 1 — find who depends on it (before touching anything)
 A change is only "safe" once every consumer is known.
 - **Cross-service** consumers: the **Event/Contract Catalog** (`17-async-events.md`) + `system-map/`

@@ -16,6 +16,31 @@ Mermaid dump. It runs a bundled, dependency-free multi-language static analyzer
 (`references/graph-builder.js`, pure Node `fs`/`path`) supporting TS/JS, Python, Java/Kotlin,
 Go, Ruby, C#, PHP and Rust, then injects the graph into `references/viewer-template.html`.
 
+### codelens (optional)
+`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
+scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
+language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
+`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
+report it as one. Playbook: `docs/codelens.md`.
+
+**Here:**
+- **`build-map.cjs` already does the choosing — you do not.** It calls
+  `references/codelens-graph.cjs` first: with a `.codelens/` index and `codelens` on PATH it draws
+  the **resolved call graph** (edges are real calls, each labelled with its `via` and confidence);
+  otherwise it falls back to the regex scan and prints why on stderr. Read that line and repeat it
+  in your summary.
+- **The viewer says which one drew it** — the meta bar reads `codelens (resolved call graph)` or
+  `static import/inheritance scan`. Never describe a regex edge as a call.
+- **Uncovered languages are named, not hidden.** If the tree holds Python, Go, C#, PHP, Rust,
+  Kotlin, Scala, Swift or C/C++, stderr warns that those files are absent from a codelens graph.
+  **Put that in the summary** — a map that silently drops a service is worse than one that admits
+  the hole.
+- `CODELENS=0 node references/build-map.cjs …` forces the regex analyzer, for a side-by-side
+  comparison when you want to show what the index is buying.
+- `codelens hotspots` names the hubs for the summary; `codelens cycles` names the circular
+  dependencies. Both beat degree-counting on a regex graph.
+
 ## How to run it
 1. **Pick the root.** Default = the current project (cwd). If the user named a sub-path/module,
    use that folder as the root (the analyzer scans the folder you point it at). Optional `mode`:

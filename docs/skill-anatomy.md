@@ -29,6 +29,7 @@ description: >-
 | **Procedure** | ✅ | Numbered, executable steps. Not advice. |
 | **Output** | ✅ | Exact save path under `namht-sessions/…`, the dual-audience structure, and the HTML render step if it produces a report. |
 | **Rules** | ✅ | The non-negotiables specific to this skill. |
+| **`### codelens (optional)`** | if it reads a call graph | The shared paragraph **verbatim** (fallback sentence included), then `**Here:**` and the specific commands this skill uses. A skill that never reasons about who-calls-what goes on the opt-out list in `tests/consistency.test.sh` instead, with a reason. See `docs/codelens.md`. |
 | **Common rationalizations** | high-stakes only | The excuse for skipping a step, and the fact that answers it. |
 | **Red flags** | high-stakes only | Detectable signals that you are already off the rails — written so you can notice mid-task. |
 | **Verification** | high-stakes only | Checkbox exit criteria. **"Seems right" is never enough.** |
@@ -63,6 +64,9 @@ Prefer "the gates ran and were compared against the baseline" over "quality is g
 - **Minimal** — only what changes behaviour. A skill nobody finishes reading enforces nothing.
 - **Dual-audience** — a non-technical reader gets the plain sections; an engineer gets full precision.
   The two must not contradict; one is a simpler view of the other.
+- **Honest about depth** — a conclusion drawn from grep and one drawn from a resolved call graph
+  are not the same claim. If the skill fell back, the output says `⚠️ grep-depth only (no codelens
+  index)`; laundering a grep hit into a stated fact is the failure the block exists to prevent.
 - **Honest about limits** — if something could not be determined, say so. `UNVERIFIED` and `❓` are
   first-class outputs; a plausible invention is the failure mode these skills exist to prevent.
 

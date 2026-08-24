@@ -34,6 +34,7 @@ nam-claude-skill/
 ├── hooks/                   # git-guard.sh + hooks.json (PreToolUse git guardrail)
 ├── scripts/                 # personal-install.sh, onboard-project.sh, sync-bundles.sh
 ├── docs/                    # setup guides (HTML) + skill-anatomy.md (the standard skills follow)
+│                           #   + codelens.md (the optional call-graph dependency)
 ├── tests/                   # toolkit self-tests
 └── vscode-extension/        # optional VS Code panel that drives the local claude CLI (proprietary)
 ```
@@ -375,6 +376,52 @@ Two checks worth doing right after a first scan:
    scan knows about; decide whether to spend `deep` on them.
 
 ---
+
+## Call-graph awareness — `codelens` (optional)
+
+The Knowledge Base above is what the system **means**. [`codelens`](https://github.com/NamHT4Devlop/codelens)
+is what it **does**: a pre-built graph of symbols and who-calls-what, so a skill can ask for the real
+callers of a symbol instead of grepping for its name.
+
+Nothing here requires it. **25 of the 30 skills** use it when a `.codelens/` index is present and
+fall back to Grep/Glob when it is not — and when they fall back they say so, marking the output
+`⚠️ grep-depth only (no codelens index)`. That sentence is the point: a caller list from grep and one
+from a resolved call graph are not the same claim, and an impact analysis that hides which one it
+used is the kind that gets trusted wrongly.
+
+What changes when the index is there:
+
+| Skill | Without | With |
+|---|---|---|
+| `/namht-build` | callers counted by grep — including the ones that are only a string match | `codelens impact`; the **>3 callers** approval gate is counted from the graph, and `affected --fail-if-untested` blocks a change no test reaches |
+| `/namht-review` · `/namht-pr` | consumers inferred from the diff | `git diff --name-only \| codelens affected` — resolved consumers, with the tests that already cover them |
+| `/namht-simplify` | "nothing references it" | `codelens dead`, already filtered against names used in `.erb`/`.vue`/`.html`/`.yml` |
+| `/namht-security-audit` | a sink that *looks* reachable | `codelens path <entry point> <sink>` — the chain, pasted into the finding |
+| `/namht-system-map` | cross-service edges read out of KB prose | producer ↔ consumer joined on a real queue name or endpoint URI, across repos and languages |
+| `/namht-map` | regex import + inheritance scan (9 languages) | resolved call edges with a confidence (Java · Ruby · TS/JS), regex scan kept for the rest |
+
+**Covers Java, Ruby, TypeScript and JavaScript only.** For Python, Go, C#, PHP, Rust or Kotlin the
+fallback is the only path, and the skills say so rather than implying coverage they do not have.
+
+Setup is three commands, and it runs fully offline:
+
+```bash
+git clone git@github.com:NamHT4Devlop/codelens.git ~/AI-TOOL/codelens && cd ~/AI-TOOL/codelens && yarn install
+```
+
+```bash
+ln -sf ~/AI-TOOL/codelens/bin/codelens.js ~/.local/bin/codelens && codelens install claude-user
+```
+
+```bash
+cd /path/to/your/repo && codelens init .
+```
+
+`scripts/onboard-project.sh` adds `.codelens/` to the project's `.gitignore` (it is a rebuildable
+cache and must never reach a team repo) and reports the index status. The seven sub-agents in
+`agents/` are granted the **read-only MCP tools only** — never `Bash` — so the review specialists
+stay read-only. Full detail, including which five skills deliberately opt out and why:
+[`docs/codelens.md`](docs/codelens.md).
 
 ## Keeping docs and code from drifting apart
 

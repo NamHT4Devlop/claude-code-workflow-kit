@@ -16,6 +16,21 @@ Two modes (pick from the argument / context). Read-only on the remote: it **draf
 git-guard hook blocks remote-mutating git anyway). Read/Grep for impact, KB for business
 consistency.
 
+### codelens (optional)
+`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
+scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
+language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
+`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
+report it as one. Playbook: `docs/codelens.md`.
+
+**Here:**
+- **PREPARE** — `git diff --name-only origin/main...HEAD | codelens affected` fills the
+  "Risk + blast radius" section with resolved consumers, and its `tests:` list is the honest answer
+  to "Tests done". An empty `tests:` on changed production code belongs in the PR body, not hidden.
+- **REVIEW** — the same over `gh pr diff --name-only`. A consumer the author did not mention is the
+  review's first finding, and now it is citable rather than a hunch.
+
 ## Mode A — PREPARE a PR (default; from the current branch)
 1. **Gather the change.** `git diff <base>...HEAD` (base = the default branch, or one the user
    names) + `git log <base>..HEAD` for the commits + `git diff --stat`. (All read-only git — allowed.)

@@ -25,15 +25,45 @@ let mode = process.argv[4] || 'all';
 if (!fs.existsSync(root)) { console.error('✖ project root not found:', root); process.exit(1); }
 
 const { buildGraphData } = require('./graph-builder.js');
+const { buildFromCodelens } = require('./codelens-graph.cjs');
 
 console.error('▶ analyzing', root, '(mode:', mode + ')…');
-let data = buildGraphData(root, mode);
 
-// Auto-simplify very large graphs so the browser stays smooth.
-if (data.nodes.length > 1800 && mode === 'all') {
-  console.error(`  ${data.nodes.length} nodes is large → re-running in 'files' mode for readability`);
-  mode = 'files';
+let data = null;
+
+// A resolved call graph beats an import regex wherever one exists. `domain` mode draws the
+// Knowledge Base rather than the code, so it never applies there; CODELENS=0 forces the
+// regex analyzer for a side-by-side comparison.
+if (mode !== 'domain' && process.env.CODELENS !== '0') {
+  const attempt = buildFromCodelens(root, { depth: 3, max: 400 });
+  if (attempt.ok) {
+    data = attempt.data;
+    console.error(`  using codelens: ${data.nodes.length} nodes · ${data.edges.length} resolved edges`);
+    const missing = data.metadata.unsupportedLanguages || [];
+    if (missing.length) {
+      console.error(
+        `  note: ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} outside codelens`
+        + ' — those files are not in this graph; say so when you summarise it',
+      );
+    }
+  } else {
+    // Not an error: most repositories have no index, and six of the nine languages this
+    // analyzer reads are outside codelens entirely. Say why, so the choice is visible.
+    console.error(`  codelens not used (${attempt.why}) → static import/inheritance scan`);
+  }
+}
+
+if (!data) {
   data = buildGraphData(root, mode);
+  data.metadata.source = 'static import/inheritance scan';
+
+  // Auto-simplify very large graphs so the browser stays smooth.
+  if (data.nodes.length > 1800 && mode === 'all') {
+    console.error(`  ${data.nodes.length} nodes is large → re-running in 'files' mode for readability`);
+    mode = 'files';
+    data = buildGraphData(root, mode);
+    data.metadata.source = 'static import/inheritance scan';
+  }
 }
 
 const tpl = fs.readFileSync(path.join(__dirname, 'viewer-template.html'), 'utf8');
@@ -62,7 +92,7 @@ if (!out) {
 }
 fs.writeFileSync(out, html, 'utf8');
 
-console.error(`✔ ${data.nodes.length} nodes · ${data.edges.length} edges · langs: ${(data.metadata.languages || []).join(', ') || 'n/a'}`);
+console.error(`✔ ${data.nodes.length} nodes · ${data.edges.length} edges · langs: ${(data.metadata.languages || []).join(', ') || 'n/a'} · ${data.metadata.source}`);
 console.log(out); // stdout = the path, so callers can open it
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }

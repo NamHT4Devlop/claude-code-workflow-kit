@@ -52,6 +52,24 @@ GraphQL** (or Netflix DGS). Confirm at step 0.
   the same mapper appearing as endpoints are ported one by one.
 - Minimal, conventional, no drive-by refactors. The human deploys and controls cutover.
 
+### codelens (optional)
+`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
+scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
+language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
+`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
+report it as one. Playbook: `docs/codelens.md`.
+
+**Here:**
+- `codelens explore "<resolver|controller action>"` on the **source** side — the real behaviour to
+  port, with its callees, instead of reading files hopefully. Ruby's implicit wiring
+  (`belongs_to`, concerns, `method_missing`) is exactly what a manual read loses.
+- `codelens dead --public` — an endpoint nothing reaches is a **scope question for Step 0**, not
+  work. Porting dead code is the most expensive way to be thorough.
+- After the port, `codelens init .` on the target side and compare `codelens impact` for the paired
+  symbols: a consumer present on the source side and missing on the target means the port dropped a
+  path. That is a parity check the golden tests do not make.
+
 ## Agent roster — where to fan out (and where NOT to)
 Spawn sub-agents (`Task`) in parallel at two stages; keep code-writing single-threaded per endpoint.
 - **Extraction (per endpoint, parallel lenses)** — different agents catch different rules:

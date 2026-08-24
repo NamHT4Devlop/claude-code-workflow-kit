@@ -35,6 +35,22 @@ backlog, and the user asked for maximum detail.)
 If BOTH are given, merge them. If NEITHER is usable, ask for a requirement or a Slack link — do NOT
 invent a story.
 
+### codelens (optional)
+`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
+scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
+language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
+`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
+report it as one. Playbook: `docs/codelens.md`.
+
+**Here:**
+- `codelens explore "<area>"` before writing acceptance criteria. An AC that names a field, an
+  endpoint or a state that does not exist is the failure mode this step prevents — and it is the one
+  that survives all the way into QA.
+- `codelens impact <touched symbol>` → **Dependencies** and **Assumptions** stop being guesses and
+  become a list of real consumers.
+- Concrete values in an AC should come from the code you read, not from a plausible example.
+
 ## Procedure
 
 ### 1. Understand the source (a Slack thread is messy — don't just read it, COMPREHEND it)

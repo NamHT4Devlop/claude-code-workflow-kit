@@ -72,7 +72,11 @@ const LAYER = {};
 const COLOR = id => (LAYER[id] && LAYER[id].color) || '#7f8c8d';
 
 document.getElementById('meta').textContent =
-  `${DATA.metadata.nodeCount} nodes · ${DATA.metadata.edgeCount} edges · ${(DATA.metadata.languages||[]).join(', ')}`;
+  `${DATA.metadata.nodeCount} nodes · ${DATA.metadata.edgeCount} edges · ${(DATA.metadata.languages||[]).join(', ')}`
+  // An edge from a resolved call graph and one from an import regex look identical on screen
+  // and are not worth the same. Say which produced this picture.
+  + (DATA.metadata.source ? ` · ${DATA.metadata.source}` : '')
+  + (DATA.metadata.truncated ? ' · truncated at the node cap' : '');
 
 // degree for sizing/hubs
 const deg = {};

@@ -60,6 +60,21 @@ user story / acceptance criteria the bug violated.
   mark the hotfix **UNVERIFIED**.
 - **Never deploy/push.** Produce the fix + test locally; the human deploys. (git-guard blocks pushes.)
 
+### codelens (optional)
+`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
+scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
+language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
+`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
+report it as one. Playbook: `docs/codelens.md`.
+
+**Here:**
+- `codelens path <entry point> <suspect>` — the actual chain from the reproduced symptom to the
+  suspect, hop by hop. A root cause that cannot be reached from the entry point is not the root cause.
+- `codelens impact <symbol>` — before the fix, everything the change can break. That list is what
+  the regression test targets; picking targets without it is how a hotfix creates the next bug.
+- `git diff --name-only | codelens affected` — after the fix, exactly what to re-run.
+
 ## Pipeline
 
 ### 1. Intake — capture the QA bug report precisely

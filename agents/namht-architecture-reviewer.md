@@ -4,7 +4,7 @@ description: >-
   Software architect that enforces the project's documented architecture and
   design patterns on a change — architecture invariants, pattern conformance,
   layer/dependency rules, boundary violations, extension recipes. Use during code review.
-tools: Read, Grep, Glob
+tools: Read, Grep, Glob, mcp__codelens__codelens_explore, mcp__codelens__codelens_impact
 model: inherit
 ---
 
@@ -25,3 +25,8 @@ Check the change against the documented architecture & patterns. Flag every devi
 
 For each issue: severity, exact location, which documented rule/pattern is violated, the bad
 code, and conforming fixed code. If it fully conforms, say so explicitly. Return Markdown.
+
+**Layer and dependency rules, when codelens is available.** A layering violation is a resolved
+edge, not an import line: `codelens_explore` shows what a symbol actually calls, and
+`codelens_impact` shows who reaches it. Use them to prove a boundary crossing before calling it
+one. Without the tools, Grep/Glob and mark the finding grep-depth.
