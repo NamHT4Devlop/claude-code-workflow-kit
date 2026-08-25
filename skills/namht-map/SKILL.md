@@ -36,6 +36,13 @@ report it as one. Playbook: `docs/codelens.md`.
   Kotlin, Scala, Swift or C/C++, stderr warns that those files are absent from a codelens graph.
   **Put that in the summary** — a map that silently drops a service is worse than one that admits
   the hole.
+- **The resolved graph can be a neighbourhood, not the repository.** `codelens export` seeds from
+  the busiest hubs and stops at a node cap, so on a large repo it draws what surrounds those hubs.
+  If a language is **indexed and still absent** — every hub was Ruby, so the TypeScript half was
+  never reached — stderr prints `WARNING: … is indexed but absent`. That warning is not optional
+  reading: repeat it, or re-run with `CODELENS=0` for a whole-repo scan. On human-essentials the
+  resolved graph is 400 nodes / 796 edges of Ruby; the static scan is 1578 nodes / 1084 edges
+  across Ruby and JavaScript. Denser and truer, against wider. Say which one you gave them.
 - `CODELENS=0 node references/build-map.cjs …` forces the regex analyzer, for a side-by-side
   comparison when you want to show what the index is buying.
 - `codelens hotspots` names the hubs for the summary; `codelens cycles` names the circular

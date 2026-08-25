@@ -78,6 +78,30 @@ function uncoveredLanguages(root, { maxDepth = 6, maxFiles = 20000 } = {}) {
 }
 
 /**
+ * Languages the index holds, from `codelens status`.
+ *
+ * `export` seeds from the busiest hubs and stops at a node cap, so on a large repository it draws
+ * a neighbourhood, not the repository. If every hub is Ruby, an indexed TypeScript half can be
+ * absent from the picture entirely -- and a map that omits half a codebase without saying so is
+ * the failure this whole module is supposed to prevent. Comparing the two is the only way to
+ * notice, because the export cannot report what it never reached.
+ */
+function indexedLanguages(root) {
+  const run = spawnSync('codelens', ['status'], { cwd: root, encoding: 'utf8' });
+  if (run.error || run.status !== 0) return [];
+  const out = run.stdout || '';
+  const start = out.indexOf('by language:');
+  if (start === -1) return [];
+  const langs = [];
+  for (const line of out.slice(start).split('\n').slice(1)) {
+    const m = /^\s+([a-z+#]+)\s+(\d+)\s*$/.exec(line);
+    if (!m) break;
+    langs.push(m[1]);
+  }
+  return langs;
+}
+
+/**
  * Is the resolved graph available for this repository?
  * @returns {{ok: true} | {ok: false, why: string}}
  */
@@ -190,6 +214,9 @@ function buildFromCodelens(root, { depth = 3, max = 400 } = {}) {
   }
 
   const unsupported = uncoveredLanguages(root);
+  // Indexed, therefore drawable -- and still not drawn. Different from `unsupported`,
+  // which is about languages codelens cannot read at all.
+  const indexedButAbsent = indexedLanguages(root).filter((l) => !langs.has(l));
 
   return {
     ok: true,
@@ -212,9 +239,10 @@ function buildFromCodelens(root, { depth = 3, max = 400 } = {}) {
         source: 'codelens (resolved call graph)',
         truncated: Boolean(graph.truncated),
         unsupportedLanguages: unsupported,
+        indexedButAbsent,
       },
     },
   };
 }
 
-module.exports = { buildFromCodelens, probe, uncoveredLanguages };
+module.exports = { buildFromCodelens, probe, uncoveredLanguages, indexedLanguages };

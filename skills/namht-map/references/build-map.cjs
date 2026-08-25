@@ -46,6 +46,19 @@ if (mode !== 'domain' && process.env.CODELENS !== '0') {
         + ' — those files are not in this graph; say so when you summarise it',
       );
     }
+    // `export` seeds from the busiest hubs and stops at a node cap, so this can be a
+    // neighbourhood rather than the repository. When a language is indexed and still absent,
+    // the picture is not of this codebase, and the whole-repo scan is the honest alternative.
+    const absent = data.metadata.indexedButAbsent || [];
+    if (absent.length) {
+      console.error(
+        `  WARNING: ${absent.join(', ')} ${absent.length === 1 ? 'is' : 'are'} indexed but absent`
+        + ' from this graph — hub seeding plus the node cap did not reach them.',
+      );
+      console.error('           Say this in the summary, or re-run with CODELENS=0 for a whole-repo scan.');
+    } else if (data.metadata.truncated) {
+      console.error('  note: the graph hit its node cap — it shows the busiest neighbourhood, not the whole repo');
+    }
   } else {
     // Not an error: most repositories have no index, and six of the nine languages this
     // analyzer reads are outside codelens entirely. Say why, so the choice is visible.

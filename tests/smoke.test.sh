@@ -39,6 +39,16 @@ case "$why" in
   *) echo "  ✗ expected a graceful reason, got: $why"; fail=1;;
 esac
 
+echo "smoke: codelens-graph.cjs exposes what the index holds"
+# indexedLanguages() is how the adapter notices it drew a neighbourhood rather than a repository.
+# Without an index it must return an empty list, not throw and not invent one.
+held=$(node -e '
+  const { indexedLanguages } = require("./skills/namht-map/references/codelens-graph.cjs");
+  const r = indexedLanguages(process.argv[1]);
+  console.log(Array.isArray(r) ? `array:${r.length}` : typeof r);
+' "$TMP/proj" 2>&1)
+if [ "$held" = "array:0" ]; then echo "  ✓ empty list without an index"; else echo "  ✗ expected array:0, got: $held"; fail=1; fi
+
 echo "smoke: codelens-graph.cjs names a language it cannot cover"
 printf 'def handler():\n    return 1\n' > "$TMP/proj/worker.py"
 langs=$(node -e '
