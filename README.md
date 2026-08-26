@@ -1,6 +1,6 @@
 # namht Kit for Claude Code
 
-A native **Claude Code** port of the private Auto Spec extension VS Code
+A native **Claude Code** port of the author's private Auto Spec VS Code
 extension. Same spec-driven workflow — **Requirement → Plan → Code → Review → Test →
 Evidence** — plus Knowledge Base generation, codebase Q&A, user stories, dependency mapping,
 and business↔code documentation. The difference: it runs on **Claude Code** (your own
@@ -685,7 +685,7 @@ See **[SECURITY.md](SECURITY.md)** for the full audit. In short:
   directly and suggest running `/namht-scan`, but results are richer with a KB.
 - `build` and `review` enforce the **"Architecture Invariants — DO NOT BREAK"** list from
   `knowledge-base/16-architecture-patterns.md` and the rules in `knowledge-base/review-skills.md`.
-- Source of truth for the methodology: the original prompts of the private Auto Spec extension VS Code
+- Source of truth for the methodology: the original prompts of the author's private Auto Spec VS Code
   extension (pipeline steps, its `kb-steps` constants, and `review-skills-universal.md`).
 - **Slash-command prefix depends on install method:** `/namht-build` (personal symlink install) vs
   `/namht:build` (plugin install) vs `/build` (plain copy). Skills also auto-activate from plain English.
