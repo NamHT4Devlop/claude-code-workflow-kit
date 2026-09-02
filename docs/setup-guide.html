@@ -211,6 +211,35 @@ claude
     e.g. <i>"review this file for me"</i> or <i>"build feature X per the KB"</i>.</p>
   </div>
 
+
+  <!-- ============ CODELENS (optional) ============ -->
+  <h2 id="codelens">🔗 3b. Optional: <code>codelens</code> — the call graph</h2>
+  <p>Nothing here needs it. But <b>27 of the 30 skills</b> use it when a repository has a
+  <code>.codelens/</code> index, and grep when it does not — and when they fall back they
+  <b>say so</b>, marking the output <code>⚠️ grep-depth only (no codelens index)</code>. That
+  sentence is the point: a caller list from grep and one from a resolved call graph are not the
+  same claim, and an impact analysis that hides which one it used is the kind that gets trusted
+  wrongly.</p>
+  <p>What changes with an index: <code>/namht-build</code>'s <b>&gt;3 callers</b> approval gate is
+  counted from the graph instead of from grep hits; <code>/namht-review</code> and
+  <code>/namht-pr</code> list the consumers a diff really reaches together with the tests that
+  already cover them; <code>/namht-simplify</code>'s delete list excludes anything a template
+  names; <code>/namht-system-map</code> joins a producer in one repo to a consumer in another on a
+  real queue name, across languages.</p>
+  <p><b>Covers Java, Ruby, TypeScript and JavaScript only.</b> For Python, Go, C#, PHP, Rust or
+  Kotlin the fallback is the only path, and the skills say so rather than implying coverage they
+  do not have.</p>
+  <pre><code>git clone git@github.com:NamHT4Devlop/codelens.git ~/AI-TOOL/codelens
+cd ~/AI-TOOL/codelens &amp;&amp; yarn install
+ln -sf ~/AI-TOOL/codelens/bin/codelens.js ~/.local/bin/codelens
+codelens install claude-user     # registers the MCP server, keeps a .bak
+cd /path/to/your/repo &amp;&amp; codelens init .</code></pre>
+  <p class="muted">Runs fully offline — no network calls of any kind. The index lives in
+  <code>.codelens/</code> and is a rebuildable cache: <code>scripts/onboard-project.sh</code> adds it
+  to the project's <code>.gitignore</code>, because an index describing the whole codebase must
+  never reach a team repo. Remove one with <code>codelens uninit</code>. Full detail in
+  <code>docs/codelens.md</code>.</p>
+
   <!-- ============ COMMANDS ============ -->
   <h2 id="commands">📋 4. Command table</h2>
   <table>

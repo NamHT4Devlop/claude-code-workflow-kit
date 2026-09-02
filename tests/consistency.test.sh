@@ -142,12 +142,14 @@ done
 # A skill that genuinely never reads a call graph is listed here with a reason instead. A skill in
 # NEITHER list fails: that is what stops the standard from quietly ending at the last one written.
 echo "consistency: codelens block present where it belongs, absent where it does not"
-CODELENS_OPT_OUT="namht-discover namht-issues namht-pdf namht-qa-integration namht-splunk-report"
-#   discover        — runs before any code exists
-#   issues          — turns an approved plan into tickets; touches a tracker, not a repo
-#   pdf             — renders a Markdown/HTML file to PDF
-#   qa-integration  — drives a live browser; its evidence is the DOM, not the source
-#   splunk-report   — queries Splunk and posts to Slack
+CODELENS_OPT_OUT="namht-issues namht-pdf namht-splunk-report"
+#   issues          — turns an APPROVED plan into tickets; the blast radius is already in the plan,
+#                     and re-deriving it here would be a second opinion nobody asked for
+#   pdf             — renders a Markdown/HTML file to PDF; never opens the source
+#   splunk-report   — queries Splunk and posts to Slack; it may not even run inside the app's repo
+# discover and qa-integration were on this list and should not have been. Both ask a reach
+# question -- "which existing flow does this touch?" and "which regressions do I run?" -- and
+# answering either from intuition is the thing the block exists to stop.
 CODELENS_MARK='### codelens (optional)'
 CODELENS_FALLBACK='grep-depth only (no codelens index)'
 bad=0

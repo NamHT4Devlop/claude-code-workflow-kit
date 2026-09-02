@@ -53,10 +53,13 @@ and document it. Operate inside the `nam-claude-skill` repo (the toolkit source,
 ### codelens (optional)
 `.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
 through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm once with `codelens status`. No index, no `codelens` command, or a
-language it does not cover (**Java · Ruby · TS/JS** only) → fall back to Grep/Glob and write
-`⚠️ grep-depth only (no codelens index)` in the output. A grep hit is never a resolved call — do not
-report it as one. Playbook: `docs/codelens.md`.
+scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+tree has moved since it was built — **a stale index is worse than none, because it looks
+authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
+No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
 
 **Here:**
 - A new skill that reasons about **who calls what** MUST carry the `### codelens (optional)` block:

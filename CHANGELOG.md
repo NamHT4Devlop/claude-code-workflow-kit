@@ -14,6 +14,64 @@ noted per release when it changed.
 
 ---
 
+## [2.8.0] — 2026-08-25
+
+### Added — codelens reaches the places 2.7.0 missed
+
+2.7.0 put the block in 25 skills and stopped there. An audit of the whole surface — every
+codelens command against every file that could reference it — found the integration was
+shallower than it looked in three ways.
+
+**The shared files knew nothing about it.** Two resources are bundled into many skills at once,
+and both had zero mentions, so the methodology said one thing and the checklist another:
+
+- **`resources/review-skills-universal.md`** (495 lines, bundled into 6 skills) now opens with
+  **§0 — EVIDENCE**: a table of which command settles which claim, the staleness rule, and the
+  instruction to mark a degraded finding `grep-depth`. Every later section that makes a reach
+  claim points back at it — layering in §1, N+1 in §4, "untested" in §6, dead code in §9. A
+  review is only worth the evidence under it, and most of that checklist is claims about reach.
+- **`resources/kb-steps.md`** (bundled into `scan` and `rescan`) gains golden rule **8**:
+  structural claims come from the graph where one exists, and **the graph is an input, never the
+  output** — a fan-in number is not a business meaning, and the meaning is what a KB is for.
+  `_meta.yml` now records the resolution figure, so a reader can tell a KB built on a resolved
+  graph from one built on grep. §06 orders its deep-dive by real hubs; §16 prefers invariants that
+  a command can actually check.
+
+**Two skills were excluded that should not have been.** `discover` already asks *"which existing
+flow does this touch?"* and `qa-integration` has to choose its own regression set when no plan
+exists. Both are reach questions, and answering either from intuition is the thing the block
+exists to stop. **27 of 30** now, and the opt-out list in `tests/consistency.test.sh` records why
+the remaining three are genuinely out rather than merely unvisited.
+
+**Staleness was missing from the contract.** The shared paragraph said to confirm with `codelens
+status` but never said to `sync`. An index built before the last three commits answers confidently
+and wrongly, which is the worst failure mode this integration has. All 27 blocks now carry it,
+along with `codelens doctor` — low coverage from an uninstalled dependency and low coverage from a
+resolver limit look identical in the number and are nothing alike in the fix.
+
+### Added — the commands nothing was using
+
+`node`, `callees` and `query` were referenced nowhere. They are now where they earn their place:
+`node` in `/namht-ask` for a question about one named thing, `callees` in `/namht-document` for
+mapping a business step to the functions a flow really calls, `query` in `/namht-simplify` because
+duplication hides under different names. Every codelens command is now referenced by something
+except `mcp`, which is the server's own stdio entry point and is invoked by the client config, not
+by a skill.
+
+### Added — the docs a new user actually reads
+
+Both setup guides gained a codelens section (what changes with an index, the four-command install,
+the offline and gitignore notes). `docs/skills-catalog.html` says 27 of the 30 use it and what the
+fallback label means. `/namht-help` reports whether the current repo has an index — and is told
+**not** to run `codelens init` itself, since that walks the whole tree and is the user's decision.
+The VS Code panel's README says the same.
+
+### Fixed
+
+- README claimed 25 skills; it is 27.
+
+---
+
 ## [2.7.0] — 2026-08-25
 
 ### Added — codelens, as an optional call-graph dependency

@@ -17,6 +17,16 @@
 >    short and real (actual service/module/table names). This keeps the KB renderable to
 >    HTML/PDF and comparable across rescans.
 
+> 8. **Structure claims come from the call graph where one exists.** With a `.codelens/` index
+>    (Java · Ruby · TS/JS), `codelens hotspots` names the real hubs, `codelens cycles` the real
+>    circular dependencies, `codelens dead` what nothing reaches, and `codelens explore <symbol>`
+>    the real callers and callees. Use them for §06, §07, §10 and §16 rather than inferring
+>    coupling from folder names or imports. Record the coverage figure in `_meta.yml` (below), and
+>    when there is no index say the structural sections are grep-depth — a KB that overstates how
+>    it knows something is worse than one that admits the limit.
+>    **The graph is an input, never the output.** Do not paste `hotspots` into a KB page: a
+>    fan-in number is not a business meaning, and the meaning is the whole point of these docs.
+
 Sections **04, 05, 10, 13, 16** are the highest-value "deep analysis" docs — spend
 the most effort there and, when possible, analyze them with parallel sub-agents
 (service layer / tests+validators / models+schema) then synthesize.
@@ -55,6 +65,7 @@ Check ALL sources: JPA `@Entity`, Prisma schema, TypeORM, Django models, ActiveR
 
 ## 06 — `06-modules.md` — Module Map & Feature Boundaries
 1. **Module Overview Table**  2. **Module Deep-Dive**  3. **Cross-Module Communication**  4. **Feature Flags / Toggles**  5. **Module Maturity Assessment**.
+With an index: `codelens hotspots` ranks the modules most depended on (start the Deep-Dive there, not alphabetically), and `codelens cycles` turns "Cross-Module Communication" from a diagram of intent into a list of what actually happens.
 
 ## 07 — `07-architecture-diagram.md` — System Architecture & Data Flow
 1. **High-Level Architecture Diagram** — a ```mermaid `flowchart` showing every deployable unit and
@@ -137,6 +148,7 @@ Document the ACTUAL architecture so future changes follow it and DO NOT break th
 4. **Module Boundaries & Communication** — how modules talk (call / port / event / queue / shared DB); what crossing is allowed.
 5. **Extension Recipes** — "Add a REST endpoint", "Add an entity + persistence", "Add an async consumer" — step-by-step, citing an existing example to copy.
 6. **Architecture Invariants — DO NOT BREAK** — a numbered checklist of hard rules new code MUST satisfy (layering, naming, transaction boundaries, where validation lives, idempotency for consumers…). Mark `[CRITICAL]`/`[MAJOR]`. **This list is used to review every generated change.**
+   **Prefer invariants that can be checked.** "Nothing may bypass `X`" is verifiable when `X` is a named symbol — `codelens callers X` and `codelens path <caller> <forbidden target>` settle it in one command — whereas "keep the layers clean" can only ever be argued about. Where an invariant rests on an edge the index cannot resolve, say so in the rule itself.
 
 ---
 
@@ -152,7 +164,7 @@ catalogs are put side by side.
 ## Auxiliary outputs (also written by Scan)
 - `review-skills.md` — the universal review checklist (see `review-skills-universal.md`) with a **Section 14 — Project-Specific Rules** appended (naming, mandatory patterns, banned anti-patterns, business rules every new feature must respect — each with a code citation).
 - `modules/<module>.md` + `modules/_index.md` — deep per-module docs for large projects (exhaustive flows + rules + entities + API + dependencies).
-- `_coverage-report.md` — which files were analyzed vs covered by global scan only.
+- `_coverage-report.md` — which files were analyzed vs covered by global scan only. Where an index exists, also record `codelens status` and anything `codelens doctor` flags as blocking: low coverage caused by an uninstalled dependency and low coverage caused by a resolver limit look identical in the number and are nothing alike for whoever reads this KB next.
 - `_meta.yml` — **the KB's identity.** The folder is called `knowledge-base/` in every repo, which is
   fine inside one repo and useless the moment KBs from several projects sit side by side. This file is
   how a KB says which project it belongs to and how old it is. Write it every scan/rescan:
@@ -166,7 +178,12 @@ catalogs are put side by side.
   depth: standard                # quick | standard | deep
   modules: [auth, orders, billing]         # the modules/ docs present
   files_analyzed: 412
+  codelens: 93.4%                # in-repo resolution at scan time, or "none" if unindexed
   ```
+  `codelens` records how much of the call graph was resolved when this KB was written
+  (`codelens status`), or `none`. It is the honesty column: a reader comparing two KBs needs to
+  know that one was built on a resolved graph and the other on grep. Omit the key rather than
+  guess a number.
   Get `repo`/`branch`/`commit` from git (`git config --get remote.origin.url`, `git branch --show-current`,
   `git rev-parse --short HEAD`); if the folder is not a git repo, say so rather than inventing values.
   `project` defaults to the repo folder name — ask the user if that name is meaningless (`src`, `app`).

@@ -5,7 +5,7 @@
 #
 # Usage:
 #   Copy this file into your project's knowledge-base/review-skills.md.
-#   Auto Spec extension will automatically inject it into STEP 05 — Code Review.
+#   The namht Kit injects it into /namht-review, /namht-build and /namht-pr.
 #   For pure backend/frontend projects: remove Section 8 (AI Engineering).
 #   For projects with AI components: keep all sections.
 #
@@ -18,6 +18,40 @@
 
 ---
 
+## 0. EVIDENCE — what a finding has to rest on
+
+A review is only worth the evidence under it. Most of the checks below are claims about
+**reach**: who calls this, what breaks if it changes, whether a test covers it. Read off a file,
+those are guesses; read off a call graph, they are facts. The difference decides whether a
+`[CRITICAL]` is real.
+
+**Where a `.codelens/` index exists, use it** (Java · Ruby · TS/JS only):
+
+| The claim you are about to make | What settles it |
+|---|---|
+| "this is called from N places" | `codelens callers <symbol> --json` — a grep hit count is not a caller count |
+| "changing this breaks X" | `codelens impact <symbol>` — transitive, through DI, interfaces and mixins |
+| "nothing tests this" | `git diff --name-only \| codelens affected` — it names the tests that do |
+| "this layer reaches into that one" | `codelens path <from> <to>` — a real chain, or none |
+| "this is unused / can be deleted" | `codelens dead` — already filtered against templates and config |
+| "this is the hot path" | `codelens hotspots` — fan-in, not intuition |
+
+Two rules, and they matter more than the table:
+
+- **Check the index before trusting it.** `codelens status` once; `codelens sync` if the working
+  tree moved since it was built. A stale index is worse than none because it looks authoritative.
+  If coverage reads low, `codelens doctor` says whether that is a resolver limit or just an
+  uninstalled dependency — those look identical in the number and are nothing alike in the fix.
+- **Degrade out loud.** No index, no `codelens`, or a language it does not cover → Grep/Glob, and
+  mark the finding `⚠️ grep-depth only (no codelens index)`. Never state a grep hit as a resolved
+  call. And **absence of a path is not proof of safety**: reflection, dynamic dispatch and
+  string-built calls are exactly what a graph misses.
+
+When a finding rests on an edge below `direct`, quote its confidence. A 0.4 `unique-name` link is
+a lead to check, not a verdict to file.
+
+---
+
 ## 1. ARCHITECTURE & DESIGN
 
 > *"Good architecture makes wrong things hard, right things easy."*
@@ -27,6 +61,11 @@
 - [CRITICAL] Business logic MUST NOT reside in the transport layer (Controller, Handler, Route, View).
 - [CRITICAL] Infrastructure concerns (DB, HTTP client, file I/O, message queue) MUST NOT reside in the domain/service layer — they must go through an interface/port/abstraction.
 - [MAJOR] A component must not know the implementation details of another component — it may only know the contract (interface).
+
+> **Proving a violation (§0).** A layering breach is a resolved edge, not an import line:
+> `codelens explore <symbol>` shows what it really calls, `codelens path <ui> <infra>` shows whether
+> the forbidden chain exists, and `codelens cycles` lists the files that depend on each other the
+> long way round. Report a crossing you proved; label one you inferred.
 
 ### 1.2 Dependency Direction (Clean / Hexagonal Architecture)
 ```
@@ -137,6 +176,11 @@ Infrastructure Error  →  wrap into  →  Domain Exception  →  map into  → 
 - [MAJOR] Do not sort/filter in memory when the database can do it more efficiently.
 - [MAJOR] Pagination MUST be present on every list endpoint. Do not return unbounded lists.
 
+> **N+1 is a graph fact, not a text pattern (§0).** `codelens callers <query method>` answers the
+> only question that matters — is it reached from inside a loop — and `codelens path <controller>
+> <repository>` shows the full chain behind a slow endpoint, which is where an N+1 hides between
+> two layers that each look innocent.
+
 ### 4.2 Database Query Optimization
 - [CRITICAL] **N+1 queries**: Do not query inside a loop. Use JOIN, eager loading, or batch fetch.
   ```
@@ -199,6 +243,11 @@ Infrastructure Error  →  wrap into  →  Domain Exception  →  map into  → 
 ## 6. TESTING
 
 > *"Tests don't prove code is correct. Tests reveal where code is wrong."*
+
+> **"Untested" is checkable (§0).** `git diff --name-only | codelens affected --fail-if-untested`
+> lists the tests that already reach the change, and exits **2** when production code changed and
+> none do. Treat that exit as a `[CRITICAL]`, not a note. The same output is the regression set:
+> one case per consumer it names.
 
 ### 6.1 Test Pyramid
 ```
@@ -321,6 +370,11 @@ External Input  →  [Validator]  →  Application  →  [Domain Invariant]  →
 ---
 
 ## 9. CODE QUALITY
+
+> **Dead code and duplication (§0).** `codelens dead` is the delete list — it already excludes
+> names that appear in templates and config, so a getter an `.erb` page renders is not on it.
+> Before proposing a rename or an extraction, `codelens impact <symbol>` is the set that
+> "behaviour unchanged" is measured against. Never file a deletion on zero grep hits alone.
 
 ### 9.1 Naming (all languages)
 - [MAJOR] Names must be **self-documenting** — reading the name should immediately convey intent, without needing a comment to explain *what*.
@@ -489,7 +543,7 @@ Use this checklist to ensure nothing is missed during review:
 
 ## 14. PROJECT-SPECIFIC RULES
 
-> Fill this in after running `Generate Knowledge Base` to add rules specific to your project.
-> Auto Spec extension will automatically update this section via Step 13 after each task.
+> Fill this in after running `/namht-scan` to add rules specific to your project.
+> `/namht-build` updates this section from what each task taught it.
 
-<!-- Placeholder — will be automatically updated by Auto Spec extension final KB step -->
+<!-- Placeholder — written by /namht-scan, kept current by /namht-rescan -->

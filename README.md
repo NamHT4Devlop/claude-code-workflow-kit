@@ -383,7 +383,7 @@ The Knowledge Base above is what the system **means**. [`codelens`](https://gith
 is what it **does**: a pre-built graph of symbols and who-calls-what, so a skill can ask for the real
 callers of a symbol instead of grepping for its name.
 
-Nothing here requires it. **25 of the 30 skills** use it when a `.codelens/` index is present and
+Nothing here requires it. **27 of the 30 skills** use it when a `.codelens/` index is present and
 fall back to Grep/Glob when it is not — and when they fall back they say so, marking the output
 `⚠️ grep-depth only (no codelens index)`. That sentence is the point: a caller list from grep and one
 from a resolved call graph are not the same claim, and an impact analysis that hides which one it
@@ -416,6 +416,12 @@ ln -sf ~/AI-TOOL/codelens/bin/codelens.js ~/.local/bin/codelens && codelens inst
 ```bash
 cd /path/to/your/repo && codelens init .
 ```
+
+The two files bundled into many skills at once carry it too: `resources/review-skills-universal.md`
+opens with a **§0 Evidence** section — which command settles which claim, and the rule that a finding
+degraded to grep must say so — and `resources/kb-steps.md` makes structural claims come from the
+graph where one exists, while forbidding graph output from being pasted into a KB page (a fan-in
+number is not a business meaning).
 
 `scripts/onboard-project.sh` adds `.codelens/` to the project's `.gitignore` (it is a rebuildable
 cache and must never reach a team repo) and reports the index status. The seven sub-agents in

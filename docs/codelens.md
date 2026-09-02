@@ -107,6 +107,23 @@ inferred.
 
 ---
 
+## Beyond the skills: the shared resources
+
+Two files are bundled into many skills at once, and both had no idea codelens existed — which meant
+the methodology said one thing and the shared checklist another:
+
+- **`resources/review-skills-universal.md`** (bundled into 6 skills) opens with **§0 Evidence**: the
+  table of which command settles which claim, the staleness rule, and the instruction to mark a
+  finding `grep-depth` when it degraded. Every later section that makes a reach claim points back
+  at it — layering in §1, N+1 in §4, "untested" in §6, dead code in §9.
+- **`resources/kb-steps.md`** (bundled into `scan` and `rescan`) gains golden rule **8**: structural
+  claims come from the graph where one exists, the graph is an **input and never the output** — a
+  fan-in number is not a business meaning — and `_meta.yml` records the resolution figure so a
+  reader can tell a KB built on a resolved graph from one built on grep.
+
+Edit them in `resources/` and run `scripts/sync-bundles.sh`; the copies under
+`skills/*/references/` are generated, and CI fails if they drift.
+
 ## The contract every skill follows
 
 Each integrated skill carries a `### codelens (optional)` block. The wording of its first
@@ -114,8 +131,10 @@ paragraph is identical everywhere on purpose — `tests/consistency.test.sh` che
 fallback sentence cannot be quietly dropped from one skill:
 
 1. **Prefer it when present.** `.codelens/` exists → use it for anything about who-calls-what.
-2. **Verify before trusting.** `codelens status` once. A stale or thin index is worse than none
-   because it looks authoritative.
+2. **Verify before trusting.** `codelens status` once, and `codelens sync` when the working tree has
+   moved since the index was built. A stale or thin index is worse than none because it looks
+   authoritative. `codelens doctor` separates a resolver limit from an uninstalled dependency —
+   identical in the number, nothing alike in the fix.
 3. **Degrade loudly.** No index, no command, or an uncovered language → Grep/Glob, and write
    `⚠️ grep-depth only (no codelens index)` in the output.
 4. **Never launder a guess.** A grep hit is not a resolved call and must never be reported as one.
@@ -123,19 +142,22 @@ fallback sentence cannot be quietly dropped from one skill:
 
 ## Which skills use it
 
-**Integrated (25):** `ask` `build` `design-review` `document` `drift` `fix-bug` `map` `migrate`
-`observe` `perf` `plan` `plan-review` `pr` `qa` `rails-to-spring` `rescan` `retro` `review`
-`runbook` `scan` `security-audit` `simplify` `skillify` `system-map` `user-story`
+**Integrated (27):** `ask` `build` `design-review` `discover` `document` `drift` `fix-bug` `map`
+`migrate` `observe` `perf` `plan` `plan-review` `pr` `qa` `qa-integration` `rails-to-spring`
+`rescan` `retro` `review` `runbook` `scan` `security-audit` `simplify` `skillify` `system-map`
+`user-story`
 
-**Deliberately not (5)** — they never reason about a call graph, and a block there would be noise:
+**Deliberately not (3)** — they never reason about a call graph, and a block there would be noise:
 
 | Skill | Why not |
 |---|---|
-| `namht-discover` | Runs before any code exists. |
-| `namht-issues` | Turns an approved plan into tickets; touches a tracker, not a repo. |
-| `namht-pdf` | Renders a Markdown/HTML file to PDF. |
-| `namht-qa-integration` | Drives a live browser against a running app; its evidence is the DOM, not the source. |
-| `namht-splunk-report` | Queries Splunk and posts to Slack. |
+| `namht-issues` | Turns an **approved** plan into tickets. The blast radius is already in the plan; re-deriving it here is a second opinion nobody asked for. |
+| `namht-pdf` | Renders a Markdown/HTML file to PDF. It never opens the source. |
+| `namht-splunk-report` | Queries Splunk and posts to Slack — it may not even run inside the app's repo. |
+
+`discover` and `qa-integration` were on that list and should not have been. Both turn on a reach
+question — *"which existing flow does this touch?"* and *"which regressions do I run?"* — and
+answering either from intuition is precisely what the block exists to stop.
 
 That list is encoded in `tests/consistency.test.sh` — adding a skill without a block, or without
 an entry there, fails the suite.
