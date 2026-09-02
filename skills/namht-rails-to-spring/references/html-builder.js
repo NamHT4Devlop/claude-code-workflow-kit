@@ -652,7 +652,7 @@ function buildDocumentHtml(topic, markdown) {
         ? `default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data: file: https:; font-src data: https:; script-src 'nonce-${nonce}' https://cdnjs.cloudflare.com;`
         : `default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data: file: https:;`;
     const mermaidTags = hasMermaid
-        ? `<script nonce="${nonce}" src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js"></script>
+        ? `<script nonce="${nonce}" src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.8/mermaid.min.js"></script>
 <script nonce="${nonce}">try{
 // startOnLoad:true — mermaid waits for DOMContentLoaded itself. This script sits in <head>, so a
 // manual run() here would find no .mermaid nodes yet (and double-render once they appear).

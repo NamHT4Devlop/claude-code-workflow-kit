@@ -51,6 +51,10 @@ read-only specialists the build/review steps fan out to in parallel.
   recent version — if `/plugin` is unknown, update Claude Code first (`claude update` or
   reinstall from the official docs).
 - **git** installed (`git --version`) — needed to clone this repo and used by `rescan`/`review`.
+- **jq** installed (`jq --version`) — the git-guard hook reads each command as JSON through it.
+  `brew install jq` / `apt install jq`. **Without jq the guard refuses every command rather than
+  letting them through** — it fails closed by design, so a missing jq shows up immediately instead
+  of silently disabling the whitelist.
 - **Access to this repository.** It is **public**, so anyone can clone it — no special access
   needed. The plugin itself needs **no API key** — it runs on your existing Claude Code.
 - Paths below use `~/.claude` (macOS/Linux). On **Windows** use `%USERPROFILE%\.claude`

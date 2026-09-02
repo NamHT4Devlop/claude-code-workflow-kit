@@ -1,6 +1,6 @@
 {
   "name": "namht",
-  "version": "2.8.0",
+  "version": "2.8.1",
   "description": "Spec-driven dev workflow for Claude Code: plan → code → review → test → evidence, plus production bug hotfix, Knowledge Base scan, codebase Q&A, user stories, dependency map, cross-service system map, and business↔code docs. A native port of the author's private Auto Spec VS Code extension. Ships a read/sync-in-only git guard hook.",
   "author": {
     "name": "NamHT Labs"

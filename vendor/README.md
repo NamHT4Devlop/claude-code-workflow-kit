@@ -6,7 +6,7 @@ are pinned in `SHA256SUMS` and verified by `tests/run.sh`.
 
 | File | npm package | Version | License | Upstream CDN |
 |---|---|---|---|---|
-| `mermaid.min.js` | `mermaid` → `dist/mermaid.min.js` | 10.9.1 | MIT | https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js |
+| `mermaid.min.js` | `mermaid` → `dist/mermaid.min.js` | 10.9.8 | MIT | https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.8/mermaid.min.js |
 | `cytoscape.min.js` | `cytoscape` → `dist/cytoscape.min.js` | 3.30.2 | MIT | https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js |
 
 Both bundles are **byte-identical** whether taken from npm or from cdnjs (verified against the hashes

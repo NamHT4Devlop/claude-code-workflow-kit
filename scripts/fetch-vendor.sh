@@ -23,7 +23,7 @@ MODE="${1:-}"
 
 # name:version:path-inside-npm-package:cdnjs-path   (keep versions in step with vendor/README.md)
 LIBS=(
-  "mermaid:10.9.1:package/dist/mermaid.min.js:mermaid/10.9.1/mermaid.min.js"
+  "mermaid:10.9.8:package/dist/mermaid.min.js:mermaid/10.9.8/mermaid.min.js"
   "cytoscape:3.30.2:package/dist/cytoscape.min.js:cytoscape/3.30.2/cytoscape.min.js"
 )
 

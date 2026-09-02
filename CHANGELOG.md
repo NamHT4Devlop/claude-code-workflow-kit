@@ -14,6 +14,33 @@ noted per release when it changed.
 
 ---
 
+## [2.8.1] — 2026-09-02
+
+### Security
+
+- **Vendored `mermaid` 10.9.1 → 10.9.8.** 10.9.1 carries GHSA-m4gq-x24j-jpmf (high — prototype
+  pollution in the DOMPurify it bundles) plus a moderate. Every generated report embeds this
+  library and renders diagrams built from scanned-repo and ticket text, which is exactly the
+  untrusted input the advisory is about. `securityLevel: 'strict'` was already set and does not
+  cover it. 10.9.8 audits clean; the bundle was taken from cdnjs and the hash confirmed
+  byte-identical against the npm tarball (`8d607d7e…6675d`). The pin moves in `SHA256SUMS`,
+  `vendor/README.md`, `scripts/fetch-vendor.sh` and the CDN fallback URL in `html-builder.js`
+  together, which is the signal a reviewer looks for.
+- **`git-guard` now fails closed without `jq`.** It reads the command as JSON through `jq`; with
+  `jq` absent the parse came back empty, an empty command meant "not git", and the hook exited 0.
+  A machine that merely lacked `jq` had **no guard at all**, silently, for every push. Confirmed
+  with a PATH hiding only `jq`: a push to a non-whitelisted remote was allowed. It now denies
+  every command with a message naming the fix. The test suite gained the case — and the first
+  version of that test was itself wrong, because `bash` is also looked up on the shimmed PATH and
+  "bash: not found" produces the same empty stdout as a fail-open guard. It names bash absolutely.
+
+### Changed
+
+- `jq` is listed as a prerequisite in README, with the fail-closed behaviour stated; SECURITY.md
+  documents the fail mode.
+
+---
+
 ## [2.8.0] — 2026-08-25
 
 ### Added — codelens reaches the places 2.7.0 missed

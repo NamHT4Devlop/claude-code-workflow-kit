@@ -111,6 +111,11 @@ declares a CSP whose `script-src` carries a nonce, and no external host is conta
 
 ## Git guardrail (hard-blocked, read/sync-in only)
 
+> **Fail mode.** The hook parses the command with `jq`. If `jq` is absent it now **denies every
+> command** with a message naming the fix, instead of the previous behaviour — an empty parse read
+> as "not git", exit 0, allowed — which silently removed the guard on any machine without jq.
+> Verified with a PATH that hides only `jq`: a push to a non-whitelisted remote is refused.
+
 A **PreToolUse hook** (`hooks/git-guard.sh`) + **`permissions.deny`** rules block git commands that
 touch the **remote** or **destroy local work**, enforced by the Claude Code harness rather than the
 model's goodwill — and PreToolUse runs *before* the permission-mode check, so a `deny` still holds
