@@ -20,6 +20,10 @@ mk_repo() {  # <name> — a repo with a small KB
   printf '# auth module\n'  > "$r/knowledge-base/modules/auth.md"
   mkdir -p "$r/cwk-sessions/runbook"
   printf '# Runbook — alpha\n\nqueue depth climbing\n' > "$r/cwk-sessions/runbook/alpha-2026-09-08.md"
+  mkdir -p "$r/cwk-sessions/maps"
+  printf '<html><body>graph</body></html>\n' > "$r/cwk-sessions/maps/alpha-old.html"
+  sleep 1
+  printf '<html><body>NEWEST graph</body></html>\n' > "$r/cwk-sessions/maps/alpha-new.html"
   echo "$r"
 }
 
@@ -33,6 +37,8 @@ check "meta names the project"   "$(grep -c '^project: alpha' "$TMP/hub/projects
 check "index lists the project"  "$(grep -c 'projects/alpha' "$TMP/hub/README.md" 2>/dev/null)" 1
 # A runbook lives in cwk-sessions/ (gitignored), so the hub is the only place a teammate reads one.
 check "runbook carried into the hub" "$(cat "$TMP/hub/projects/alpha/runbook/alpha-2026-09-08.md" 2>/dev/null | head -1)" "# Runbook — alpha"
+# /cwk-map writes one file per run; the NEWEST is the one describing the current tree.
+check "newest code graph carried"    "$(grep -c 'NEWEST graph' "$TMP/hub/projects/alpha/code-graph.html" 2>/dev/null)" 1
 
 echo "kb-export: a repo with no KB is skipped, not failed"
 mkdir -p "$TMP/empty-repo"
@@ -84,6 +90,13 @@ if command -v node >/dev/null 2>&1; then
   check "runbook page is in the site"  "$(grep -c 'runbook/alpha-2026-09-08.md' "$TMP/site.html" 2>/dev/null)" 1
   check "runbook titled as a runbook"  "$(grep -c 'runbook / alpha 2026 09 08' "$TMP/site.html" 2>/dev/null)" 1
   check "its text is searchable"       "$(grep -c 'queue depth climbing' "$TMP/site.html" 2>/dev/null)" 1
+  # The graph is linked, not inlined: a few hundred KB per project would make the page unopenable.
+  check "graph page not inlined"            "$(grep -c 'NEWEST graph' "$TMP/site.html" 2>/dev/null)" 0
+  # The href is relative to the PAGE, not to the hub: written into the hub it is projects/<n>/…,
+  # written elsewhere it has to climb. Getting this wrong gives a dead link that looks fine.
+  check "href relative to a page beside the hub" "$(grep -c '"graph":"hub/projects/alpha/code-graph.html"' "$TMP/site.html" 2>/dev/null)" 1
+  node "$PWD/scripts/kb-site.cjs" "$TMP/hub" >/dev/null 2>&1
+  check "href relative to a page inside the hub" "$(grep -c '"graph":"projects/alpha/code-graph.html"' "$TMP/hub/index.html" 2>/dev/null)" 1
   # CSP: a nonce on style-src makes 'unsafe-inline' be ignored, which silently breaks every Mermaid
   # diagram (they are styled by an injected <style>). Read the real directive out of the meta tag —
   # not the file at large, which also contains a comment explaining this.

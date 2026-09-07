@@ -96,6 +96,15 @@ for repo in "$@"; do
     run cp -R "$rb" "$dest/runbook"
   fi
 
+  # The newest /cwk-map output, if there is one. It is a self-contained page with its own per-node
+  # search, so it travels as a sibling file and kb-site.cjs links to it rather than inlining it --
+  # a few hundred KB per project inside one page would make the page the thing nobody opens.
+  graph=$(ls -t "$repo"/cwk-sessions/maps/*.html 2>/dev/null | head -1 || true)
+  if [ -n "$graph" ]; then
+    echo "   + code graph ($(basename "$graph"))"
+    run cp "$graph" "$dest/code-graph.html"
+  fi
+
   if [ "$DRY" = 0 ]; then
     if [ -f "$kb/_meta.yml" ]; then
       cp "$kb/_meta.yml" "$dest/_meta.yml"

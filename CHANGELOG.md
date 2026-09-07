@@ -14,6 +14,38 @@ noted per release when it changed.
 
 ---
 
+## [3.2.0] — 2026-09-08
+
+### Added — one command for the whole chain, and the code graph reachable from the page
+
+The kit could produce a Knowledge Base, a runbook and a code graph, and a reader had to know all
+three existed and where each landed. Two gaps closed:
+
+- **`scripts/kb-pipeline.sh`** runs the chain over any number of checkouts: `provenlens init` →
+  `/cwk-scan` → `/cwk-runbook` → `/cwk-map`, then `kb-export` + `kb-site`. It **never clones** — a
+  URL is rejected as a path, so it can only touch repos you already have — prints the full plan with
+  a per-repo step list and a cost warning before spending a token, and skips any step whose output
+  exists unless `--force`. A scan is the most expensive thing in this kit, so the plan comes first
+  and the prompt comes before the first one. 15 fixture cases behind stubbed `claude`/`provenlens`.
+- **The code graph is one click from the KB page.** `kb-export.sh` carries the newest
+  `cwk-sessions/maps/*.html` into the hub as `code-graph.html`; `kb-site.cjs` renders a **⛓ Code
+  graph** link per project, with the href computed relative to the page it writes. Linked rather
+  than inlined: a few hundred KB of Cytoscape per project would turn the searchable page into the
+  page nobody opens. Four cases pin the carry and both href placements — a dead link that looks
+  fine is the failure worth testing for.
+
+### Note on picking repos by benchmark score
+
+Ranking provenlens's 10,000-repo sweep by its resolution figure does **not** select repos worth
+documenting. The figure is `linked / (linked + missed)`, so a repository whose calls are almost all
+into libraries has a denominator of a few dozen and scores 100% on nothing: of the 4,144 repos at
+100%, **74% have fewer than 50 in-repo calls**. Ranking by graph density instead surfaces JDK source
+dumps and asset repositories. That corpus is a random sweep built to measure a resolver against hard
+cases, not a shortlist of well-engineered applications — see README's hub section for what to point
+the pipeline at instead.
+
+---
+
 ## [3.1.0] — 2026-09-08
 
 ### Added — runbooks are in the searchable page, not just the KB

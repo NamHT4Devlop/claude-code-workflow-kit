@@ -544,6 +544,18 @@ modules: [auth, orders, billing]
 one that gets trusted as current. Per-module docs already carry their own name
 (`knowledge-base/modules/<module>.md`).
 
+**1b. Or run the whole chain in one command.** `scripts/kb-pipeline.sh` does steps 1-3 for every repo
+you name — index, scan, runbook, code graph, then export and build the page — skipping whatever is
+already there:
+
+```bash
+scripts/kb-pipeline.sh --depth standard --hub ~/kb-hub ~/work/taskflow ~/work/billing
+```
+
+It **never clones**: point it at checkouts you already have. It prints the full plan with a per-repo
+step list before spending a token, and asks. `--dry-run` prints and runs nothing, `--force` redoes a
+step whose output exists.
+
 **2. Collect them into one hub repo, namespaced by project:**
 
 ```bash
@@ -554,7 +566,7 @@ scripts/kb-export.sh ~/kb-hub ~/work/taskflow ~/work/billing ~/work/gateway
 kb-hub/
 ├── README.md                                  # index: project · branch · commit · exported · files
 └── projects/
-    ├── taskflow/{_meta.yml, knowledge-base/…, runbook/…}
+    ├── taskflow/{_meta.yml, knowledge-base/…, runbook/…, code-graph.html}
     ├── billing/{_meta.yml, knowledge-base/…}
     └── gateway/{_meta.yml, knowledge-base/…}
 ```
@@ -577,6 +589,10 @@ all), and survives being emailed or dropped on a share drive. Build or rebuild i
 node scripts/kb-site.cjs ~/kb-hub              # → ~/kb-hub/index.html
 node scripts/kb-site.cjs ~/work/taskflow       # also works on a single repo's knowledge-base/
 ```
+
+Each project also carries a **⛓ Code graph** link: the `/cwk-map` page, with its own per-node search
+over the resolved call graph. It is linked rather than inlined, so this page keeps its "email it and
+it opens" property while the graph stays one click away.
 
 A KB older than 30 days gets an amber badge and a banner naming the commit it actually describes —
 the point being that a stale KB should not be able to pass itself off as current.

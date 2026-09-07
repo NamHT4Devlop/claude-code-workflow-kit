@@ -45,6 +45,7 @@ if (fs.existsSync(hubDir) && fs.statSync(hubDir).isDirectory()) {
         name, kb,
         metaFile: path.join(hubDir, name, '_meta.yml'),
         runbookDir: path.join(hubDir, name, 'runbook'),
+        graphFile: path.join(hubDir, name, 'code-graph.html'),
       });
     }
   }
@@ -55,6 +56,7 @@ if (fs.existsSync(hubDir) && fs.statSync(hubDir).isDirectory()) {
     kb,
     metaFile: path.join(kb, '_meta.yml'),
     runbookDir: path.join(root, 'cwk-sessions', 'runbook'),
+    graphFile: newestMap(path.join(root, 'cwk-sessions', 'maps')),
   });
 }
 if (!projects.length) {
@@ -88,6 +90,19 @@ for (const p of projects) {
   p.stale = p.ageDays != null && p.ageDays > 30;
 }
 
+/**
+ * The most recent code graph a repo has, or ''. /cwk-map writes one file per run into
+ * cwk-sessions/maps/, so the newest is the one that describes the current tree.
+ */
+function newestMap(dir) {
+  if (!dir || !fs.existsSync(dir)) return '';
+  const files = fs.readdirSync(dir)
+    .filter((n) => /\.html$/i.test(n))
+    .map((n) => path.join(dir, n))
+    .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+  return files[0] || '';
+}
+
 function walk(dir, base, acc) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
     const full = path.join(dir, e.name);
@@ -117,8 +132,16 @@ function parseMeta(f) {
 // ---------- serialise ----------
 // The same escaping build-map.cjs learned the hard way: a `</script>` inside any KB document would
 // otherwise close this block early and inject markup into the page.
+// The code graph is a separate self-contained page (Cytoscape, its own per-node search), not
+// inlined: one of those is a few hundred KB and a hub has one per project. A relative href keeps
+// this page's own "email it and it opens" property intact and still puts the graph one click away
+// -- it resolves whenever the folder travels together, and the link simply 404s when it does not,
+// which is visible rather than silent.
 const dataJson = JSON.stringify(projects.map(p => ({
   name: p.name, meta: p.meta, ageDays: p.ageDays, stale: p.stale,
+  graph: p.graphFile && fs.existsSync(p.graphFile)
+    ? path.relative(path.dirname(path.resolve(out)), p.graphFile).split(path.sep).join('/')
+    : '',
   docs: p.docs.map(d => ({ id: d.id, title: d.title, html: d.html })),
 })))
   .replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
@@ -176,6 +199,9 @@ body{margin:0;font:14px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,
 #search{margin:10px;padding:8px 10px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--fg);font:inherit;font-size:13px}
 #search:focus{outline:1px solid var(--accent)}
 #plist{overflow:auto;padding:4px 8px 12px;flex:1}
+a.graphlink{display:block;margin:-2px 0 10px;padding:6px 10px;border:1px dashed var(--line);border-radius:8px;
+  color:var(--dim);text-decoration:none;font-size:12px}
+a.graphlink:hover{color:var(--fg);border-color:var(--accent)}
 .p{width:100%;text-align:left;background:none;border:1px solid transparent;border-radius:8px;color:var(--fg);padding:8px 10px;cursor:pointer;margin-bottom:3px;font:inherit}
 .p:hover{background:var(--panel2)}
 .p.on{background:var(--panel2);border-color:var(--accent)}
@@ -280,6 +306,15 @@ function renderRail() {
     b.appendChild(el('span', null, (p.meta.branch ? p.meta.branch + ' · ' : '') + (p.meta.commit || '') + (q ? '  — ' + n + ' match' + (n > 1 ? 'es' : '') : '')));
     b.onclick = () => { pi = i; di = q ? p.docs.findIndex(hits) : 0; if (di < 0) di = 0; render(); };
     list.appendChild(b);
+    // The graph answers a different question than the prose does -- "what reaches this symbol" --
+    // and it carries its own per-node search, so it is a sibling page rather than another tab.
+    if (p.graph) {
+      const g = el('a', 'graphlink', '⛓ Code graph — search by node');
+      g.href = p.graph;
+      g.target = '_blank';
+      g.rel = 'noopener';
+      list.appendChild(g);
+    }
   });
   if (!list.children.length) list.appendChild(el('div', null, q ? 'No project matches.' : 'No projects.'));
   document.getElementById('sub').textContent = DATA.length + ' project' + (DATA.length > 1 ? 's' : '') + ' · ' + DATA.reduce((n, p) => n + p.docs.length, 0) + ' documents';
