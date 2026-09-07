@@ -18,6 +18,8 @@ mk_repo() {  # <name> — a repo with a small KB
   printf '# 01 structure\n' > "$r/knowledge-base/01-project-structure.md"
   printf '# rules\n'        > "$r/knowledge-base/13-business-rules.md"
   printf '# auth module\n'  > "$r/knowledge-base/modules/auth.md"
+  mkdir -p "$r/cwk-sessions/runbook"
+  printf '# Runbook — alpha\n\nqueue depth climbing\n' > "$r/cwk-sessions/runbook/alpha-2026-09-08.md"
   echo "$r"
 }
 
@@ -29,6 +31,8 @@ check "nested module doc copied" "$(cat "$TMP/hub/projects/alpha/knowledge-base/
 check "identity file written"    "$([ -f "$TMP/hub/projects/alpha/_meta.yml" ] && echo yes || echo no)" yes
 check "meta names the project"   "$(grep -c '^project: alpha' "$TMP/hub/projects/alpha/_meta.yml" 2>/dev/null)" 1
 check "index lists the project"  "$(grep -c 'projects/alpha' "$TMP/hub/README.md" 2>/dev/null)" 1
+# A runbook lives in cwk-sessions/ (gitignored), so the hub is the only place a teammate reads one.
+check "runbook carried into the hub" "$(cat "$TMP/hub/projects/alpha/runbook/alpha-2026-09-08.md" 2>/dev/null | head -1)" "# Runbook — alpha"
 
 echo "kb-export: a repo with no KB is skipped, not failed"
 mkdir -p "$TMP/empty-repo"
@@ -76,6 +80,10 @@ if command -v node >/dev/null 2>&1; then
   check "page written"                "$([ -f "$TMP/site.html" ] && echo yes || echo no)" yes
   check "every project embedded"      "$(grep -c '"name":"alpha"' "$TMP/site.html" 2>/dev/null)" 1
   check "no external script/style"    "$(grep -cE '(src|href)="https?://' "$TMP/site.html" 2>/dev/null)" 0
+  # The runbook must be searchable beside the KB, and titled so a hit is recognisable as one.
+  check "runbook page is in the site"  "$(grep -c 'runbook/alpha-2026-09-08.md' "$TMP/site.html" 2>/dev/null)" 1
+  check "runbook titled as a runbook"  "$(grep -c 'runbook / alpha 2026 09 08' "$TMP/site.html" 2>/dev/null)" 1
+  check "its text is searchable"       "$(grep -c 'queue depth climbing' "$TMP/site.html" 2>/dev/null)" 1
   # CSP: a nonce on style-src makes 'unsafe-inline' be ignored, which silently breaks every Mermaid
   # diagram (they are styled by an injected <style>). Read the real directive out of the meta tag —
   # not the file at large, which also contains a comment explaining this.
@@ -101,6 +109,11 @@ if command -v node >/dev/null 2>&1; then
   node "$PWD/scripts/kb-site.cjs" "$TMP/solo" "$TMP/solo.html" >/dev/null 2>&1
   check "single-repo page written"  "$([ -f "$TMP/solo.html" ] && echo yes || echo no)" yes
   check "project named after the dir" "$(grep -c '"name":"solo"' "$TMP/solo.html")" 1
+  # Single-repo shape: the runbook sits at cwk-sessions/runbook/, not beside the KB.
+  mkdir -p "$TMP/solo/cwk-sessions/runbook"
+  printf '# Runbook — solo\n\nrestart the consumer\n' > "$TMP/solo/cwk-sessions/runbook/solo.md"
+  node "$PWD/scripts/kb-site.cjs" "$TMP/solo" "$TMP/solo2.html" >/dev/null 2>&1
+  check "runbook found in a single repo" "$(grep -c 'restart the consumer' "$TMP/solo2.html" 2>/dev/null)" 1
   mkdir -p "$TMP/nokb"
   node "$PWD/scripts/kb-site.cjs" "$TMP/nokb" "$TMP/nokb.html" >/dev/null 2>&1
   check "no-KB dir exits non-zero"  "$([ $? -ne 0 ] && echo yes || echo no)" yes

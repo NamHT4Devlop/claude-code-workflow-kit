@@ -554,7 +554,7 @@ scripts/kb-export.sh ~/kb-hub ~/work/taskflow ~/work/billing ~/work/gateway
 kb-hub/
 ├── README.md                                  # index: project · branch · commit · exported · files
 └── projects/
-    ├── taskflow/{_meta.yml, knowledge-base/…}
+    ├── taskflow/{_meta.yml, knowledge-base/…, runbook/…}
     ├── billing/{_meta.yml, knowledge-base/…}
     └── gateway/{_meta.yml, knowledge-base/…}
 ```
@@ -566,8 +566,11 @@ commits or pushes** — you review it yourself.
 
 **3. It is one browsable web page, not a folder of Markdown.** `kb-export.sh` also writes
 `<hub>/index.html` — a **single self-contained page**: projects down the left with a freshness badge,
-one tab per KB document across the top, Mermaid diagrams drawn, and a search box that covers every
-document in every project at once. It opens with a double-click, works offline (no network calls at
+one tab per document across the top, Mermaid diagrams drawn, and a search box that covers every
+document in every project at once. **Runbooks are in it too** — a repo's `cwk-sessions/runbook/*.md`
+rides along in the export and appears as `runbook / <name>` beside the KB pages, because "what do we
+do when X fails" is exactly what someone types into that box, and a runbook lives in a gitignored
+folder where a teammate would otherwise never find it. It opens with a double-click, works offline (no network calls at
 all), and survives being emailed or dropped on a share drive. Build or rebuild it any time:
 
 ```bash

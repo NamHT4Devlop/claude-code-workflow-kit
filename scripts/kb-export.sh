@@ -7,6 +7,7 @@
 #
 # Layout it writes:
 #   <hub>/projects/<project>/knowledge-base/…   the KB, verbatim
+#   <hub>/projects/<project>/runbook/…          the repo's cwk-sessions/runbook/, when it has one
 #   <hub>/projects/<project>/_meta.yml          identity: repo, branch, commit, date, counts
 #   <hub>/README.md                             an index table of every project in the hub
 #
@@ -84,6 +85,16 @@ for repo in "$@"; do
   run mkdir -p "$dest"
   run rm -rf "$dest/knowledge-base"
   run cp -R "$kb" "$dest/knowledge-base"
+
+  # Runbooks are the operational half of the same picture, and kb-site.cjs renders them beside the
+  # KB in one searchable page. They live under cwk-sessions/, which is gitignored, so a hub is the
+  # only place a teammate can read one. Absence is normal, not an error.
+  rb="$repo/cwk-sessions/runbook"
+  if [ -d "$rb" ]; then
+    echo "   + $(find "$rb" -name '*.md' | wc -l | tr -d ' ') runbook page(s)"
+    run rm -rf "$dest/runbook"
+    run cp -R "$rb" "$dest/runbook"
+  fi
 
   if [ "$DRY" = 0 ]; then
     if [ -f "$kb/_meta.yml" ]; then

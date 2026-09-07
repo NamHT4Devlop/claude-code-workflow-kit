@@ -11,6 +11,11 @@
  * document tabs across the top, search over everything — that opens with a double-click, works
  * offline, and can be handed to someone who will never run a terminal.
  *
+ * It reads two folders per project: the Knowledge Base (what the system means) and, when present,
+ * the runbooks under cwk-sessions/runbook/ (what to do when it breaks). The second is the half
+ * someone searches under pressure, and it lives in a gitignored folder, so leaving it out would put
+ * it beyond the reach of the one page built to be findable.
+ *
  * Self-contained on purpose: every document, the CSS and (when vendored) Mermaid are inlined, so
  * the file survives being emailed, put on a share drive, or opened on a plane.
  */
@@ -35,11 +40,22 @@ const hubDir = path.join(root, 'projects');
 if (fs.existsSync(hubDir) && fs.statSync(hubDir).isDirectory()) {
   for (const name of fs.readdirSync(hubDir).sort()) {
     const kb = path.join(hubDir, name, 'knowledge-base');
-    if (fs.existsSync(kb)) projects.push({ name, kb, metaFile: path.join(hubDir, name, '_meta.yml') });
+    if (fs.existsSync(kb)) {
+      projects.push({
+        name, kb,
+        metaFile: path.join(hubDir, name, '_meta.yml'),
+        runbookDir: path.join(hubDir, name, 'runbook'),
+      });
+    }
   }
 } else if (fs.existsSync(path.join(root, 'knowledge-base'))) {
   const kb = path.join(root, 'knowledge-base');
-  projects.push({ name: path.basename(root), kb, metaFile: path.join(kb, '_meta.yml') });
+  projects.push({
+    name: path.basename(root),
+    kb,
+    metaFile: path.join(kb, '_meta.yml'),
+    runbookDir: path.join(root, 'cwk-sessions', 'runbook'),
+  });
 }
 if (!projects.length) {
   console.error(`no Knowledge Base found under ${root}
@@ -55,6 +71,17 @@ for (const p of projects) {
   p.meta = parseMeta(p.metaFile) || parseMeta(path.join(p.kb, '_meta.yml')) || {};
   p.docs = [];
   walk(p.kb, p.kb, p.docs);
+  // Runbooks live outside the KB, under cwk-sessions/runbook/. They are the other document someone
+  // searches under pressure -- "what do we do when X fails" -- and a page holding the KB but not the
+  // runbook sends that reader back to the folder they opened this page to avoid. The base is the
+  // PARENT of the runbook dir, so every id arrives as `runbook/<file>` and prettyTitle renders it
+  // "runbook / <name>": distinguishable from a KB page at a glance in the tab strip and in a hit list.
+  p.runbookCount = 0;
+  if (p.runbookDir && fs.existsSync(p.runbookDir)) {
+    const before = p.docs.length;
+    walk(p.runbookDir, path.dirname(p.runbookDir), p.docs);
+    p.runbookCount = p.docs.length - before;
+  }
   p.docs.sort((a, b) => a.id.localeCompare(b.id, 'en', { numeric: true }));
   const gen = p.meta.generated && /^\d{4}-\d{2}-\d{2}$/.test(p.meta.generated) ? new Date(p.meta.generated + 'T00:00:00') : null;
   p.ageDays = gen ? Math.round((today - gen) / DAY) : null;
@@ -103,7 +130,8 @@ html = inlineMermaid(html, __dirname, nonce);
 
 fs.writeFileSync(out, html, 'utf8');
 const docCount = projects.reduce((n, p) => n + p.docs.length, 0);
-console.error(`${projects.length} project(s), ${docCount} document(s)${projects.some(p => p.stale) ? ' · ⚠ some KBs are over 30 days old' : ''}`);
+const runbookCount = projects.reduce((n, p) => n + (p.runbookCount || 0), 0);
+console.error(`${projects.length} project(s), ${docCount} document(s)${runbookCount ? ` (incl. ${runbookCount} runbook page(s))` : ''}${projects.some(p => p.stale) ? ' · ⚠ some KBs are over 30 days old' : ''}`);
 console.log(out);
 
 /** Inline vendor/mermaid.min.js when present so the page makes no network calls. */

@@ -14,6 +14,34 @@ noted per release when it changed.
 
 ---
 
+## [3.1.0] — 2026-09-08
+
+### Added — runbooks are in the searchable page, not just the KB
+
+The one-page KB site (`scripts/kb-site.cjs`) rendered `knowledge-base/` and nothing else. The
+runbook — the document someone actually searches under pressure, because "what do we do when X
+fails" is a question asked at 2am and not at leisure — was left in `cwk-sessions/runbook/`, a
+gitignored folder, reachable only by whoever generated it. The page built to make documents
+findable was excluding the most time-critical one.
+
+- `kb-site.cjs` now collects a project's runbooks alongside its KB, from
+  `<repo>/cwk-sessions/runbook/` in the single-repo shape and `<hub>/projects/<name>/runbook/` in a
+  hub. Each arrives with the id `runbook/<file>`, so it renders as **`runbook / <name>`** and a
+  search hit is recognisable as a runbook rather than a KB page. The console line counts them.
+- `kb-export.sh` carries `cwk-sessions/runbook/` into the hub beside `knowledge-base/`, which is
+  what makes a runbook readable by a teammate at all: it is generated into a gitignored folder, so
+  before this the hub was not merely missing it — nothing could reach it.
+- Five cases in `tests/kb-hub.test.sh` pin it: carried into the hub, present in the page, titled as
+  a runbook, its prose searchable, and found in the single-repo shape.
+
+### Changed
+
+- README's hub section, the two script headers and the SECURITY.md row for `kb-export.sh` all say
+  what the export now carries. A document that travels further than the reader expects is a
+  disclosure question, so it belongs in the security notes, not only in the feature list.
+
+---
+
 ## [3.0.0] — 2026-09-08
 
 ### Changed — the kit is `cwk`; the personal prefix is gone
