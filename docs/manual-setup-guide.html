@@ -84,7 +84,7 @@
   <div class="box ok">
     <div class="ti">📁 Đặt project ở ĐÂU CŨNG ĐƯỢC</div>
     <p style="margin:.2em 0">Chỉ cần đổi biến <code>ROOT</code> thành đường dẫn bạn muốn — ví dụ
-    <code>~/tools/nam-claude-skill</code>, <code>/opt/nam-claude-skill</code>, hay một ổ khác. Toolkit chạy được
+    <code>~/tools/claude-code-workflow-kit</code>, <code>/opt/claude-code-workflow-kit</code>, hay một ổ khác. Toolkit chạy được
     từ <b>mọi vị trí</b> vì <code>personal-install.sh</code> tự xác định đường dẫn của chính nó và chỉ tạo
     <b>symlink vào <code>~/.claude</code></b> (nơi Claude Code đọc). Mọi lệnh bên dưới đều dùng
     <code>"$ROOT"</code> nên đổi 1 chỗ là xong.</p>
@@ -113,7 +113,7 @@
   <h2 id="scaffold">🧱 1. Tạo cây thư mục &amp; file rỗng</h2>
   <p>Dán đoạn này 1 lần vào terminal máy đích. Nó tạo đúng cây thư mục + file rỗng (bạn điền nội dung ở
   bước 2). Các file reference được cố tình bỏ qua — <code>sync-bundles.sh</code> sẽ sinh chúng ở bước 3.</p>
-  <div class="cb"><button class="copy">Copy</button><pre><code>ROOT=~/nam-claude-skill          <span class="cmt"># ⬅ đổi thành BẤT KỲ đường dẫn nào bạn muốn</span>
+  <div class="cb"><button class="copy">Copy</button><pre><code>ROOT=~/claude-code-workflow-kit          <span class="cmt"># ⬅ đổi thành BẤT KỲ đường dẫn nào bạn muốn</span>
 mkdir -p "$ROOT"/{commands,agents,hooks,scripts,resources}
 
 <span class="cmt"># 30 skill → mỗi skill 1 file SKILL.md</span>
@@ -156,7 +156,7 @@ echo "✅ Tạo khung xong. Danh sách file cần dán nội dung:"; find "$ROOT
   <h2 id="copy">📥 2. Copy nội dung từng file từ GitHub</h2>
   <p>Mở từng file trên GitHub, bấm nút <b>Raw</b>, chọn hết, copy, rồi dán vào đúng file rỗng tương ứng.
   Raw cho text thuần (không dính HTML). Mẫu URL:</p>
-  <div class="cb"><button class="copy">Copy</button><pre><code>https://raw.githubusercontent.com/NamHT4Devlop/nam-claude-skill/main/&lt;đường-dẫn&gt;</code></pre></div>
+  <div class="cb"><button class="copy">Copy</button><pre><code>https://raw.githubusercontent.com/NamHT4Devlop/claude-code-workflow-kit/main/&lt;đường-dẫn&gt;</code></pre></div>
   <p class="muted">Ví dụ: <code>.../main/skills/namht-build/SKILL.md</code>, <code>.../main/commands/build.md</code>,
   <code>.../main/hooks/git-guard.sh</code>.</p>
   <p><b>Phải dán (68 file):</b> 27 × <code>skills/*/SKILL.md</code> · 28 × <code>commands/*.md</code> ·
@@ -174,7 +174,7 @@ echo "✅ Tạo khung xong. Danh sách file cần dán nội dung:"; find "$ROOT
 
   <!-- 3 -->
   <h2 id="build">🔧 3. Build / Cài đặt (sau khi đã dán xong hết)</h2>
-  <div class="cb"><button class="copy">Copy</button><pre><code>ROOT=~/nam-claude-skill          <span class="cmt"># ⬅ cùng đường dẫn đã chọn ở bước 1</span>
+  <div class="cb"><button class="copy">Copy</button><pre><code>ROOT=~/claude-code-workflow-kit          <span class="cmt"># ⬅ cùng đường dẫn đã chọn ở bước 1</span>
 
 <span class="cmt"># 1) cấp quyền chạy (file tạo bằng editor KHÔNG có execute bit — bắt buộc)</span>
 chmod +x "$ROOT"/scripts/*.sh "$ROOT"/hooks/git-guard.sh \
@@ -226,7 +226,7 @@ printf '{"tool_input":{"command":"git push https://github.com/some-org/x"}}' | ~
 
   <hr>
   <footer>
-    namht Kit (the namht-* commands) · port của Auto Spec extension · Repo: <code>NamHT4Devlop/nam-claude-skill</code><br>
+    namht Kit (the namht-* commands) · port của Auto Spec extension · Repo: <code>NamHT4Devlop/claude-code-workflow-kit</code><br>
     File này: <code>&lt;TOOL&gt;/docs/manual-setup-guide.html</code> — mở bằng trình duyệt bất kỳ.
   </footer>
 

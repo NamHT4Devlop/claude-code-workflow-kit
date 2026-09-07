@@ -15,7 +15,7 @@ tools: file ops, Bash, git, parallel sub-agents) instead of GitHub Copilot / `vs
 ## What's inside
 
 ```
-nam-claude-skill/
+claude-code-workflow-kit/
 ├── .claude-plugin/
 │   ├── plugin.json          # plugin manifest
 │   └── marketplace.json     # local marketplace (for one-command install)
@@ -75,13 +75,13 @@ Pick a stable location to keep the plugin (so you can update it with `git pull` 
 
 ```bash
 # via SSH (recommended if your GitHub uses SSH keys)
-git clone git@github.com:NamHT4Devlop/nam-claude-skill.git ~/nam-claude-skill
+git clone git@github.com:NamHT4Devlop/claude-code-workflow-kit.git ~/claude-code-workflow-kit
 
 # or via HTTPS
-git clone https://github.com/NamHT4Devlop/nam-claude-skill.git ~/nam-claude-skill
+git clone https://github.com/NamHT4Devlop/claude-code-workflow-kit.git ~/claude-code-workflow-kit
 ```
 
-Everywhere below, `<PLUGIN_DIR>` means the folder you cloned into (e.g. `~/nam-claude-skill`).
+Everywhere below, `<PLUGIN_DIR>` means the folder you cloned into (e.g. `~/claude-code-workflow-kit`).
 If you keep the files somewhere else, substitute that absolute path.
 
 ---
@@ -93,13 +93,13 @@ Best when you want every command available across **all** your repos on a machin
 commands are typed into Claude Code, not your shell):
 
 ```
-/plugin marketplace add ~/nam-claude-skill
+/plugin marketplace add ~/claude-code-workflow-kit
 /plugin install namht@namht-marketplace
 ```
 
 - `marketplace add <PLUGIN_DIR>` registers the local marketplace defined in
   `.claude-plugin/marketplace.json`. You can also point it straight at the GitHub repo:
-  `/plugin marketplace add NamHT4Devlop/nam-claude-skill` (Claude Code clones it for you; requires
+  `/plugin marketplace add NamHT4Devlop/claude-code-workflow-kit` (Claude Code clones it for you; requires
   repo access).
 - `install namht@namht-marketplace` installs the plugin named `namht` from that
   marketplace.
@@ -113,7 +113,7 @@ The 30 skills and 7 sub-agents load automatically (skills also activate from pla
 (The personal symlink install — Option C — exposes the same commands as `/namht-build`, etc.)
 
 > **Team install:** commit/host this repo, then each teammate runs the two `/plugin` commands
-> above pointing at their clone (or at `NamHT4Devlop/nam-claude-skill`). To pin the plugin for a
+> above pointing at their clone (or at `NamHT4Devlop/claude-code-workflow-kit`). To pin the plugin for a
 > whole project automatically, add it to the project's `.claude/settings.json` under
 > `enabledPlugins` / configure a marketplace there (see Claude Code plugin docs).
 

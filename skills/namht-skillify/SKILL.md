@@ -10,7 +10,7 @@ description: >-
 # namht-skillify — create a new skill the right way
 
 Meta-skill: scaffold a new `namht-*` skill + command that matches this repo's standard, then wire
-and document it. Operate inside the `nam-claude-skill` repo (the toolkit source, e.g. `~/nam-claude-skill`).
+and document it. Operate inside the `claude-code-workflow-kit` repo (the toolkit source, e.g. `~/claude-code-workflow-kit`).
 
 ## Steps
 1. **Clarify** the new skill: name (kebab, will become `namht-<name>`), one-line purpose, when it

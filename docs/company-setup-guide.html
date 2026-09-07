@@ -58,7 +58,7 @@
     <div class="eyebrow">Claude Code · Company machine setup · For newcomers</div>
     <h1>🏢 Install “namht Kit” (the <code>/namht-*</code> commands) on a company machine</h1>
     <p class="sub">A step-by-step, beginner-friendly guide for people <b>new to Claude Code</b>: copy the
-    <code>nam-claude-skill</code> toolkit onto your company machine, install it safely (no code leaks, no impact
+    <code>claude-code-workflow-kit</code> toolkit onto your company machine, install it safely (no code leaks, no impact
     on team repos), and use it right away: understand the codebase, build features, fix bugs, review, write docs.</p>
     <div style="margin-top:10px">
       <span class="pill">⏱ ~15 minutes</span><span class="pill">🔒 Enterprise-safe</span>
@@ -100,27 +100,27 @@
     <li><b>Claude Code</b> installed &amp; working: open a terminal and run <code>claude --version</code> to see a version number. (If <code>/plugin</code> is unknown → update Claude Code.)</li>
     <li><b>git</b>: <code>git --version</code>. <b>Node.js</b> (for map &amp; HTML): <code>node --version</code> (ideally ≥ 18).</li>
     <li><b>Your company's Claude plan is Team/Enterprise</b> (a commercial plan — Anthropic does not train on your code). Ask your admin if unsure.</li>
-    <li><b>Access to the toolkit repo</b> <code>NamHT4Devlop/nam-claude-skill</code> (public) — or copy the folder over yourself.</li>
+    <li><b>Access to the toolkit repo</b> <code>NamHT4Devlop/claude-code-workflow-kit</code> (public) — or copy the folder over yourself.</li>
   </ul>
   <div class="box warn"><div class="ti">⚠️ Note on the Claude plan</div>
     Use this only on an <b>organization plan (Team/Enterprise)</b>. Don't use a personal plan (Pro/Max) for company code — the data policy is different.</div>
 
   <!-- 1 -->
   <h2 id="get">1. Get the toolkit onto your machine</h2>
-  <p>Put it in a fixed location so you can later update with <code>git pull</code>. For example <code>~/nam-claude-skill</code>:</p>
+  <p>Put it in a fixed location so you can later update with <code>git pull</code>. For example <code>~/claude-code-workflow-kit</code>:</p>
   <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># option 1: clone from GitHub (needs repo access)</span>
-git clone https://github.com/NamHT4Devlop/nam-claude-skill.git ~/nam-claude-skill
+git clone https://github.com/NamHT4Devlop/claude-code-workflow-kit.git ~/claude-code-workflow-kit
 
-<span class="cmt"># option 2: if given a zip/folder → extract it into ~/nam-claude-skill</span></code></pre></div>
+<span class="cmt"># option 2: if given a zip/folder → extract it into ~/claude-code-workflow-kit</span></code></pre></div>
   <p class="muted">Below this folder is referred to as <b>&lt;TOOL&gt;</b>. Windows: replace <code>~</code> with <code>%USERPROFILE%</code>.</p>
 
   <!-- 2 -->
   <h2 id="install">2. Install for yourself (one command)</h2>
   <p>This command creates <b>symlinks</b> for the skills/commands/agents into your personal <code>~/.claude</code> folder →
   usable in <b>every repo</b>, and stored in <b>no</b> repo (the team sees nothing).</p>
-  <div class="cb"><button class="copy">Copy</button><pre><code>~/nam-claude-skill/scripts/personal-install.sh</code></pre></div>
+  <div class="cb"><button class="copy">Copy</button><pre><code>~/claude-code-workflow-kit/scripts/personal-install.sh</code></pre></div>
   <p>It prints the number of skills/commands linked + a reminder of the git-guard config snippet (done in step 3).
-  Because it's symlinked, later a <code>cd ~/nam-claude-skill &amp;&amp; git pull</code> updates everything instantly.</p>
+  Because it's symlinked, later a <code>cd ~/claude-code-workflow-kit &amp;&amp; git pull</code> updates everything instantly.</p>
   <div class="box info"><div class="ti">💡</div> A skill auto-activates when you speak naturally (e.g. “review this file”), or type <code>/namht-...</code> directly. No API key needed — it runs on your own Claude Code.</div>
 
   <!-- 3 -->
@@ -157,7 +157,7 @@ git config --global core.excludesfile ~/.gitignore_global</code></pre></div>
 }</code></pre></div>
     <p>Result: allows <code>fetch · pull · status · log · diff · add · commit</code>; <b>hard-blocks</b> pushing to team repos + destructive commands (<code>reset --hard</code>, <code>rebase</code>…).</p>
     <div class="box danger"><div class="ti">🎯 Tune the push whitelist for a company machine</div>
-      Open <code>~/nam-claude-skill/hooks/git-guard.sh</code>, the <code>ALLOW_OWNER_RE</code> line:
+      Open <code>~/claude-code-workflow-kit/hooks/git-guard.sh</code>, the <code>ALLOW_OWNER_RE</code> line:
       <ul style="margin:.4em 0">
         <li>To let the AI push to <b>your personal repos</b>: change <code>NamHT4Devlop</code> to your personal GitHub username.</li>
         <li><b>Safest (recommended at a company):</b> block the AI from pushing <i>anywhere</i> — set <code>ALLOW_OWNER_RE='__NONE__'</code>. When you need to push, run it yourself in a terminal.</li>
@@ -257,9 +257,9 @@ cd /path/to/your/repo &amp;&amp; provenlens init .</code></pre>
   <!-- 8 -->
   <h2 id="maintain">7. Update / Uninstall</h2>
   <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># update the toolkit</span>
-cd ~/nam-claude-skill && git pull        <span class="cmt"># symlinked, so it applies immediately</span>
+cd ~/claude-code-workflow-kit && git pull        <span class="cmt"># symlinked, so it applies immediately</span>
 <span class="cmt"># uninstall (only removes symlinks in ~/.claude, touches no repo)</span>
-~/nam-claude-skill/scripts/personal-install.sh uninstall</code></pre></div>
+~/claude-code-workflow-kit/scripts/personal-install.sh uninstall</code></pre></div>
 
   <!-- 9 -->
   <h2 id="trouble">8. Common issues</h2>
@@ -288,7 +288,7 @@ cd ~/nam-claude-skill && git pull        <span class="cmt"># symlinked, so it ap
   <p>Yes. Claude Code has auto-memory (per-project) + you can keep general preferences in <code>~/.claude/CLAUDE.md</code> (loaded in every repo). Each repo's KB also grows over each build/rescan.</p>
 
   <footer>
-    namht Kit (the namht-* commands) · a port of Auto Spec extension · Repo <code>NamHT4Devlop/nam-claude-skill</code><br>
+    namht Kit (the namht-* commands) · a port of Auto Spec extension · Repo <code>NamHT4Devlop/claude-code-workflow-kit</code><br>
     This file: <code>&lt;TOOL&gt;/docs/company-setup-guide.html</code> — open in any browser. Security details: <code>SECURITY.md</code>.
   </footer>
 </div>

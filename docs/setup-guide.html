@@ -143,10 +143,10 @@
     <div class="num">1</div>
     <div class="body">
       <h3>Get the tool's source</h3>
-      <p>Clone the repo to a fixed location (this guide calls it <code>~/nam-claude-skill</code>).</p>
+      <p>Clone the repo to a fixed location (this guide calls it <code>~/claude-code-workflow-kit</code>).</p>
       <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># SSH (recommended if your GitHub uses an SSH key)</span>
-git clone git@github.com:NamHT4Devlop/nam-claude-skill.git ~/nam-claude-skill</code></pre></div>
-      <p class="muted">Below this folder is referred to as <b>&lt;TOOL&gt;</b>. Example: <b>&lt;TOOL&gt;</b> = <code>~/nam-claude-skill</code>.</p>
+git clone git@github.com:NamHT4Devlop/claude-code-workflow-kit.git ~/claude-code-workflow-kit</code></pre></div>
+      <p class="muted">Below this folder is referred to as <b>&lt;TOOL&gt;</b>. Example: <b>&lt;TOOL&gt;</b> = <code>~/claude-code-workflow-kit</code>.</p>
     </div>
   </div>
 
@@ -156,7 +156,7 @@ git clone git@github.com:NamHT4Devlop/nam-claude-skill.git ~/nam-claude-skill</c
       <h3>Install the tool for yourself (symlink into <code>~/.claude</code>)</h3>
       <p>A single command — it symlinks the skills + agents + commands into your home folder. Commands are prefixed
       with <code>namht-</code> so they don't shadow built-ins (like <span class="kbd">/help</span>).</p>
-      <div class="cb"><button class="copy">Copy</button><pre><code>~/nam-claude-skill/scripts/personal-install.sh</code></pre></div>
+      <div class="cb"><button class="copy">Copy</button><pre><code>~/claude-code-workflow-kit/scripts/personal-install.sh</code></pre></div>
       <p class="muted">Because it's symlinked → a later <code>git pull</code> in &lt;TOOL&gt; updates automatically, no reinstall.</p>
     </div>
   </div>
@@ -298,10 +298,10 @@ cd /path/to/your/repo &amp;&amp; provenlens init .</code></pre>
   <!-- ============ MAINTAIN ============ -->
   <h2 id="maintain">🔄 6. Update &amp; Uninstall</h2>
   <h3>Update to the latest</h3>
-  <div class="cb"><button class="copy">Copy</button><pre><code>cd ~/nam-claude-skill &amp;&amp; git pull</code></pre></div>
+  <div class="cb"><button class="copy">Copy</button><pre><code>cd ~/claude-code-workflow-kit &amp;&amp; git pull</code></pre></div>
   <p class="muted">Because it's symlinked, pulling applies it immediately — no reinstall.</p>
   <h3>Clean uninstall (only removes symlinks in ~/.claude, touches no repo)</h3>
-  <div class="cb"><button class="copy">Copy</button><pre><code>~/nam-claude-skill/scripts/personal-install.sh uninstall</code></pre></div>
+  <div class="cb"><button class="copy">Copy</button><pre><code>~/claude-code-workflow-kit/scripts/personal-install.sh uninstall</code></pre></div>
 
   <!-- ============ TROUBLE ============ -->
   <h2 id="trouble">🩺 7. Troubleshooting</h2>
@@ -330,7 +330,7 @@ cd /path/to/your/repo &amp;&amp; provenlens init .</code></pre>
 
   <hr>
   <footer>
-    namht Kit for Claude Code — a port of Auto Spec extension · Repo: <code>NamHT4Devlop/nam-claude-skill</code><br>
+    namht Kit for Claude Code — a port of Auto Spec extension · Repo: <code>NamHT4Devlop/claude-code-workflow-kit</code><br>
     This document lives at <code>&lt;TOOL&gt;/docs/setup-guide.html</code> — open in any browser.
   </footer>
 

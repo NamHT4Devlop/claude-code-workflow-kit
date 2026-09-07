@@ -57,7 +57,7 @@ deny "git switch -f main"
 deny "git worktree remove --force wt"
 
 echo "git-guard: ALLOW cases"
-allow "git push https://github.com/NamHT4Devlop/nam-claude-skill main"
+allow "git push https://github.com/NamHT4Devlop/claude-code-workflow-kit main"
 allow "git push git@github.com:NamHT4Devlop/x.git"
 allow "git pull"
 allow "git fetch --all"
