@@ -35,25 +35,25 @@ If no artifact was named, still Glob `namht-sessions/{user-stories,plans,discove
 for one matching this requirement and offer it. Also skim `builds/_journal.md` and `answers/_journal.md`
 (ground rule 1). Only when there is genuinely no story do you author the ACs yourself (Step 0).
 
-### codelens (optional)
-`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
-through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+### provenlens (optional)
+`.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
+scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
-No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
-fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
-is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
+No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- **Step 1 impact** — `codelens impact <symbol>` replaces the caller grep. The **>3 callers**
-  approval trigger is counted from `codelens callers <symbol> --json`, not from a grep hit count;
+- **Step 1 impact** — `provenlens impact <symbol>` replaces the caller grep. The **>3 callers**
+  approval trigger is counted from `provenlens callers <symbol> --json`, not from a grep hit count;
   those two numbers are not the same and only one of them is the blast radius.
-- **Step 3.5 safety net / Step 8 gates** — `git diff --name-only | codelens affected --fail-if-untested`.
+- **Step 3.5 safety net / Step 8 gates** — `git diff --name-only | provenlens affected --fail-if-untested`.
   Exit code **2** means production code changed that no existing test reaches: that is a blocker to
   report, not a note to bury.
-- **Ground rule 3 (reuse)** — `codelens query "<capability word>"` finds the existing helper across
+- **Ground rule 3 (reuse)** — `provenlens query "<capability word>"` finds the existing helper across
   the whole repo faster than a synonym sweep, and finds it by declaration rather than by mention.
 
 ## Ground rules (apply to every step)
@@ -106,7 +106,7 @@ This is what keeps the tool from "breaking the project" or making rambling edits
   you're touching for another reason. Match the surrounding style exactly.
 - **Preserve behavior.** Never delete or rewrite existing logic unless the task requires it and
   the plan says so. If you must change a shared function, check its blast radius first
-  (`codelens impact <symbol>`, or grep for its callers when there is no index) and update every
+  (`provenlens impact <symbol>`, or grep for its callers when there is no index) and update every
   caller intentionally.
 - **No structure churn.** Don't move files, change the folder layout, swap libraries, or alter
   build/config/CI unless explicitly requested. Follow the existing architecture (rule 2).
@@ -114,7 +114,7 @@ This is what keeps the tool from "breaking the project" or making rambling edits
   code if ANY of these is true (don't judge "trivial" by feel):
   a DB/schema migration · adding or upgrading a dependency · a change to a **published API / event /
   message contract**, or any cross-service consumer found in Step 1 §2 · touching a shared symbol with
-  **>3 callers** (counted with `codelens callers --json`, not with a grep hit count) · **>5 files** to change · the Step 1 §7 estimate is **Medium/Complex** · anything
+  **>3 callers** (counted with `provenlens callers --json`, not with a grep hit count) · **>5 files** to change · the Step 1 §7 estimate is **Medium/Complex** · anything
   touching auth/permissions or money. Below all of those, you may proceed — but still post the scope,
   file list and ACs first.
 - **A blanket "go" has limits.** "build X, go" in the opening request authorizes the **reversible**
@@ -288,7 +288,7 @@ no test is an open gap, not a pass.
 - **Integration** — API request→response, auth (401/403), validation (400), service composition, DB, full business flows.
 - **Edge cases & security** — boundary values, null/undefined, concurrency/duplicates, error propagation, permission bypass, invalid state transitions, malicious input.
 - **Regression (old flow)** — one test per impacted caller/consumer/flow from Step 1 §2's blast radius
-  (`codelens affected` names them, and `--fail-if-untested` proves when none exist),
+  (`provenlens affected` names them, and `--fail-if-untested` proves when none exist),
   asserting the **OLD behavior still holds**. Label `[REGRESSION]` and cite the KB flow/rule it protects
   (e.g. BR-V2 / core-flow #3). This is what turns the impact analysis into a safety net instead of prose.
 

@@ -25,23 +25,23 @@ fixes. Read-only — it does NOT change code (hand fixes to `/namht-fix-bug` or 
   controllers/handlers. These are where untrusted input enters.
 - If no KB, fall back to Grep/Glob (note reduced coverage).
 
-### codelens (optional)
-`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
-through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+### provenlens (optional)
+`.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
+scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
-No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
-fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
-is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
+No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- **Attack surface = entry points.** `codelens explore "<controller|handler|listener>"` enumerates
+- **Attack surface = entry points.** `provenlens explore "<controller|handler|listener>"` enumerates
   them with real signatures, including queue consumers that no route table lists.
 - **For each sink** (query builder, deserializer, file write, shell-out, template render):
-  `codelens callers <sink>` is the taint list — every path that reaches it.
-- `codelens path <entry point> <sink>` turns "this looks reachable from user input" into a chain you
+  `provenlens callers <sink>` is the taint list — every path that reaches it.
+- `provenlens path <entry point> <sink>` turns "this looks reachable from user input" into a chain you
   can paste into the finding. An unreachable sink is a lower severity, and now you can prove which.
 - Absence of a path is **not** proof of safety: reflection, dynamic dispatch and string-built calls
   are exactly what a graph misses. Say so instead of downgrading on silence.

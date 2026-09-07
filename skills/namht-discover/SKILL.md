@@ -23,22 +23,22 @@ Interrogate first, then restate a crisp problem. Conversational — output is a 
 6. **Existing surface** — which current flow/entity/endpoint does it touch? (check KB
    `10-core-flows`/`13-business-rules`) — reuse vs new.
 
-### codelens (optional)
-`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
-through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+### provenlens (optional)
+`.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
+scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
-No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
-fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
-is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
+No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
 - Question 6 — *"which current flow/entity/endpoint does it touch?"* — is a **reach** question, and
-  it is the one that decides scope. `codelens explore "<entity|endpoint>"` shows whether the surface
+  it is the one that decides scope. `provenlens explore "<entity|endpoint>"` shows whether the surface
   the user is describing actually exists and how much already hangs off it.
-- `codelens impact <symbol>` sizes the "smallest valuable slice" honestly: a thin slice through a
+- `provenlens impact <symbol>` sizes the "smallest valuable slice" honestly: a thin slice through a
   symbol with forty consumers is not thin. That number belongs in the pushback, not in the plan later.
 - Still a discovery conversation, not an investigation. One or two lookups to keep a question
   grounded — if you are reading the codebase, you have left this skill and should be in `/namht-ask`.

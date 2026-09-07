@@ -22,27 +22,27 @@ spot a bug, you stop and report it, you do not "fix" it here.
 2. **One transformation at a time → run tests → next.** Never batch several risky moves. Green after
    each step is the proof behavior held; red means revert that step.
 
-### codelens (optional)
-`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
-through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+### provenlens (optional)
+`.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
+scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
-No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
-fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
-is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
+No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- `codelens dead` — the delete list, already filtered against names appearing in templates and
+- `provenlens dead` — the delete list, already filtered against names appearing in templates and
   config (`.erb`, `.vue`, `.html`, `.yml`, …), so a getter a page renders is not on it. Nothing else
   in this kit makes deletion this safe.
-- `codelens impact <symbol>` **before** any rename or extraction: behaviour must not change, and
+- `provenlens impact <symbol>` **before** any rename or extraction: behaviour must not change, and
   this is the set that "unchanged" is measured against.
-- `codelens cycles` — the import cycles worth breaking, ranked, instead of the one you happened to
+- `provenlens cycles` — the import cycles worth breaking, ranked, instead of the one you happened to
   notice.
 - Still guarded by tests. A green `dead` listing is a candidate, never a licence to delete.
-- `codelens query "<capability word>"` before extracting a shared helper — duplication hides under
+- `provenlens query "<capability word>"` before extracting a shared helper — duplication hides under
   different names, and searching by declaration finds the twin that grepping the name misses.
 
 ## What to hunt (and the fix)

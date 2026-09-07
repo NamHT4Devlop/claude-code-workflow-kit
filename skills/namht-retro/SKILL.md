@@ -24,21 +24,21 @@ A periodic look-back grounded in real history.
 - Optional signals: `namht-sessions/` reports (fixes/reviews/qa) from the window; open TODO/FIXME
   added; test coverage gaps on changed areas (test-debt trend).
 
-### codelens (optional)
-`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
-through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+### provenlens (optional)
+`.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
+scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
-No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
-fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
-is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
+No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- `codelens hotspots` crossed with the window's churn — a period that repeatedly touched a hub is
+- `provenlens hotspots` crossed with the window's churn — a period that repeatedly touched a hub is
   the concrete signal for **Quality & risk signals**, replacing "this area felt painful".
-- `git diff --name-only <since>..HEAD | codelens affected --fail-if-untested` — test debt as a fact
+- `git diff --name-only <since>..HEAD | provenlens affected --fail-if-untested` — test debt as a fact
   with a symbol list, which is what makes an action item ownable.
 
 ## Produce (dual-audience; chat + save `namht-sessions/retro/<date>.md`)

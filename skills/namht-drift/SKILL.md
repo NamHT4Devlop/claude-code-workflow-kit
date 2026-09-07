@@ -87,23 +87,23 @@ Weakening the invariant to match the code is exactly the failure this skill exis
 - Requires `knowledge-base/`. If it's missing there is nothing to converge against — say so and
   point at `/namht-scan` instead of guessing.
 
-### codelens (optional)
-`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
-through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+### provenlens (optional)
+`.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
+scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
-No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
-fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
-is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
+No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- `codelens dead` — code that nothing reaches **and** no document describes is D2 with evidence
+- `provenlens dead` — code that nothing reaches **and** no document describes is D2 with evidence
   rather than suspicion. It already excludes names appearing in templates and config, so a getter an
   `.erb` page calls will not be accused.
-- `codelens hotspots` — a hub with no KB entry is the most expensive kind of D2; rank those first.
-- A documented flow whose entry symbol has **zero callers** is D1, proven. Say "proven by codelens"
+- `provenlens hotspots` — a hub with no KB entry is the most expensive kind of D2; rank those first.
+- A documented flow whose entry symbol has **zero callers** is D1, proven. Say "proven by provenlens"
   and give the symbol; without the index the same claim is a suspicion and must be labelled one.
 
 ## Procedure
@@ -122,7 +122,7 @@ is never a resolved call — do not report it as one. Playbook: `docs/codelens.m
 **The reality side** — the code as it is now:
 - The KB's generation date (or `since`) → `git log --since=<date> --name-only` gives the churn set:
   the files most likely to have drifted. Start there, don't read the repo top to bottom.
-- If `.codelens/` exists, use `codelens explore` for real call paths and consumers — a documented
+- If `.provenlens/` exists, use `provenlens explore` for real call paths and consumers — a documented
   flow that no longer has a caller is D1; a hub with no KB entry is D2. Without it, Grep/Glob and say
   the sweep is shallower.
 
@@ -196,7 +196,7 @@ recommends nothing. Mention that `--fix-docs` can close the `/namht-rescan` grou
 Plus the items deliberately NOT auto-fixed, each with its one-line reason.
 
 ## Coverage & limits
-What was scanned, what was skipped, whether codelens was available, and where confidence is low.
+What was scanned, what was skipped, whether provenlens was available, and where confidence is low.
 ```
 
 Also append ONE row to `namht-sessions/drift/_journal.md` (create with this header if missing) so

@@ -50,25 +50,25 @@ and document it. Operate inside the `nam-claude-skill` repo (the toolkit source,
 8. **Verify:** `bash tests/run.sh` — it checks skill-name==folder, bundle sync, `ALLOWED` ↔ `skills/`,
    command ↔ skill, `help.md` coverage, catalog coverage and the documented counts.
 
-### codelens (optional)
-`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
-through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+### provenlens (optional)
+`.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
+scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
-No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
-fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
-is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
+No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- A new skill that reasons about **who calls what** MUST carry the `### codelens (optional)` block:
+- A new skill that reasons about **who calls what** MUST carry the `### provenlens (optional)` block:
   the shared paragraph verbatim (fallback sentence included) plus its own `**Here:**` bullets naming
   the specific commands it uses.
 - A new skill that genuinely never reads a call graph MUST be added to the opt-out list in
   `tests/consistency.test.sh` with a one-line reason. There is no third option — the test fails on
   a skill that is in neither place, which is what keeps the standard a standard.
-- Scaffold the block from any integrated skill and from `docs/codelens.md`; do not paraphrase the
+- Scaffold the block from any integrated skill and from `docs/provenlens.md`; do not paraphrase the
   shared paragraph.
 
 ## Rules

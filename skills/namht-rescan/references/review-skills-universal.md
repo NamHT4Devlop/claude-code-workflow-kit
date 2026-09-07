@@ -25,25 +25,25 @@ A review is only worth the evidence under it. Most of the checks below are claim
 those are guesses; read off a call graph, they are facts. The difference decides whether a
 `[CRITICAL]` is real.
 
-**Where a `.codelens/` index exists, use it** (Java · Ruby · TS/JS only):
+**Where a `.provenlens/` index exists, use it** (Java · Ruby · TS/JS only):
 
 | The claim you are about to make | What settles it |
 |---|---|
-| "this is called from N places" | `codelens callers <symbol> --json` — a grep hit count is not a caller count |
-| "changing this breaks X" | `codelens impact <symbol>` — transitive, through DI, interfaces and mixins |
-| "nothing tests this" | `git diff --name-only \| codelens affected` — it names the tests that do |
-| "this layer reaches into that one" | `codelens path <from> <to>` — a real chain, or none |
-| "this is unused / can be deleted" | `codelens dead` — already filtered against templates and config |
-| "this is the hot path" | `codelens hotspots` — fan-in, not intuition |
+| "this is called from N places" | `provenlens callers <symbol> --json` — a grep hit count is not a caller count |
+| "changing this breaks X" | `provenlens impact <symbol>` — transitive, through DI, interfaces and mixins |
+| "nothing tests this" | `git diff --name-only \| provenlens affected` — it names the tests that do |
+| "this layer reaches into that one" | `provenlens path <from> <to>` — a real chain, or none |
+| "this is unused / can be deleted" | `provenlens dead` — already filtered against templates and config |
+| "this is the hot path" | `provenlens hotspots` — fan-in, not intuition |
 
 Two rules, and they matter more than the table:
 
-- **Check the index before trusting it.** `codelens status` once; `codelens sync` if the working
+- **Check the index before trusting it.** `provenlens status` once; `provenlens sync` if the working
   tree moved since it was built. A stale index is worse than none because it looks authoritative.
-  If coverage reads low, `codelens doctor` says whether that is a resolver limit or just an
+  If coverage reads low, `provenlens doctor` says whether that is a resolver limit or just an
   uninstalled dependency — those look identical in the number and are nothing alike in the fix.
-- **Degrade out loud.** No index, no `codelens`, or a language it does not cover → Grep/Glob, and
-  mark the finding `⚠️ grep-depth only (no codelens index)`. Never state a grep hit as a resolved
+- **Degrade out loud.** No index, no `provenlens`, or a language it does not cover → Grep/Glob, and
+  mark the finding `⚠️ grep-depth only (no provenlens index)`. Never state a grep hit as a resolved
   call. And **absence of a path is not proof of safety**: reflection, dynamic dispatch and
   string-built calls are exactly what a graph misses.
 
@@ -63,8 +63,8 @@ a lead to check, not a verdict to file.
 - [MAJOR] A component must not know the implementation details of another component — it may only know the contract (interface).
 
 > **Proving a violation (§0).** A layering breach is a resolved edge, not an import line:
-> `codelens explore <symbol>` shows what it really calls, `codelens path <ui> <infra>` shows whether
-> the forbidden chain exists, and `codelens cycles` lists the files that depend on each other the
+> `provenlens explore <symbol>` shows what it really calls, `provenlens path <ui> <infra>` shows whether
+> the forbidden chain exists, and `provenlens cycles` lists the files that depend on each other the
 > long way round. Report a crossing you proved; label one you inferred.
 
 ### 1.2 Dependency Direction (Clean / Hexagonal Architecture)
@@ -176,8 +176,8 @@ Infrastructure Error  →  wrap into  →  Domain Exception  →  map into  → 
 - [MAJOR] Do not sort/filter in memory when the database can do it more efficiently.
 - [MAJOR] Pagination MUST be present on every list endpoint. Do not return unbounded lists.
 
-> **N+1 is a graph fact, not a text pattern (§0).** `codelens callers <query method>` answers the
-> only question that matters — is it reached from inside a loop — and `codelens path <controller>
+> **N+1 is a graph fact, not a text pattern (§0).** `provenlens callers <query method>` answers the
+> only question that matters — is it reached from inside a loop — and `provenlens path <controller>
 > <repository>` shows the full chain behind a slow endpoint, which is where an N+1 hides between
 > two layers that each look innocent.
 
@@ -244,7 +244,7 @@ Infrastructure Error  →  wrap into  →  Domain Exception  →  map into  → 
 
 > *"Tests don't prove code is correct. Tests reveal where code is wrong."*
 
-> **"Untested" is checkable (§0).** `git diff --name-only | codelens affected --fail-if-untested`
+> **"Untested" is checkable (§0).** `git diff --name-only | provenlens affected --fail-if-untested`
 > lists the tests that already reach the change, and exits **2** when production code changed and
 > none do. Treat that exit as a `[CRITICAL]`, not a note. The same output is the regression set:
 > one case per consumer it names.
@@ -371,9 +371,9 @@ External Input  →  [Validator]  →  Application  →  [Domain Invariant]  →
 
 ## 9. CODE QUALITY
 
-> **Dead code and duplication (§0).** `codelens dead` is the delete list — it already excludes
+> **Dead code and duplication (§0).** `provenlens dead` is the delete list — it already excludes
 > names that appear in templates and config, so a getter an `.erb` page renders is not on it.
-> Before proposing a rename or an extraction, `codelens impact <symbol>` is the set that
+> Before proposing a rename or an extraction, `provenlens impact <symbol>` is the set that
 > "behaviour unchanged" is measured against. Never file a deletion on zero grep hits alone.
 
 ### 9.1 Naming (all languages)

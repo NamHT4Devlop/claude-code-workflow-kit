@@ -14,6 +14,42 @@ noted per release when it changed.
 
 ---
 
+## [2.9.0] — 2026-09-08
+
+### Changed — the call-graph dependency is `provenlens`, and the kit now says so
+
+The tool the kit reads for who-calls-what was renamed upstream from `codelens` to
+[`provenlens`](https://github.com/NamHT4Devlop/provenlens): the binary, the MCP server name, the index
+folder and the repository all moved. The kit did not follow, and the failure was silent by design —
+every skill treats a missing index as "fall back to grep and say so", so on a machine with
+`provenlens` installed the seven sub-agents asked for `mcp__codelens__*` tools that no longer
+resolved, the skills ran `codelens status` against a binary that no longer existed, and every
+blast radius quietly came from grep. The `⚠️ grep-depth only` label was correct and nobody was
+reading it.
+
+- **Every reference moves together** — `mcp__provenlens__provenlens_{explore,impact,affected,status}`
+  in the 7 agents, the `### provenlens (optional)` block in 27 skills, the two shared resources and
+  their bundled copies, `scripts/onboard-project.sh` (ignores `.provenlens/`), the map builder
+  (`skills/namht-map/references/provenlens-graph.cjs`, `PROVENLENS=0` to force the regex scan),
+  `tests/consistency.test.sh`, README, SECURITY.md, the setup guides and the catalog.
+  `docs/codelens.md` is now `docs/provenlens.md`.
+- **The playbook is corrected against the tool, not renamed from memory.** provenlens exposes five
+  MCP tools (`why` is new: how much of what the graph says rests on a declaration rather than a
+  call), resolves string-bindings in nine plugins (MyBatis · Camel · SQS · Kafka · HTTP routes ·
+  Spring events · GraphQL · gRPC · Flyway — the shared paragraph in the 27 skills said four), and
+  has a `routes` command. The export JSON shape the map builder parses was checked against a real
+  `provenlens export` before the rename was trusted.
+- Nothing in this release changes what a skill does when there is no index. Earlier changelog
+  entries keep the old name; they describe the versions they describe.
+
+### After updating
+
+An index built by the old tool lives in `.codelens/` and is not read. Run `provenlens init .` in
+each repo (the old folder can be deleted), and re-register the MCP server once with
+`provenlens install claude-user` if `~/.claude.json` still names `codelens`.
+
+---
+
 ## [2.8.1] — 2026-09-02
 
 ### Security

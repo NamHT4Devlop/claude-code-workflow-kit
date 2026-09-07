@@ -78,24 +78,24 @@ This KB is the grounding for every other namht Kit command.
   **source-only** scan (recommended when docs may be stale).
 - Output dir: `knowledge-base/` (configurable).
 
-### codelens (optional)
-`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
-through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+### provenlens (optional)
+`.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
+scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
-No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
-fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
-is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
+No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- `codelens status` → the coverage numbers for the KB's own honesty section; a KB built on a thin
+- `provenlens status` → the coverage numbers for the KB's own honesty section; a KB built on a thin
   index should say which languages were resolved and which were read by eye.
-- `codelens hotspots` → the core modules for `06-modules.md`, and the invariants for
+- `provenlens hotspots` → the core modules for `06-modules.md`, and the invariants for
   `16-architecture-patterns.md` ("nothing may bypass X" is checkable when X is a named hub).
-- `codelens cycles` → layering violations with evidence, for the same document.
-- `codelens dead` → surface area the KB must **not** document as live business behaviour.
+- `provenlens cycles` → layering violations with evidence, for the same document.
+- `provenlens dead` → surface area the KB must **not** document as live business behaviour.
 - Everything here is input to a document you still write from the code. Do not paste graph output
   into the KB; a number without the business meaning is not knowledge.
 

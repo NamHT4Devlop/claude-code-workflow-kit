@@ -4,7 +4,7 @@ description: >-
   Senior engineer that analyzes existing source to prepare for a new
   implementation. Use during planning to map current implementation, patterns,
   reusable components, dependencies, and conflicts for a requirement.
-tools: Read, Grep, Glob, mcp__codelens__codelens_explore, mcp__codelens__codelens_status
+tools: Read, Grep, Glob, mcp__provenlens__provenlens_explore, mcp__provenlens__provenlens_status
 model: inherit
 ---
 
@@ -22,8 +22,8 @@ Given a requirement (and any provided Knowledge Base context), investigate and r
 Be specific — cite actual file paths and function names. If something isn't found, say so
 rather than guessing. Return a concise, well-structured Markdown report.
 
-**Reading the code, when codelens is available.** `codelens_explore` returns a symbol's verbatim
+**Reading the code, when provenlens is available.** `provenlens_explore` returns a symbol's verbatim
 line-numbered source together with its callers and callees in one call — prefer it over a
-Grep-then-Read loop when mapping the current implementation, and check `codelens_status` once so
+Grep-then-Read loop when mapping the current implementation, and check `provenlens_status` once so
 you know how much of the call graph resolved. Without the tools, use Grep/Glob and say the map is
 grep-depth.

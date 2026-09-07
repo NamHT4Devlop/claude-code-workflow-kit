@@ -40,23 +40,23 @@ Read **both** halves, and cite files for everything:
 | Data recovery | migration tool (Flyway/Prisma/Liquibase), backup config, queue redrive settings |
 | Alerts | monitoring config in the repo, log/metric names actually emitted |
 
-### codelens (optional)
-`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
-through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+### provenlens (optional)
+`.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
+scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
-No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
-fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
-is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
+No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- `codelens explore "<entry point>"` — the real call chain behind an alert, so symptom → diagnosis
+- `provenlens explore "<entry point>"` — the real call chain behind an alert, so symptom → diagnosis
   points at the function that actually runs rather than the one with the matching name.
-- `codelens hotspots` — the components whose failure is widest earn a playbook first; that is the
+- `provenlens hotspots` — the components whose failure is widest earn a playbook first; that is the
   ordering an on-call reader needs at 2am.
-- `codelens path <entry point> <external call>` — where a downstream dependency enters the flow,
+- `provenlens path <entry point> <external call>` — where a downstream dependency enters the flow,
   which is what a "third party is down" playbook has to name.
 
 ## Procedure

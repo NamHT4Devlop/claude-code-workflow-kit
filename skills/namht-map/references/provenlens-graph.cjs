@@ -1,13 +1,13 @@
 /**
- * codelens-graph.cjs — build the viewer's graph from a RESOLVED call graph.
+ * provenlens-graph.cjs — build the viewer's graph from a RESOLVED call graph.
  *
  * The bundled analyzer (graph-builder.js) reads imports and `extends` with regular
  * expressions across nine languages. That is the only option for most of them, and it is
- * an honest one, but for the four codelens covers it is strictly weaker: an import is not
+ * an honest one, but for the four provenlens covers it is strictly weaker: an import is not
  * a call, and a Spring controller reaching a repository through two interfaces produces no
  * import edge at all.
  *
- * So when the repository has a `.codelens/` index and `codelens` is on PATH, take the
+ * So when the repository has a `.provenlens/` index and `provenlens` is on PATH, take the
  * edges from there instead. They are resolved calls, each carrying a confidence and the
  * rule that derived it — including hops through DI, mixins and framework string-bindings
  * (a Java publisher to a Ruby worker joined on a queue name) that no regex can see.
@@ -25,7 +25,7 @@ const { spawnSync } = require('child_process');
 const { LAYER_CONFIG } = require('./graph-builder.js');
 
 /**
- * Extensions codelens can put into a graph: the four it resolves, plus the two the binding
+ * Extensions provenlens can put into a graph: the four it resolves, plus the two the binding
  * plugins read (MyBatis XML, Flyway SQL) which arrive as generated symbols.
  */
 const COVERED_EXT = new Set([
@@ -40,12 +40,12 @@ const SOURCE_EXT = new Map([
 ]);
 
 const SKIP = new Set([
-  'node_modules', '.git', '.codelens', 'dist', 'build', 'out', 'target', 'vendor',
+  'node_modules', '.git', '.provenlens', 'dist', 'build', 'out', 'target', 'vendor',
   'coverage', '__pycache__', '.next', '.nuxt', '.gradle', 'tmp', 'namht-sessions',
 ]);
 
 /**
- * Source languages present on disk that codelens cannot put in a graph.
+ * Source languages present on disk that provenlens cannot put in a graph.
  *
  * A map that silently drops a service is worse than one that admits the hole, and the
  * export alone cannot reveal it: a Python service in a mostly-Java monorepo simply has no
@@ -78,7 +78,7 @@ function uncoveredLanguages(root, { maxDepth = 6, maxFiles = 20000 } = {}) {
 }
 
 /**
- * Languages the index holds, from `codelens status`.
+ * Languages the index holds, from `provenlens status`.
  *
  * `export` seeds from the busiest hubs and stops at a node cap, so on a large repository it draws
  * a neighbourhood, not the repository. If every hub is Ruby, an indexed TypeScript half can be
@@ -87,7 +87,7 @@ function uncoveredLanguages(root, { maxDepth = 6, maxFiles = 20000 } = {}) {
  * notice, because the export cannot report what it never reached.
  */
 function indexedLanguages(root) {
-  const run = spawnSync('codelens', ['status'], { cwd: root, encoding: 'utf8' });
+  const run = spawnSync('provenlens', ['status'], { cwd: root, encoding: 'utf8' });
   if (run.error || run.status !== 0) return [];
   const out = run.stdout || '';
   const start = out.indexOf('by language:');
@@ -106,12 +106,12 @@ function indexedLanguages(root) {
  * @returns {{ok: true} | {ok: false, why: string}}
  */
 function probe(root) {
-  if (!fs.existsSync(path.join(root, '.codelens'))) {
-    return { ok: false, why: 'no .codelens/ index (run `codelens init .` in the repo)' };
+  if (!fs.existsSync(path.join(root, '.provenlens'))) {
+    return { ok: false, why: 'no .provenlens/ index (run `provenlens init .` in the repo)' };
   }
-  const v = spawnSync('codelens', ['--version'], { encoding: 'utf8' });
+  const v = spawnSync('provenlens', ['--version'], { encoding: 'utf8' });
   if (v.error || v.status !== 0) {
-    return { ok: false, why: 'the `codelens` command is not on PATH' };
+    return { ok: false, why: 'the `provenlens` command is not on PATH' };
   }
   return { ok: true };
 }
@@ -134,7 +134,7 @@ function layerFor(node) {
   return 'business';
 }
 
-/** codelens `kind` → the viewer's node `type`, which drives the shape it is drawn with. */
+/** provenlens `kind` → the viewer's node `type`, which drives the shape it is drawn with. */
 function typeFor(kind) {
   switch (kind) {
     case 'class': case 'interface': case 'module': case 'enum': case 'record': return 'class';
@@ -147,28 +147,28 @@ function typeFor(kind) {
 /**
  * Read the graph around the busiest hubs.
  *
- * `codelens export` with no symbol seeds from the top hubs, which is exactly the "show me
+ * `provenlens export` with no symbol seeds from the top hubs, which is exactly the "show me
  * this codebase" picture this skill wants. Its own node cap is honoured rather than
  * re-implemented, so the viewer can never be handed more than it draws smoothly.
  */
-function buildFromCodelens(root, { depth = 3, max = 400 } = {}) {
+function buildFromProvenlens(root, { depth = 3, max = 400 } = {}) {
   const ready = probe(root);
   if (!ready.ok) return { ok: false, why: ready.why };
 
   const run = spawnSync(
-    'codelens',
+    'provenlens',
     ['export', '--format', 'json', '-d', String(depth), '-m', String(max)],
     { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   );
   if (run.error || run.status !== 0) {
-    return { ok: false, why: `codelens export failed: ${(run.stderr || run.error?.message || '').trim().split('\n')[0]}` };
+    return { ok: false, why: `provenlens export failed: ${(run.stderr || run.error?.message || '').trim().split('\n')[0]}` };
   }
 
   let graph;
   try {
     graph = JSON.parse(run.stdout);
   } catch (err) {
-    return { ok: false, why: `codelens export returned unparsable JSON (${err.message})` };
+    return { ok: false, why: `provenlens export returned unparsable JSON (${err.message})` };
   }
   if (!graph || !Array.isArray(graph.nodes) || !graph.nodes.length) {
     return { ok: false, why: 'the index is empty — nothing to draw' };
@@ -215,7 +215,7 @@ function buildFromCodelens(root, { depth = 3, max = 400 } = {}) {
 
   const unsupported = uncoveredLanguages(root);
   // Indexed, therefore drawable -- and still not drawn. Different from `unsupported`,
-  // which is about languages codelens cannot read at all.
+  // which is about languages provenlens cannot read at all.
   const indexedButAbsent = indexedLanguages(root).filter((l) => !langs.has(l));
 
   return {
@@ -236,7 +236,7 @@ function buildFromCodelens(root, { depth = 3, max = 400 } = {}) {
         languages: [...langs],
         // Read by build-map.cjs to label the picture. A reader must be able to tell a
         // resolved call from an import line, because they are not worth the same.
-        source: 'codelens (resolved call graph)',
+        source: 'provenlens (resolved call graph)',
         truncated: Boolean(graph.truncated),
         unsupportedLanguages: unsupported,
         indexedButAbsent,
@@ -245,4 +245,4 @@ function buildFromCodelens(root, { depth = 3, max = 400 } = {}) {
   };
 }
 
-module.exports = { buildFromCodelens, probe, uncoveredLanguages, indexedLanguages };
+module.exports = { buildFromProvenlens, probe, uncoveredLanguages, indexedLanguages };

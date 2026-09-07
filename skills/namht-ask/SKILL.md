@@ -20,25 +20,25 @@ and real source (technical detail) — never invent files, APIs, fields, or beha
 > `namht-sessions/`, **read** the old folder so past work isn't lost, keep **writing** to
 > `namht-sessions/`, and mention `scripts/migrate-sessions.sh <repo>` once to merge them.
 
-### codelens (optional)
-`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
-through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+### provenlens (optional)
+`.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
+scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
-No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
-fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
-is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
+No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- `codelens explore "<symbol|Type#method|phrase>"` — verbatim source, callers, callees and blast
+- `provenlens explore "<symbol|Type#method|phrase>"` — verbatim source, callers, callees and blast
   radius in one call. This *is* the answer to "how does X work" and "where is Y implemented"; reach
   for it before opening files.
-- `codelens path <from> <to>` — when the question is "how does A end up calling B", answer with the
+- `provenlens path <from> <to>` — when the question is "how does A end up calling B", answer with the
   real chain hop by hop instead of a plausible narrative.
-- Cite the file:line codelens returns, never a path you reconstructed from memory.
-- `codelens node <symbol>` when the question is about **one** named thing and `explore`'s three
+- Cite the file:line provenlens returns, never a path you reconstructed from memory.
+- `provenlens node <symbol>` when the question is about **one** named thing and `explore`'s three
   matches would be noise: it returns that symbol in full with its caller/callee trail, nothing else.
 
 ## Procedure

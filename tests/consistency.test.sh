@@ -136,13 +136,13 @@ for sk in namht-build namht-qa; do
 done
 [ "$bad" -eq 0 ] && echo "  ✓ kb-steps mandates the ids that other skills cite" || fail=1
 
-# codelens is an optional dependency (docs/codelens.md). Every skill that reasons about who-calls-what
-# carries the shared `### codelens (optional)` block INCLUDING its fallback sentence — the sentence is
+# provenlens is an optional dependency (docs/provenlens.md). Every skill that reasons about who-calls-what
+# carries the shared `### provenlens (optional)` block INCLUDING its fallback sentence — the sentence is
 # the whole point, because a skill that silently degrades to grep is one whose output gets over-trusted.
 # A skill that genuinely never reads a call graph is listed here with a reason instead. A skill in
 # NEITHER list fails: that is what stops the standard from quietly ending at the last one written.
-echo "consistency: codelens block present where it belongs, absent where it does not"
-CODELENS_OPT_OUT="namht-issues namht-pdf namht-splunk-report"
+echo "consistency: provenlens block present where it belongs, absent where it does not"
+PROVENLENS_OPT_OUT="namht-issues namht-pdf namht-splunk-report"
 #   issues          — turns an APPROVED plan into tickets; the blast radius is already in the plan,
 #                     and re-deriving it here would be a second opinion nobody asked for
 #   pdf             — renders a Markdown/HTML file to PDF; never opens the source
@@ -150,34 +150,34 @@ CODELENS_OPT_OUT="namht-issues namht-pdf namht-splunk-report"
 # discover and qa-integration were on this list and should not have been. Both ask a reach
 # question -- "which existing flow does this touch?" and "which regressions do I run?" -- and
 # answering either from intuition is the thing the block exists to stop.
-CODELENS_MARK='### codelens (optional)'
-CODELENS_FALLBACK='grep-depth only (no codelens index)'
+PROVENLENS_MARK='### provenlens (optional)'
+PROVENLENS_FALLBACK='grep-depth only (no provenlens index)'
 bad=0
 n_with=0
 for d in skills/namht-*/; do
   sk=$(basename "$d"); f="$d/SKILL.md"
-  case " ${CODELENS_OPT_OUT//[$'\n\t']/ } " in
+  case " ${PROVENLENS_OPT_OUT//[$'\n\t']/ } " in
     *" $sk "*)
-      grep -qF "$CODELENS_MARK" "$f" && { echo "  ✗ $sk is on the opt-out list but carries the block"; bad=1; }
+      grep -qF "$PROVENLENS_MARK" "$f" && { echo "  ✗ $sk is on the opt-out list but carries the block"; bad=1; }
       continue;;
   esac
-  if ! grep -qF "$CODELENS_MARK" "$f"; then
-    echo "  ✗ $sk has no '$CODELENS_MARK' block and is not on the opt-out list"; bad=1; continue
+  if ! grep -qF "$PROVENLENS_MARK" "$f"; then
+    echo "  ✗ $sk has no '$PROVENLENS_MARK' block and is not on the opt-out list"; bad=1; continue
   fi
-  grep -qF "$CODELENS_FALLBACK" "$f" || { echo "  ✗ $sk has the block but dropped the fallback sentence"; bad=1; }
+  grep -qF "$PROVENLENS_FALLBACK" "$f" || { echo "  ✗ $sk has the block but dropped the fallback sentence"; bad=1; }
   grep -qF '**Here:**' "$f" || { echo "  ✗ $sk has the block but no skill-specific '**Here:**' commands"; bad=1; }
   n_with=$((n_with+1))
 done
-[ -f docs/codelens.md ] || { echo "  ✗ docs/codelens.md is missing but every skill points at it"; bad=1; }
-# the sub-agents the skills fan out to must be able to reach codelens, or the block is a lie there
+[ -f docs/provenlens.md ] || { echo "  ✗ docs/provenlens.md is missing but every skill points at it"; bad=1; }
+# the sub-agents the skills fan out to must be able to reach provenlens, or the block is a lie there
 for a in namht-impact-detector namht-codebase-analyzer namht-security-reviewer; do
-  grep -q 'mcp__codelens__' "agents/$a.md" || { echo "  ✗ agents/$a.md cannot reach codelens (no mcp__codelens__ tool)"; bad=1; }
+  grep -q 'mcp__provenlens__' "agents/$a.md" || { echo "  ✗ agents/$a.md cannot reach provenlens (no mcp__provenlens__ tool)"; bad=1; }
 done
 # read-only sub-agents must stay read-only: granting Bash to reach the CLI would undo that
 for a in agents/*.md; do
   grep -m1 '^tools:' "$a" | grep -q '\bBash\b' && { echo "  ✗ $a grants Bash — sub-agents are read-only; pass CLI output in via the prompt"; bad=1; }
 done
-[ "$bad" -eq 0 ] && echo "  ✓ codelens block in $n_with skills, opted out of $(echo $CODELENS_OPT_OUT | wc -w | tr -d ' '), agents wired read-only" || fail=1
+[ "$bad" -eq 0 ] && echo "  ✓ provenlens block in $n_with skills, opted out of $(echo $PROVENLENS_OPT_OUT | wc -w | tr -d ' '), agents wired read-only" || fail=1
 
 echo "consistency: version + changelog"
 bad=0

@@ -15,22 +15,22 @@ The dangerous moment in a microservice system is changing something **other serv
 whole skill is one idea: **never flip a breaking change in one step** — run old and new in parallel,
 move consumers, then remove the old only once nothing uses it.
 
-### codelens (optional)
-`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
-through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+### provenlens (optional)
+`.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
+scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
-No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
-fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
-is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
+No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- `codelens impact <symbol|handler>` — every transitive consumer, including the ones grep cannot
+- `provenlens impact <symbol|handler>` — every transitive consumer, including the ones grep cannot
   reach through an interface or a mixin. This is the consumer list the expand→migrate→contract plan
   is built from; a missed consumer is a broken contract.
-- **Across services:** index each repo (`codelens init .`), then query from the workspace root — a
+- **Across services:** index each repo (`provenlens init .`), then query from the workspace root — a
   shared queue name or endpoint URI links a producer in one repo to a consumer in another, across
   languages. Those are precisely the consumers a contract change breaks and the ones prose misses.
 - A consumer you cannot find in the graph is not proof of absence: say which repos were indexed.

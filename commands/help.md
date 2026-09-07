@@ -106,16 +106,16 @@ the same six everywhere:
 6. **Write for both audiences.** A non-technical reader gets the plain sections, an engineer gets full
    precision, and the two must not contradict.
 
-## Optional: `codelens`
+## Optional: `provenlens`
 
-If the repo has a `.codelens/` index, **27 of the 30 skills** answer "who calls what" from a resolved
+If the repo has a `.provenlens/` index, **27 of the 30 skills** answer "who calls what" from a resolved
 call graph rather than grep — real callers, blast radius, and the tests that already cover a change.
-Without it they fall back and label the output `⚠️ grep-depth only (no codelens index)`, so you can
+Without it they fall back and label the output `⚠️ grep-depth only (no provenlens index)`, so you can
 always tell which a finding rests on. Covers **Java · Ruby · TypeScript/JavaScript** only.
 
-When you show this guide, also report what this repo has: `.codelens/` present or not, and if the
-`codelens` command exists, the one-line `codelens status`. Point at
-[`docs/codelens.md`](../docs/codelens.md) for setup — do not run `codelens init` yourself, it walks
+When you show this guide, also report what this repo has: `.provenlens/` present or not, and if the
+`provenlens` command exists, the one-line `provenlens status`. Point at
+[`docs/provenlens.md`](../docs/provenlens.md) for setup — do not run `provenlens init` yourself, it walks
 the whole tree and is the user's decision.
 
 See [`docs/skill-anatomy.md`](../docs/skill-anatomy.md) for the shape every skill follows, and what

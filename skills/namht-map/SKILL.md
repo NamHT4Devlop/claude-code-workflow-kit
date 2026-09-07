@@ -16,39 +16,39 @@ Mermaid dump. It runs a bundled, dependency-free multi-language static analyzer
 (`references/graph-builder.js`, pure Node `fs`/`path`) supporting TS/JS, Python, Java/Kotlin,
 Go, Ruby, C#, PHP and Rust, then injects the graph into `references/viewer-template.html`.
 
-### codelens (optional)
-`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
-through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+### provenlens (optional)
+`.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
+scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
-No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
-fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
-is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
+No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
 - **`build-map.cjs` already does the choosing — you do not.** It calls
-  `references/codelens-graph.cjs` first: with a `.codelens/` index and `codelens` on PATH it draws
+  `references/provenlens-graph.cjs` first: with a `.provenlens/` index and `provenlens` on PATH it draws
   the **resolved call graph** (edges are real calls, each labelled with its `via` and confidence);
   otherwise it falls back to the regex scan and prints why on stderr. Read that line and repeat it
   in your summary.
-- **The viewer says which one drew it** — the meta bar reads `codelens (resolved call graph)` or
+- **The viewer says which one drew it** — the meta bar reads `provenlens (resolved call graph)` or
   `static import/inheritance scan`. Never describe a regex edge as a call.
 - **Uncovered languages are named, not hidden.** If the tree holds Python, Go, C#, PHP, Rust,
-  Kotlin, Scala, Swift or C/C++, stderr warns that those files are absent from a codelens graph.
+  Kotlin, Scala, Swift or C/C++, stderr warns that those files are absent from a provenlens graph.
   **Put that in the summary** — a map that silently drops a service is worse than one that admits
   the hole.
-- **The resolved graph can be a neighbourhood, not the repository.** `codelens export` seeds from
+- **The resolved graph can be a neighbourhood, not the repository.** `provenlens export` seeds from
   the busiest hubs and stops at a node cap, so on a large repo it draws what surrounds those hubs.
   If a language is **indexed and still absent** — every hub was Ruby, so the TypeScript half was
   never reached — stderr prints `WARNING: … is indexed but absent`. That warning is not optional
-  reading: repeat it, or re-run with `CODELENS=0` for a whole-repo scan. On human-essentials the
+  reading: repeat it, or re-run with `PROVENLENS=0` for a whole-repo scan. On human-essentials the
   resolved graph is 400 nodes / 796 edges of Ruby; the static scan is 1578 nodes / 1084 edges
   across Ruby and JavaScript. Denser and truer, against wider. Say which one you gave them.
-- `CODELENS=0 node references/build-map.cjs …` forces the regex analyzer, for a side-by-side
+- `PROVENLENS=0 node references/build-map.cjs …` forces the regex analyzer, for a side-by-side
   comparison when you want to show what the index is buying.
-- `codelens hotspots` names the hubs for the summary; `codelens cycles` names the circular
+- `provenlens hotspots` names the hubs for the summary; `provenlens cycles` names the circular
   dependencies. Both beat degree-counting on a regex graph.
 
 ## How to run it

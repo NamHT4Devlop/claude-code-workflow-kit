@@ -85,7 +85,7 @@
       <li><a href="#install">2. Install for yourself</a></li>
       <li><a href="#safe">3. Enable the safety guards (important)</a></li>
       <li><a href="#first">4. First use on a repo</a></li>
-      <li><a href="#codelens">4b. Optional: codelens (the call graph)</a></li>
+      <li><a href="#provenlens">4b. Optional: provenlens (the call graph)</a></li>
       <li><a href="#daily">5. Command table &amp; daily flow</a></li>
       <li><a href="#verify">6. Verify it works</a></li>
       <li><a href="#maintain">7. Update / Uninstall</a></li>
@@ -180,11 +180,11 @@ claude</code></pre></div>
   <p class="muted">Already have a <code>knowledge-base/</code> from another machine? Just copy it into the repo to reuse it — no need to scan.</p>
 
 
-  <!-- ============ CODELENS (optional) ============ -->
-  <h2 id="codelens">🔗 4b. Optional: <code>codelens</code> — the call graph</h2>
+  <!-- ============ PROVENLENS (optional) ============ -->
+  <h2 id="provenlens">🔗 4b. Optional: <code>provenlens</code> — the call graph</h2>
   <p>Nothing here needs it. But <b>27 of the 30 skills</b> use it when a repository has a
-  <code>.codelens/</code> index, and grep when it does not — and when they fall back they
-  <b>say so</b>, marking the output <code>⚠️ grep-depth only (no codelens index)</code>. That
+  <code>.provenlens/</code> index, and grep when it does not — and when they fall back they
+  <b>say so</b>, marking the output <code>⚠️ grep-depth only (no provenlens index)</code>. That
   sentence is the point: a caller list from grep and one from a resolved call graph are not the
   same claim, and an impact analysis that hides which one it used is the kind that gets trusted
   wrongly.</p>
@@ -197,16 +197,16 @@ claude</code></pre></div>
   <p><b>Covers Java, Ruby, TypeScript and JavaScript only.</b> For Python, Go, C#, PHP, Rust or
   Kotlin the fallback is the only path, and the skills say so rather than implying coverage they
   do not have.</p>
-  <pre><code>git clone git@github.com:NamHT4Devlop/codelens.git ~/AI-TOOL/codelens
-cd ~/AI-TOOL/codelens &amp;&amp; yarn install
-ln -sf ~/AI-TOOL/codelens/bin/codelens.js ~/.local/bin/codelens
-codelens install claude-user     # registers the MCP server, keeps a .bak
-cd /path/to/your/repo &amp;&amp; codelens init .</code></pre>
+  <pre><code>git clone git@github.com:NamHT4Devlop/provenlens.git ~/AI-TOOL/provenlens
+cd ~/AI-TOOL/provenlens &amp;&amp; yarn install
+ln -sf ~/AI-TOOL/provenlens/bin/provenlens.js ~/.local/bin/provenlens
+provenlens install claude-user     # registers the MCP server, keeps a .bak
+cd /path/to/your/repo &amp;&amp; provenlens init .</code></pre>
   <p class="muted">Runs fully offline — no network calls of any kind. The index lives in
-  <code>.codelens/</code> and is a rebuildable cache: <code>scripts/onboard-project.sh</code> adds it
+  <code>.provenlens/</code> and is a rebuildable cache: <code>scripts/onboard-project.sh</code> adds it
   to the project's <code>.gitignore</code>, because an index describing the whole codebase must
-  never reach a team repo. Remove one with <code>codelens uninit</code>. Full detail in
-  <code>docs/codelens.md</code>.</p>
+  never reach a team repo. Remove one with <code>provenlens uninit</code>. Full detail in
+  <code>docs/provenlens.md</code>.</p>
 
   <!-- 6 -->
   <h2 id="daily">5. Command table &amp; daily flow</h2>

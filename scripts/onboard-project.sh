@@ -2,7 +2,7 @@
 # onboard-project.sh — apply namht Kit per-project hygiene (AI-engineering principles)
 #
 # What it does (idempotent, safe to re-run):
-#   1. Adds `namht-sessions/`, `knowledge-base/` and `.codelens/` to the project's .gitignore
+#   1. Adds `namht-sessions/`, `knowledge-base/` and `.provenlens/` to the project's .gitignore
 #      (generated artifacts and a rebuildable index — none of them belong in a team repo).
 #   2. Creates a starter CLAUDE.md ONLY if none exists, telling Claude Code that this
 #      project has a knowledge-base/ and to use the namht Kit commands.
@@ -41,8 +41,8 @@ ensure_ignore() {
 ensure_ignore "namht-sessions/"
 # knowledge-base/ is a full business analysis of the codebase — it must never land in a team repo.
 ensure_ignore "knowledge-base/"
-# .codelens/ is the codelens call-graph index: a rebuildable cache, and nobody else's business.
-ensure_ignore ".codelens/"
+# .provenlens/ is the provenlens call-graph index: a rebuildable cache, and nobody else's business.
+ensure_ignore ".provenlens/"
 
 # 2) starter CLAUDE.md (only if missing) --------------------------------------
 if [ -f "CLAUDE.md" ] || [ -f ".claude/CLAUDE.md" ]; then
@@ -70,16 +70,16 @@ EOF
   echo "   ✅ Created starter CLAUDE.md (edit the TODO line)"
 fi
 
-# 3) codelens index status (optional dependency) -------------------------------
-if [ -d ".codelens" ]; then
-  echo "   ✅ codelens index present — skills will use resolved call paths"
-  command -v codelens >/dev/null 2>&1 && codelens status 2>/dev/null | sed 's/^/      /' || true
-elif command -v codelens >/dev/null 2>&1; then
-  echo "   ⚠  codelens is installed but this repo has no index"
-  echo "      → run 'codelens init .' here for real callers/blast radius (Java · Ruby · TS/JS)"
+# 3) provenlens index status (optional dependency) -------------------------------
+if [ -d ".provenlens" ]; then
+  echo "   ✅ provenlens index present — skills will use resolved call paths"
+  command -v provenlens >/dev/null 2>&1 && provenlens status 2>/dev/null | sed 's/^/      /' || true
+elif command -v provenlens >/dev/null 2>&1; then
+  echo "   ⚠  provenlens is installed but this repo has no index"
+  echo "      → run 'provenlens init .' here for real callers/blast radius (Java · Ruby · TS/JS)"
 else
-  echo "   •  codelens not installed — skills fall back to grep and will say so"
-  echo "      → optional: see docs/codelens.md"
+  echo "   •  provenlens not installed — skills fall back to grep and will say so"
+  echo "      → optional: see docs/provenlens.md"
 fi
 
 # 4) KB status ----------------------------------------------------------------

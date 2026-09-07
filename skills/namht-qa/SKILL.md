@@ -33,22 +33,22 @@ the code (real endpoints/handlers). This is **test design** — it does NOT writ
   suggest `/namht-scan`. Read the relevant controllers/handlers to find the exact
   endpoints/handlers/state machines involved.
 
-### codelens (optional)
-`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
-through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+### provenlens (optional)
+`.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
+scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
-No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
-fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
-is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
+No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- `git diff --name-only | codelens affected` — its `tests:` list names the existing tests that
+- `git diff --name-only | provenlens affected` — its `tests:` list names the existing tests that
   already cover the change (your regression set), and its **absence** is proof of the gap rather
   than a worry about one.
-- `codelens impact <changed symbol>` — the old flows that need regression cases. Each becomes a row
+- `provenlens impact <changed symbol>` — the old flows that need regression cases. Each becomes a row
   in the traceability matrix, with the resolved caller as the evidence column.
 - A regression case you cannot tie to a real consumer is a guess: label it, or drop it.
 

@@ -130,10 +130,10 @@ Set `namhtSpecUi.language` to `vi` — the translations live in `media/i18n.js`,
 string, so anything untranslated falls back to English rather than breaking. Adding a card means
 adding its strings there too; `tests/i18n.test.cjs` fails the build if you forget.
 
-## Optional: `codelens`
+## Optional: `provenlens`
 
-The skills this panel runs use a [`codelens`](https://github.com/NamHT4Devlop/codelens) index when the
+The skills this panel runs use a [`provenlens`](https://github.com/NamHT4Devlop/provenlens) index when the
 repository has one — resolved callers and blast radius instead of grep, for Java, Ruby, TypeScript and
 JavaScript. Nothing here requires it, and a skill that falls back says so in its own output
 (`grep-depth only`), so a report never overstates how it knows something. Setup is in the toolkit's
-`docs/codelens.md`.
+`docs/provenlens.md`.

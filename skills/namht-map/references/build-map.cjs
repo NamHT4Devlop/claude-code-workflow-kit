@@ -25,24 +25,24 @@ let mode = process.argv[4] || 'all';
 if (!fs.existsSync(root)) { console.error('✖ project root not found:', root); process.exit(1); }
 
 const { buildGraphData } = require('./graph-builder.js');
-const { buildFromCodelens } = require('./codelens-graph.cjs');
+const { buildFromProvenlens } = require('./provenlens-graph.cjs');
 
 console.error('▶ analyzing', root, '(mode:', mode + ')…');
 
 let data = null;
 
 // A resolved call graph beats an import regex wherever one exists. `domain` mode draws the
-// Knowledge Base rather than the code, so it never applies there; CODELENS=0 forces the
+// Knowledge Base rather than the code, so it never applies there; PROVENLENS=0 forces the
 // regex analyzer for a side-by-side comparison.
-if (mode !== 'domain' && process.env.CODELENS !== '0') {
-  const attempt = buildFromCodelens(root, { depth: 3, max: 400 });
+if (mode !== 'domain' && process.env.PROVENLENS !== '0') {
+  const attempt = buildFromProvenlens(root, { depth: 3, max: 400 });
   if (attempt.ok) {
     data = attempt.data;
-    console.error(`  using codelens: ${data.nodes.length} nodes · ${data.edges.length} resolved edges`);
+    console.error(`  using provenlens: ${data.nodes.length} nodes · ${data.edges.length} resolved edges`);
     const missing = data.metadata.unsupportedLanguages || [];
     if (missing.length) {
       console.error(
-        `  note: ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} outside codelens`
+        `  note: ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} outside provenlens`
         + ' — those files are not in this graph; say so when you summarise it',
       );
     }
@@ -55,14 +55,14 @@ if (mode !== 'domain' && process.env.CODELENS !== '0') {
         `  WARNING: ${absent.join(', ')} ${absent.length === 1 ? 'is' : 'are'} indexed but absent`
         + ' from this graph — hub seeding plus the node cap did not reach them.',
       );
-      console.error('           Say this in the summary, or re-run with CODELENS=0 for a whole-repo scan.');
+      console.error('           Say this in the summary, or re-run with PROVENLENS=0 for a whole-repo scan.');
     } else if (data.metadata.truncated) {
       console.error('  note: the graph hit its node cap — it shows the busiest neighbourhood, not the whole repo');
     }
   } else {
     // Not an error: most repositories have no index, and six of the nine languages this
-    // analyzer reads are outside codelens entirely. Say why, so the choice is visible.
-    console.error(`  codelens not used (${attempt.why}) → static import/inheritance scan`);
+    // analyzer reads are outside provenlens entirely. Say why, so the choice is visible.
+    console.error(`  provenlens not used (${attempt.why}) → static import/inheritance scan`);
   }
 }
 

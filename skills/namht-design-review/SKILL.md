@@ -20,22 +20,22 @@ have. Works on a **live URL** (preferred — real screenshots) or on **frontend 
 - Any **design system / UX rules** in the KB (`12-conventions`, a `design`/`ui` doc, tokens) — use
   as the standard; otherwise apply general heuristics.
 
-### codelens (optional)
-`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
-through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+### provenlens (optional)
+`.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
+scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
-No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
-fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
-is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
+No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- `codelens callers "<Component>"` — how many screens a component change actually reaches (TS/TSX
+- `provenlens callers "<Component>"` — how many screens a component change actually reaches (TS/TSX
   only). A spacing fix with 14 call sites is a different review from one with 1, and the severity
   you assign should say so.
-- For a design-system violation, `codelens callers` on the token or wrapper tells you whether the
+- For a design-system violation, `provenlens callers` on the token or wrapper tells you whether the
   fix is one file or a migration.
 
 ## Review dimensions (cite the screen/component + screenshot/file)

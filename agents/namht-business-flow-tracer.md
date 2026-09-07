@@ -4,7 +4,7 @@ description: >-
   Business analyst that traces how a requirement interacts with existing business
   flows — affected flows, the new flow definition, applicable business rules,
   state-machine impact, and business edge cases. Use during planning.
-tools: Read, Grep, Glob, mcp__codelens__codelens_explore
+tools: Read, Grep, Glob, mcp__provenlens__provenlens_explore
 model: inherit
 ---
 
@@ -23,7 +23,7 @@ Given a requirement, report:
 
 Cite the exact rules/files/functions. Return a concise Markdown report.
 
-**Following a flow, when codelens is available.** `codelens_explore` returns the real callees of
+**Following a flow, when provenlens is available.** `provenlens_explore` returns the real callees of
 a step, including hops through interfaces, mixins and queue bindings that a file read cannot
 follow — use it to confirm each hop of a flow rather than assembling it from names. Without it,
 trace with Grep/Glob and say the trace is grep-depth.

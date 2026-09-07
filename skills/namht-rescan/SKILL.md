@@ -13,23 +13,23 @@ description: >-
 A native port of Auto Spec extension's `/rescan`. Keep `knowledge-base/` accurate without paying
 for a full rebuild. If there is no existing KB, fall back to a full `/namht-scan`.
 
-### codelens (optional)
-`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
-through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+### provenlens (optional)
+`.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
+scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
-No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
-fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
-is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
+No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- `git diff --name-only <last-scan-commit>..HEAD | codelens affected` — the changed symbols **and**
+- `git diff --name-only <last-scan-commit>..HEAD | provenlens affected` — the changed symbols **and**
   everything that transitively reaches them. That reached set is the list of KB pages to re-read,
   and it is strictly larger than the set of changed files: a rescan driven by `git diff` alone
   leaves documentation describing a caller whose callee changed underneath it.
-- `codelens status` after the sync — if coverage dropped, the code moved somewhere the resolver no
+- `provenlens status` after the sync — if coverage dropped, the code moved somewhere the resolver no
   longer follows, and the KB section for that area should say so.
 
 ## Procedure

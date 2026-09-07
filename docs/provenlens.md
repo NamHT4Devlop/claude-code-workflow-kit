@@ -1,6 +1,6 @@
-# codelens — the call graph the kit reads when it is there
+# provenlens — the call graph the kit reads when it is there
 
-`codelens` is a separate tool ([NamHT4Devlop/codelens](https://github.com/NamHT4Devlop/codelens)):
+`provenlens` is a separate tool ([NamHT4Devlop/provenlens](https://github.com/NamHT4Devlop/provenlens)):
 it pre-indexes a repository into a graph of symbols and who-calls-what, stored in SQLite, and
 answers questions grep structurally cannot.
 
@@ -16,7 +16,7 @@ Grep finds a **string**. A call graph finds a **call**. The gap is where the kit
 come from — an impact analysis that missed a caller, a "safe" deletion, a regression suite that
 tested the wrong flow:
 
-| The question a skill asks | What grep returns | What codelens returns |
+| The question a skill asks | What grep returns | What provenlens returns |
 |---|---|---|
 | Who calls `DonationService#record`? | every line containing `record` | the resolved callers, each with a confidence and how it was derived |
 | Does this Spring controller reach the repository? | nothing — the hop goes through an interface | the chain, linked `interface->impl` at 0.9 |
@@ -30,9 +30,10 @@ tested the wrong flow:
 Kotlin the fallback is the only path, and a skill must say so rather than imply coverage it does
 not have.
 
-Framework string-bindings it does resolve: **MyBatis** (`@Mapper` ↔ `<select id>`), **Camel**
-(`from()` ↔ `.to()`), **SQS** (producer ↔ `@SqsListener` / `@SqsMessageHandler` / Shoryuken,
-across languages), **Flyway** (migration ↔ entity).
+Framework string-bindings it does resolve, in nine plugins: **MyBatis** (`@Mapper` ↔ `<select id>`),
+**Camel** (`from()` ↔ `.to()`), **SQS** (producer ↔ `@SqsListener` / `@SqsMessageHandler` / Shoryuken,
+across languages), **Kafka**, **HTTP routes** (a served route ↔ the client that calls it), **Spring
+events**, **GraphQL**, **gRPC**, and **Flyway** (migration ↔ entity).
 
 Every edge carries a `confidence` (1.0 `direct` … 0.4 `method-missing`) and a `via` note. When a
 finding rests on a low-confidence edge, say which one.
@@ -42,38 +43,38 @@ finding rests on a low-confidence edge, say which one.
 ## Setup (once per machine, once per repo)
 
 ```bash
-git clone git@github.com:NamHT4Devlop/codelens.git ~/AI-TOOL/codelens && cd ~/AI-TOOL/codelens && yarn install
+git clone git@github.com:NamHT4Devlop/provenlens.git ~/AI-TOOL/provenlens && cd ~/AI-TOOL/provenlens && yarn install
 ```
 
 ```bash
-ln -sf ~/AI-TOOL/codelens/bin/codelens.js ~/.local/bin/codelens
+ln -sf ~/AI-TOOL/provenlens/bin/provenlens.js ~/.local/bin/provenlens
 ```
 
 Register the MCP server so Claude Code can call it directly (writes `~/.claude.json`, keeps a
 `.bak`, and prints the change first):
 
 ```bash
-codelens install claude-user
+provenlens install claude-user
 ```
 
-Index a repository (the index is a cache in `.codelens/` — never commit it):
+Index a repository (the index is a cache in `.provenlens/` — never commit it):
 
 ```bash
-cd /path/to/repo && codelens init .
+cd /path/to/repo && provenlens init .
 ```
 
-`scripts/onboard-project.sh` adds `.codelens/` to the project's `.gitignore` and reports index
+`scripts/onboard-project.sh` adds `.provenlens/` to the project's `.gitignore` and reports index
 status, alongside the `namht-sessions/` and `knowledge-base/` hygiene it already does.
 
 ## Two ways a skill reaches it
 
 | | How | What it gets |
 |---|---|---|
-| **MCP** | `codelens install claude-user` → tools `mcp__codelens__codelens_{explore,impact,affected,status}` | The four questions that come up most. Read-only, so a read-only sub-agent can be granted them without gaining shell access. |
-| **CLI via Bash** | `codelens <cmd>` | Everything, including the five with no MCP tool: `dead`, `cycles`, `hotspots`, `path`, `export`. |
+| **MCP** | `provenlens install claude-user` → tools `mcp__provenlens__provenlens_{explore,impact,affected,status,why}` | The five questions that come up most. Read-only, so a read-only sub-agent can be granted them without gaining shell access. |
+| **CLI via Bash** | `provenlens <cmd>` | Everything, including the ones with no MCP tool: `callers`, `callees`, `node`, `query`, `routes`, `dead`, `cycles`, `hotspots`, `path`, `export`. |
 
 Sub-agents in `agents/` are granted the **MCP tools only**. Handing them `Bash` to reach
-`codelens dead` would trade a read-only guarantee for one command; instead the parent skill (which
+`provenlens dead` would trade a read-only guarantee for one command; instead the parent skill (which
 has `Bash`) runs those and passes the result into the sub-agent's prompt.
 
 If the MCP server is not registered, the tool names in an agent's `tools:` list simply do not
@@ -83,23 +84,25 @@ resolve and the agent falls back to `Read/Grep/Glob`. That is the intended degra
 
 | Question | Command | MCP |
 |---|---|---|
-| What is this, and what does it touch? | `codelens explore "<name>"` | ✅ |
-| What breaks if I change this? | `codelens impact <symbol>` | ✅ |
-| I changed these files — what do I re-test? | `git diff --name-only \| codelens affected` | ✅ |
-| Is the index good enough to trust? | `codelens status`, `codelens doctor` | `status` ✅ |
-| Who calls / what does it call? | `codelens callers` · `codelens callees` | — |
-| How does A end up reaching B? | `codelens path <from> <to>` | — |
-| What is safe to delete? | `codelens dead` | — |
-| What depends on itself? | `codelens cycles` | — |
-| What would hurt most to change? | `codelens hotspots` | — |
-| Give me the graph | `codelens export --format json\|mermaid` | — |
+| What is this, and what does it touch? | `provenlens explore "<name>"` | ✅ |
+| What breaks if I change this? | `provenlens impact <symbol>` | ✅ |
+| I changed these files — what do I re-test? | `git diff --name-only \| provenlens affected` | ✅ |
+| Is the index good enough to trust? | `provenlens status`, `provenlens doctor` | `status` ✅ |
+| Who calls / what does it call? | `provenlens callers` · `provenlens callees` | — |
+| How much of this rests on a declaration, not a call? | `provenlens why <symbol>` | ✅ |
+| Which HTTP routes does this serve, and who calls them? | `provenlens routes` | — |
+| How does A end up reaching B? | `provenlens path <from> <to>` | — |
+| What is safe to delete? | `provenlens dead` | — |
+| What depends on itself? | `provenlens cycles` | — |
+| What would hurt most to change? | `provenlens hotspots` | — |
+| Give me the graph | `provenlens export --format json\|mermaid` | — |
 
 `affected --fail-if-untested` exits **2** when the change touches production code that no test
 reaches. That is a CI-grade gate, and the kit treats it as a blocker, not a note.
 
 ## Multi-repo
 
-`codelens serve` and the MCP server both accept a folder of checkouts: point either at a workspace
+`provenlens serve` and the MCP server both accept a folder of checkouts: point either at a workspace
 root and every indexed repo underneath answers. Cross-repo chains are walked through the binding
 layer — a producer in one repo and a consumer in another are joined on the shared queue name or
 endpoint URI. This is what `namht-system-map` uses to mark an edge **confirmed** rather than
@@ -109,7 +112,7 @@ inferred.
 
 ## Beyond the skills: the shared resources
 
-Two files are bundled into many skills at once, and both had no idea codelens existed — which meant
+Two files are bundled into many skills at once, and both had no idea provenlens existed — which meant
 the methodology said one thing and the shared checklist another:
 
 - **`resources/review-skills-universal.md`** (bundled into 6 skills) opens with **§0 Evidence**: the
@@ -126,17 +129,17 @@ Edit them in `resources/` and run `scripts/sync-bundles.sh`; the copies under
 
 ## The contract every skill follows
 
-Each integrated skill carries a `### codelens (optional)` block. The wording of its first
+Each integrated skill carries a `### provenlens (optional)` block. The wording of its first
 paragraph is identical everywhere on purpose — `tests/consistency.test.sh` checks for it, so the
 fallback sentence cannot be quietly dropped from one skill:
 
-1. **Prefer it when present.** `.codelens/` exists → use it for anything about who-calls-what.
-2. **Verify before trusting.** `codelens status` once, and `codelens sync` when the working tree has
+1. **Prefer it when present.** `.provenlens/` exists → use it for anything about who-calls-what.
+2. **Verify before trusting.** `provenlens status` once, and `provenlens sync` when the working tree has
    moved since the index was built. A stale or thin index is worse than none because it looks
-   authoritative. `codelens doctor` separates a resolver limit from an uninstalled dependency —
+   authoritative. `provenlens doctor` separates a resolver limit from an uninstalled dependency —
    identical in the number, nothing alike in the fix.
 3. **Degrade loudly.** No index, no command, or an uncovered language → Grep/Glob, and write
-   `⚠️ grep-depth only (no codelens index)` in the output.
+   `⚠️ grep-depth only (no provenlens index)` in the output.
 4. **Never launder a guess.** A grep hit is not a resolved call and must never be reported as one.
 5. **Cite the confidence** when a conclusion rests on an edge below `direct`.
 
@@ -166,7 +169,7 @@ an entry there, fails the suite.
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `no .codelens/ found here or in any parent` | repo never indexed | `codelens init .` |
-| Coverage looks low in `status` | dependencies not installed, not a resolver bug | `codelens doctor` says which |
-| Agent ignores codelens | MCP server not registered | `codelens install claude-user`, then restart Claude Code |
-| Answers are stale | index not synced | `codelens sync` (or `sync --watch`); the MCP server syncs on first touch and watches after |
+| `no .provenlens/ found here or in any parent` | repo never indexed | `provenlens init .` |
+| Coverage looks low in `status` | dependencies not installed, not a resolver bug | `provenlens doctor` says which |
+| Agent ignores provenlens | MCP server not registered | `provenlens install claude-user`, then restart Claude Code |
+| Answers are stale | index not synced | `provenlens sync` (or `sync --watch`); the MCP server syncs on first touch and watches after |

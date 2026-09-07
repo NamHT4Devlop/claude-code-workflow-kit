@@ -23,23 +23,23 @@ Ground in the KB (`10-core-flows`, `08-database-schema`) and get real data befor
 - **Node:** `clinic.js` / `--prof`; DB driver timing.
 - Or pull real latency/slow-query data from `/namht-observe` metrics + `/namht-splunk-report`.
 
-### codelens (optional)
-`.codelens/` present → prefer `codelens` over grep for anything about **who calls what**: it resolves
-through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Flyway) and
-scores every edge. Confirm it with `codelens status`, and run `codelens sync` first if the working
+### provenlens (optional)
+`.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
+through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
+scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `codelens doctor` says whether that is a resolver limit or
+authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
-No index, no `codelens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
-fall back to Grep/Glob and write `⚠️ grep-depth only (no codelens index)` in the output. A grep hit
-is never a resolved call — do not report it as one. Playbook: `docs/codelens.md`.
+No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
+fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
+is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- Measure first — this stays true. `codelens hotspots` ranks **blast radius, not runtime cost**;
+- Measure first — this stays true. `provenlens hotspots` ranks **blast radius, not runtime cost**;
   it tells you where a fix pays widest, never that something is slow.
-- `codelens path <controller> <repository>` — the full chain behind a slow endpoint, which is where
+- `provenlens path <controller> <repository>` — the full chain behind a slow endpoint, which is where
   an N+1 usually hides between two layers that each look innocent.
-- `codelens callers <query method>` — is the query reached from inside a loop? That is the N+1 test,
+- `provenlens callers <query method>` — is the query reached from inside a loop? That is the N+1 test,
   and it is a graph question, not a grep question.
 
 ## The usual dominant costs (and the fix)
