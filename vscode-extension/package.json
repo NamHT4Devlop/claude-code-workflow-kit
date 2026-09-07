@@ -1,9 +1,9 @@
 {
-  "name": "namht-spec-ui",
-  "displayName": "namht Kit UI",
-  "description": "Point-and-click UI over the namht-* namht Kit skills for non-technical roles (PM/SM). Runs Claude Code under the hood.",
+  "name": "cwk-ui",
+  "displayName": "Workflow Kit UI",
+  "description": "Point-and-click UI over the cwk-* Workflow Kit skills for non-technical roles (PM/SM). Runs Claude Code under the hood.",
   "version": "0.17.0",
-  "publisher": "namht",
+  "publisher": "cwk",
   "private": true,
   "license": "UNLICENSED",
   "packageManager": "yarn@1.22.22",
@@ -23,31 +23,31 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "namhtSpec",
-          "title": "namht Kit",
+          "id": "cwk",
+          "title": "Workflow Kit",
           "icon": "media/icon.svg"
         }
       ]
     },
     "views": {
-      "namhtSpec": [
+      "cwk": [
         {
-          "id": "namhtSpec.view",
+          "id": "cwk.view",
           "type": "webview",
-          "name": "namht Kit"
+          "name": "Workflow Kit"
         }
       ]
     },
     "configuration": {
-      "title": "namht Kit UI",
+      "title": "Workflow Kit UI",
       "properties": {
-        "namhtSpecUi.claudePath": {
+        "cwkUi.claudePath": {
           "type": "string",
           "default": "claude",
           "description": "Path to the Claude Code CLI executable. (machine-scoped: a workspace cannot override which binary is launched).",
           "scope": "machine"
         },
-        "namhtSpecUi.extraArgs": {
+        "cwkUi.extraArgs": {
           "type": "array",
           "items": {
             "type": "string"
@@ -59,12 +59,12 @@
           "description": "Extra args passed to `claude -p`. Default `bypassPermissions` lets skills run the tools they need headlessly (node for the map/PDF, npm/npx/jest for build & tests, gh, curl) — otherwise those Bash commands fail, because a headless run cannot answer an approval prompt. TRADE-OFF: this mode also permits any Bash command, writes outside the workspace, reading files such as .env, and network calls; Anthropic recommends it only in an isolated environment. The git-guard PreToolUse hook still blocks dangerous/remote git in this mode (hooks run before the permission check - verified), but it is defense-in-depth, not a sandbox. Prefer prompts? Set [\"--permission-mode\",\"acceptEdits\"] - then map/build/test commands fail in this panel; use the Interactive button (a real terminal) for those instead.",
           "scope": "machine"
         },
-        "namhtSpecUi.usdToVnd": {
+        "cwkUi.usdToVnd": {
           "type": "number",
           "default": 26000,
           "description": "Approx VND per USD, shown next to the USD cost. Adjust to your rate; set 0 to hide VND."
         },
-        "namhtSpecUi.model": {
+        "cwkUi.model": {
           "type": "string",
           "enum": [
             "",
@@ -75,7 +75,7 @@
           "default": "sonnet",
           "description": "DEFAULT model pre-selected in each form's Model dropdown (passed as `claude --model`). You can override it per run and per follow-up in the panel. 'sonnet' is ~5x cheaper than Opus for read-only Q&A/planning at great quality; 'haiku' is cheapest for simple lookups; 'opus' for the hardest code tasks; empty = your Claude default."
         },
-        "namhtSpecUi.mode": {
+        "cwkUi.mode": {
           "type": "string",
           "enum": [
             "full",
@@ -89,7 +89,7 @@
           "scope": "machine",
           "description": "Which skills this panel offers. 'readonly' hides the seven code-editing skills (build, fix-bug, migrate, simplify, perf, observe, rails-to-spring) and blocks them in the extension host — use it for the .vsix you hand to non-developers."
         },
-        "namhtSpecUi.language": {
+        "cwkUi.language": {
           "type": "string",
           "enum": [
             "en",
@@ -106,23 +106,23 @@
     },
     "commands": [
       {
-        "command": "namhtSpec.openApp",
-        "title": "Open namht Kit App",
-        "category": "namht Kit",
+        "command": "cwk.openApp",
+        "title": "Open Workflow Kit App",
+        "category": "Workflow Kit",
         "icon": "$(multiple-windows)"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "namhtSpec.openApp",
-          "when": "view == namhtSpec.view",
+          "command": "cwk.openApp",
+          "when": "view == cwk.view",
           "group": "navigation"
         }
       ],
       "commandPalette": [
         {
-          "command": "namhtSpec.openApp"
+          "command": "cwk.openApp"
         }
       ]
     }

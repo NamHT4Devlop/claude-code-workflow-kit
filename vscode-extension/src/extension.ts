@@ -1,37 +1,37 @@
 import * as vscode from 'vscode';
 import { spawn, ChildProcess, execFile } from 'child_process';
 
-// Every namht-* skill is exposed in the UI. The webview may request nothing
+// Every cwk-* skill is exposed in the UI. The webview may request nothing
 // else — the host rejects any command not on this list.
 const ALLOWED = new Set([
-  'namht-scan', 'namht-rescan', 'namht-ask', 'namht-map', 'namht-system-map', 'namht-document',
-  'namht-discover', 'namht-plan', 'namht-plan-review', 'namht-user-story',
-  'namht-build', 'namht-fix-bug', 'namht-migrate', 'namht-simplify', 'namht-perf', 'namht-observe', 'namht-rails-to-spring',
-  'namht-review', 'namht-qa', 'namht-qa-integration', 'namht-security-audit', 'namht-design-review', 'namht-pr', 'namht-drift',
-  'namht-splunk-report', 'namht-retro', 'namht-pdf', 'namht-skillify', 'namht-issues', 'namht-runbook',
+  'cwk-scan', 'cwk-rescan', 'cwk-ask', 'cwk-map', 'cwk-system-map', 'cwk-document',
+  'cwk-discover', 'cwk-plan', 'cwk-plan-review', 'cwk-user-story',
+  'cwk-build', 'cwk-fix-bug', 'cwk-migrate', 'cwk-simplify', 'cwk-perf', 'cwk-observe', 'cwk-rails-to-spring',
+  'cwk-review', 'cwk-qa', 'cwk-qa-integration', 'cwk-security-audit', 'cwk-design-review', 'cwk-pr', 'cwk-drift',
+  'cwk-splunk-report', 'cwk-retro', 'cwk-pdf', 'cwk-skillify', 'cwk-issues', 'cwk-runbook',
 ]);
 // The seven skills that modify source. In readonly mode the host refuses them outright, so hiding
 // the cards is a UI convenience rather than the actual control.
 const EDITS_CODE = new Set([
-  'namht-build', 'namht-fix-bug', 'namht-migrate', 'namht-simplify', 'namht-perf', 'namht-observe',
-  'namht-rails-to-spring',
+  'cwk-build', 'cwk-fix-bug', 'cwk-migrate', 'cwk-simplify', 'cwk-perf', 'cwk-observe',
+  'cwk-rails-to-spring',
 ]);
 // The models the UI offers. Anything the webview sends is checked against this before it reaches a
 // command line — an unvalidated value would be the only unquoted token in a shell-executed string.
 const MODELS = new Set(['', 'haiku', 'sonnet', 'opus']);
-const HIST_KEY = 'namhtSpecUi.history';
+const HIST_KEY = 'cwkUi.history';
 const HIST_MAX = 40;
 // Spend is per machine, not per workspace — globalState, one bucket per day, pruned to SPEND_DAYS.
-const SPEND_KEY = 'namhtSpecUi.spend';
+const SPEND_KEY = 'cwkUi.spend';
 const SPEND_DAYS = 60;
 
 export function activate(context: vscode.ExtensionContext) {
   const provider = new SpecKitViewProvider(context);
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider('namhtSpec.view', provider, {
+    vscode.window.registerWebviewViewProvider('cwk.view', provider, {
       webviewOptions: { retainContextWhenHidden: true },
     }),
-    vscode.commands.registerCommand('namhtSpec.openApp', () => provider.openApp())
+    vscode.commands.registerCommand('cwk.openApp', () => provider.openApp())
   );
 }
 export function deactivate() {}
@@ -49,7 +49,7 @@ class SpecKitViewProvider implements vscode.WebviewViewProvider {
   // Open the full app experience in the editor area (wide two-pane layout).
   openApp() {
     const panel = vscode.window.createWebviewPanel(
-      'namhtSpecApp', 'namht Kit', vscode.ViewColumn.Active,
+      'cwkApp', 'Workflow Kit', vscode.ViewColumn.Active,
       { enableScripts: true, retainContextWhenHidden: true, localResourceRoots: [vscode.Uri.joinPath(this.ctx.extensionUri, 'media')] }
     );
     panel.iconPath = vscode.Uri.joinPath(this.ctx.extensionUri, 'media', 'icon.svg');
@@ -79,7 +79,7 @@ class SpecKitViewProvider implements vscode.WebviewViewProvider {
 
   private post(m: unknown) { for (const w of this.webviews) w.postMessage(m); }
   private cfg() {
-    const c = vscode.workspace.getConfiguration('namhtSpecUi');
+    const c = vscode.workspace.getConfiguration('cwkUi');
     return { claudePath: c.get<string>('claudePath', 'claude'), extraArgs: c.get<string[]>('extraArgs', ['--permission-mode', 'bypassPermissions']), usdToVnd: c.get<number>('usdToVnd', 26000), model: c.get<string>('model', 'sonnet'),
       mode: c.get<string>('mode', 'full'), language: c.get<string>('language', 'en') };
   }
@@ -97,7 +97,7 @@ class SpecKitViewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  // A form field can hold a secret (the Slack webhook of namht-splunk-report). History is written to
+  // A form field can hold a secret (the Slack webhook of cwk-splunk-report). History is written to
   // VS Code workspace storage in plaintext, so strip anything URL-shaped before persisting it.
   private static readonly SECRET_RE = /(https?:\/\/\S+|xox[abposr]-[A-Za-z0-9-]+|gh[pousr]_[A-Za-z0-9]{16,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/gi;
   private scrubValues(values: any): any {
@@ -214,7 +214,7 @@ class SpecKitViewProvider implements vscode.WebviewViewProvider {
     if (!text.trim()) return;
     // A follow-up is an unconstrained prompt resumed into the same bypassPermissions session, so it
     // is the widest door in this panel. In read-only mode it stays shut: without this, "now edit
-    // src/foo.ts" typed after an innocent /namht-ask run edits the source, and the read-only .vsix
+    // src/foo.ts" typed after an innocent /cwk-ask run edits the source, and the read-only .vsix
     // handed to a PM would be a promise the host does not keep.
     if (this.cfg().mode === 'readonly') {
       this.post({ type: 'log', runId, text: '\n[blocked: follow-ups can ask for anything, including code edits — this panel is in read-only mode]' });
@@ -418,7 +418,7 @@ class SpecKitViewProvider implements vscode.WebviewViewProvider {
     // Prefer the final answer (the report the skill actually points at), else the LAST
     // path mentioned in the log — early matches are intermediate artifacts.
     // Accept the pre-rename `spec-kit-sessions/` too — old reports must still open.
-    const re = /[\w./~-]*(?:namht|spec-kit)-sessions[\w./-]+\.(?:html|md)/g;
+    const re = /[\w./~-]*(?:cwk|namht|spec-kit)-sessions[\w./-]+\.(?:html|md)/g;
     const last = (s: string) => { const all = s.match(re); return all ? all[all.length - 1] : undefined; };
     let p = last(finalText) || last(out + '\n' + finalText);
     if (!p) return undefined;

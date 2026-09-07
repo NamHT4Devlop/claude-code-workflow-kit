@@ -34,12 +34,12 @@ export PATH="$TMP/bin:$PATH"
 
 mkdir -p "$TMP/api" "$TMP/api-v2"
 # grep -c already prints 0 when it finds nothing (and exits 1) — an `|| echo 0` would print it twice.
-lines() { grep -c "namht-kit" "$FAKE_CRONTAB" 2>/dev/null; true; }
+lines() { grep -c "cwk-kit" "$FAKE_CRONTAB" 2>/dev/null; true; }
 
 echo "schedule: add writes one tagged line"
 "$SCHED" add rescan "0 7 * * 1" "$TMP/api" --yes >/dev/null 2>&1
 check "one entry"        "$(lines)" 1
-check "tag names the repo" "$(grep -c "namht-kit:rescan:$TMP/api\$" "$FAKE_CRONTAB")" 1
+check "tag names the repo" "$(grep -c "cwk-kit:rescan:$TMP/api\$" "$FAKE_CRONTAB")" 1
 
 echo "schedule: a prefix-sibling repo is a DIFFERENT job (the bug this file exists for)"
 "$SCHED" add rescan "0 8 * * 1" "$TMP/api-v2" --yes >/dev/null 2>&1
@@ -47,13 +47,13 @@ check "two entries now"  "$(lines)" 2
 # adding /api again must replace ONLY /api — an unanchored match would eat api-v2
 "$SCHED" add rescan "0 9 * * 1" "$TMP/api" --yes >/dev/null 2>&1
 check "still two entries after re-add" "$(lines)" 2
-check "api-v2 survived"  "$(grep -c "namht-kit:rescan:$TMP/api-v2\$" "$FAKE_CRONTAB")" 1
+check "api-v2 survived"  "$(grep -c "cwk-kit:rescan:$TMP/api-v2\$" "$FAKE_CRONTAB")" 1
 check "api was replaced" "$(grep -c '^0 9 ' "$FAKE_CRONTAB")" 1
 
 echo "schedule: removing /api leaves /api-v2 alone"
 "$SCHED" remove rescan "$TMP/api" --yes >/dev/null 2>&1
 check "one entry left"   "$(lines)" 1
-check "the survivor is api-v2" "$(grep -c "namht-kit:rescan:$TMP/api-v2\$" "$FAKE_CRONTAB")" 1
+check "the survivor is api-v2" "$(grep -c "cwk-kit:rescan:$TMP/api-v2\$" "$FAKE_CRONTAB")" 1
 
 echo "schedule: unrelated cron lines are never touched"
 printf '@daily /usr/local/bin/backup.sh\n' >> "$FAKE_CRONTAB"
@@ -86,6 +86,18 @@ check "missing repo refused"        "$([ $? -ne 0 ] && echo yes || echo no)" yes
 "$SCHED" remove rescan "$TMP/api" --yes >/dev/null 2>&1
 check "removing a missing entry refused" "$([ $? -ne 0 ] && echo yes || echo no)" yes
 check "nothing was written"         "$(lines)" 0
+
+echo "schedule: a 2.x entry (namht-kit marker) is still ours"
+: > "$FAKE_CRONTAB"
+printf '0 6 * * 1 cd %s && claude -p /namht-rescan # namht-kit:rescan:%s\n' "$TMP/api" "$TMP/api" >> "$FAKE_CRONTAB"
+check "legacy entry is listed"      "$("$SCHED" list 2>/dev/null | grep -c 'namht-kit:rescan')" 1
+"$SCHED" add rescan "0 7 * * 1" "$TMP/api" --yes >/dev/null 2>&1
+check "add replaced it, no duplicate" "$(grep -c "kit:rescan:$TMP/api\$" "$FAKE_CRONTAB")" 1
+check "the survivor carries the new marker" "$(grep -c "# cwk-kit:rescan:$TMP/api\$" "$FAKE_CRONTAB")" 1
+printf '0 6 * * 1 cd %s && claude -p /namht-drift # namht-kit:drift:%s\n' "$TMP/api" "$TMP/api" >> "$FAKE_CRONTAB"
+"$SCHED" remove drift "$TMP/api" --yes >/dev/null 2>&1
+check "remove finds a legacy entry" "$(grep -c "kit:drift:" "$FAKE_CRONTAB")" 0
+: > "$FAKE_CRONTAB"
 
 echo "schedule: --dry-run writes nothing"
 "$SCHED" add rescan "0 7 * * 1" "$TMP/api" --dry-run >/dev/null 2>&1

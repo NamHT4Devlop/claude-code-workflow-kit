@@ -3,7 +3,7 @@ description: Turn the KB + real deploy/CI config into an operational runbook —
 argument-hint: "[service / module — blank = ask which deployable]"
 ---
 
-Use the **namht-runbook** skill to produce an operational runbook for the service below — written
+Use the **cwk-runbook** skill to produce an operational runbook for the service below — written
 for someone reading it at 2am who did not build the system.
 
 Ground the business half in `knowledge-base/` and the operational half in the repo's real deploy/CI

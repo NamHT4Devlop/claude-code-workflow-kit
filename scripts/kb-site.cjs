@@ -278,7 +278,7 @@ function render() {
   if (p.meta.exported) bits.push('exported ' + p.meta.exported);
   m.appendChild(document.createTextNode(bits.join('  ·  ')));
   if (p.stale) {
-    const w = el('div', 'w', '⚠ This Knowledge Base is ' + p.ageDays + ' days old — it describes commit ' + (p.meta.commit || '?') + ', not necessarily what is deployed. Re-run /namht-rescan and re-export before relying on it.');
+    const w = el('div', 'w', '⚠ This Knowledge Base is ' + p.ageDays + ' days old — it describes commit ' + (p.meta.commit || '?') + ', not necessarily what is deployed. Re-run /cwk-rescan and re-export before relying on it.');
     m.appendChild(w);
   }
 

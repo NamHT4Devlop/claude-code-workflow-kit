@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>namht Kit (the namht-* commands) — Cài thủ công (không clone, không tải)</title>
+<title>Workflow Kit (the cwk-* commands) — Cài thủ công (không clone, không tải)</title>
 <style>
   :root{
     --bg:#0f1115; --panel:#171a21; --panel2:#1d2129; --border:#2a2f3a;
@@ -117,21 +117,21 @@
 mkdir -p "$ROOT"/{commands,agents,hooks,scripts,resources}
 
 <span class="cmt"># 30 skill → mỗi skill 1 file SKILL.md</span>
-for s in namht-ask namht-build namht-design-review namht-discover \
-         namht-document namht-fix-bug namht-map namht-migrate namht-observe namht-pdf \
-         namht-perf namht-plan namht-plan-review namht-pr namht-qa namht-qa-integration \
-         namht-rails-to-spring namht-rescan namht-retro namht-review namht-scan \
-         namht-security-audit namht-simplify namht-skillify namht-splunk-report \
-         namht-system-map namht-user-story; do
+for s in cwk-ask cwk-build cwk-design-review cwk-discover \
+         cwk-document cwk-fix-bug cwk-map cwk-migrate cwk-observe cwk-pdf \
+         cwk-perf cwk-plan cwk-plan-review cwk-pr cwk-qa cwk-qa-integration \
+         cwk-rails-to-spring cwk-rescan cwk-retro cwk-review cwk-scan \
+         cwk-security-audit cwk-simplify cwk-skillify cwk-splunk-report \
+         cwk-system-map cwk-user-story; do
   mkdir -p "$ROOT/skills/$s"; touch "$ROOT/skills/$s/SKILL.md"
 done
 
 <span class="cmt"># reference RIÊNG (không tự sync) — map, pdf &amp; rails-to-spring</span>
-mkdir -p "$ROOT/skills/namht-map/references" "$ROOT/skills/namht-pdf/references" \
-         "$ROOT/skills/namht-rails-to-spring/references"
-touch "$ROOT/skills/namht-map/references/"{build-map.cjs,graph-builder.js,viewer-template.html}
-touch "$ROOT/skills/namht-pdf/references/html-to-pdf.sh"
-touch "$ROOT/skills/namht-rails-to-spring/references/"{shadow-parity.cjs,cases.example.json}
+mkdir -p "$ROOT/skills/cwk-map/references" "$ROOT/skills/cwk-pdf/references" \
+         "$ROOT/skills/cwk-rails-to-spring/references"
+touch "$ROOT/skills/cwk-map/references/"{build-map.cjs,graph-builder.js,viewer-template.html}
+touch "$ROOT/skills/cwk-pdf/references/html-to-pdf.sh"
+touch "$ROOT/skills/cwk-rails-to-spring/references/"{shadow-parity.cjs,cases.example.json}
 
 <span class="cmt"># 4 file gốc (sync-bundles sẽ nhân ra các skill khác)</span>
 touch "$ROOT/resources/"{html-builder.js,render-html.cjs,review-skills-universal.md,kb-steps.md}
@@ -143,9 +143,9 @@ for c in ask build design-review discover document fix-bug help map migrate obse
          user-story; do touch "$ROOT/commands/$c.md"; done
 
 <span class="cmt"># 7 agent</span>
-for a in namht-architecture-reviewer namht-business-consistency-reviewer \
-         namht-business-flow-tracer namht-codebase-analyzer namht-impact-detector \
-         namht-performance-reviewer namht-security-reviewer; do touch "$ROOT/agents/$a.md"; done
+for a in cwk-architecture-reviewer cwk-business-consistency-reviewer \
+         cwk-business-flow-tracer cwk-codebase-analyzer cwk-impact-detector \
+         cwk-performance-reviewer cwk-security-reviewer; do touch "$ROOT/agents/$a.md"; done
 
 <span class="cmt"># hook + script</span>
 touch "$ROOT/hooks/git-guard.sh" "$ROOT/scripts/personal-install.sh" "$ROOT/scripts/sync-bundles.sh"
@@ -157,7 +157,7 @@ echo "✅ Tạo khung xong. Danh sách file cần dán nội dung:"; find "$ROOT
   <p>Mở từng file trên GitHub, bấm nút <b>Raw</b>, chọn hết, copy, rồi dán vào đúng file rỗng tương ứng.
   Raw cho text thuần (không dính HTML). Mẫu URL:</p>
   <div class="cb"><button class="copy">Copy</button><pre><code>https://raw.githubusercontent.com/NamHT4Devlop/claude-code-workflow-kit/main/&lt;đường-dẫn&gt;</code></pre></div>
-  <p class="muted">Ví dụ: <code>.../main/skills/namht-build/SKILL.md</code>, <code>.../main/commands/build.md</code>,
+  <p class="muted">Ví dụ: <code>.../main/skills/cwk-build/SKILL.md</code>, <code>.../main/commands/build.md</code>,
   <code>.../main/hooks/git-guard.sh</code>.</p>
   <p><b>Phải dán (68 file):</b> 27 × <code>skills/*/SKILL.md</code> · 28 × <code>commands/*.md</code> ·
   7 × <code>agents/*.md</code> · 4 × <code>resources/*</code> · <code>hooks/git-guard.sh</code> ·
@@ -166,7 +166,7 @@ echo "✅ Tạo khung xong. Danh sách file cần dán nội dung:"; find "$ROOT
   <table>
     <thead><tr><th>Tùy chọn / bỏ được</th><th>Lý do</th></tr></thead>
     <tbody>
-      <tr><td><code>skills/namht-map/references/graph-builder.js</code></td><td>File lớn (compiled) — chỉ cho <code>/namht-map</code>. Không cần map thì bỏ luôn 3 file của map.</td></tr>
+      <tr><td><code>skills/cwk-map/references/graph-builder.js</code></td><td>File lớn (compiled) — chỉ cho <code>/cwk-map</code>. Không cần map thì bỏ luôn 3 file của map.</td></tr>
       <tr><td><code>vendor/*.min.js</code></td><td><b>Không cần dán tay.</b> Chạy <code>scripts/fetch-vendor.sh</code> để máy tự tải (ưu tiên <b>npm</b> — dùng đúng registry nội bộ công ty đã duyệt; không có npm thì lấy từ cdnjs), rồi tự đối chiếu <code>vendor/SHA256SUMS</code>. Bỏ qua cũng được nếu máy có mạng — lúc đó diagram lấy từ CDN. Chỉ bắt buộc khi mạng chặn CDN hoặc máy air-gapped.</td></tr>
       <tr><td><code>README / SECURITY / LICENSE / docs / tests / .github / .claude-plugin / hooks.json</code></td><td>Không cần để chạy bản cài cá nhân.</td></tr>
     </tbody>
@@ -178,17 +178,17 @@ echo "✅ Tạo khung xong. Danh sách file cần dán nội dung:"; find "$ROOT
 
 <span class="cmt"># 1) cấp quyền chạy (file tạo bằng editor KHÔNG có execute bit — bắt buộc)</span>
 chmod +x "$ROOT"/scripts/*.sh "$ROOT"/hooks/git-guard.sh \
-         "$ROOT"/skills/namht-pdf/references/html-to-pdf.sh 2&gt;/dev/null
+         "$ROOT"/skills/cwk-pdf/references/html-to-pdf.sh 2&gt;/dev/null
 
 <span class="cmt"># 2) nhân các file reference dùng chung ra mọi skill (từ resources/)</span>
 cd "$ROOT" && bash scripts/sync-bundles.sh
 
-<span class="cmt"># 3) cài cho riêng bạn (symlink vào ~/.claude; command tự thêm tiền tố namht-)</span>
+<span class="cmt"># 3) cài cho riêng bạn (symlink vào ~/.claude; command tự thêm tiền tố cwk-)</span>
 bash "$ROOT/scripts/personal-install.sh"
 
 <span class="cmt"># 4) chặn rò rỉ: global gitignore</span>
 touch ~/.gitignore_global
-printf '%s\n' 'namht-sessions/' 'spec-kit-sessions/' 'knowledge-base/' 'CLAUDE.local.md' &gt;&gt; ~/.gitignore_global
+printf '%s\n' 'cwk-sessions/' 'spec-kit-sessions/' 'knowledge-base/' 'CLAUDE.local.md' &gt;&gt; ~/.gitignore_global
 git config --global core.excludesfile ~/.gitignore_global</code></pre></div>
 
   <h3>5) Lắp rào git</h3>
@@ -201,7 +201,7 @@ git config --global core.excludesfile ~/.gitignore_global</code></pre></div>
   ] },
   "hooks": { "PreToolUse": [
     { "matcher": "Bash", "hooks": [
-      { "type": "command", "command": "~/.claude/hooks/namht-git-guard.sh", "timeout": 10 } ] }
+      { "type": "command", "command": "~/.claude/hooks/cwk-git-guard.sh", "timeout": 10 } ] }
   ] }
 }</code></pre></div>
   <div class="box danger"><div class="ti">🎯 An toàn nhất trên máy công ty</div>
@@ -209,10 +209,10 @@ git config --global core.excludesfile ~/.gitignore_global</code></pre></div>
     đâu. Sau đó <b>restart Claude Code</b> để rào có hiệu lực.</div>
 
   <h3>6) Kiểm tra</h3>
-  <div class="cb"><button class="copy">Copy</button><pre><code>ls -la ~/.claude/skills | grep namht-     <span class="cmt"># thấy 30 skill</span>
+  <div class="cb"><button class="copy">Copy</button><pre><code>ls -la ~/.claude/skills | grep cwk-     <span class="cmt"># thấy 30 skill</span>
 <span class="cmt"># rào git → phải in ra JSON "deny"</span>
-printf '{"tool_input":{"command":"git push https://github.com/some-org/x"}}' | ~/.claude/hooks/namht-git-guard.sh</code></pre></div>
-  <p>Trong Claude Code gõ <span class="kbd">/</span> → thấy <code>/namht-*</code>; chạy <code>/namht-help</code>.</p>
+printf '{"tool_input":{"command":"git push https://github.com/some-org/x"}}' | ~/.claude/hooks/cwk-git-guard.sh</code></pre></div>
+  <p>Trong Claude Code gõ <span class="kbd">/</span> → thấy <code>/cwk-*</code>; chạy <code>/cwk-help</code>.</p>
 
   <!-- 4 -->
   <h2 id="notes">⚠️ 4. Lưu ý quan trọng</h2>
@@ -226,7 +226,7 @@ printf '{"tool_input":{"command":"git push https://github.com/some-org/x"}}' | ~
 
   <hr>
   <footer>
-    namht Kit (the namht-* commands) · port của Auto Spec extension · Repo: <code>NamHT4Devlop/claude-code-workflow-kit</code><br>
+    Workflow Kit (the cwk-* commands) · port của Auto Spec extension · Repo: <code>NamHT4Devlop/claude-code-workflow-kit</code><br>
     File này: <code>&lt;TOOL&gt;/docs/manual-setup-guide.html</code> — mở bằng trình duyệt bất kỳ.
   </footer>
 

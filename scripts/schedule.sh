@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# schedule.sh — run a namht-* skill on a schedule (cron), for the two that are genuinely periodic:
+# schedule.sh — run a cwk-* skill on a schedule (cron), for the two that are genuinely periodic:
 # the Splunk error digest and keeping a Knowledge Base fresh.
 #
 #   scripts/schedule.sh list
@@ -18,7 +18,10 @@
 #     should be able to set up by accident.
 set -euo pipefail
 
-MARK="# namht-kit"
+MARK="# cwk-kit"
+# Entries written by 2.x carry the old marker. They are still ours: list them, replace them on add,
+# and let remove find them — a job that only the old name can reach is a job nobody can delete.
+MARK_RE='# (cwk|namht)-kit'
 DRY=0; YES=0; args=()
 for a in "$@"; do
   case "$a" in
@@ -35,9 +38,9 @@ die() { echo "✗ $*" >&2; exit 1; }
 # preset → the slash command it runs. Read-only skills only, on purpose.
 preset_cmd() {
   case "$1" in
-    rescan) echo "/namht-rescan" ;;
-    drift)  echo "/namht-drift" ;;
-    splunk) echo "/namht-splunk-report" ;;
+    rescan) echo "/cwk-rescan" ;;
+    drift)  echo "/cwk-drift" ;;
+    splunk) echo "/cwk-splunk-report" ;;
     *) return 1 ;;
   esac
 }
@@ -45,8 +48,8 @@ preset_cmd() {
 cmd=${1:-list}
 
 if [ "$cmd" = "list" ]; then
-  echo "Scheduled namht entries:"
-  crontab -l 2>/dev/null | grep -F "$MARK" || echo "  (none)"
+  echo "Scheduled cwk entries:"
+  crontab -l 2>/dev/null | grep -E "$MARK_RE" || echo "  (none)"
   exit 0
 fi
 
@@ -62,7 +65,7 @@ if [ "$cmd" = "remove" ]; then
   current=$(crontab -l 2>/dev/null || true)
   # The tag sits at END OF LINE, so match it anchored. A substring match makes the tag for /x/api
   # also match the line for /x/api-v2 — removing or replacing a DIFFERENT repo's job silently.
-  tag_re=$(printf '%s' "$tag" | sed 's/[][\.^$*\/&]/\\&/g')
+  tag_re="$MARK_RE:$name:$(printf '%s' "$repo" | sed 's/[][\.^$*\/&]/\\&/g')"
   echo "$current" | grep -qE "${tag_re}\$" || die "no entry for '$name' in $repo"
   new=$(echo "$current" | grep -vE "${tag_re}\$" || true)
   echo "Will remove:"; echo "$current" | grep -E "${tag_re}\$" | sed 's/^/  - /'
@@ -87,7 +90,7 @@ if [ "${1:-}" = "--" ]; then shift; extra="${*:-}"; fi
 claude_bin=$(command -v claude || true)
 [ -n "$claude_bin" ] || die "the 'claude' CLI is not on PATH — cron needs an absolute path to it"
 
-log="$HOME/.claude/logs/namht-$name.log"
+log="$HOME/.claude/logs/cwk-$name.log"
 tag="$MARK:$name:$repo"
 prompt="$slash${extra:+ $extra}"
 # cron gives you a bare environment: cd into the repo, use the absolute binary, append to a log.
@@ -98,7 +101,7 @@ line="$sched cd $(printf '%q' "$repo") && $(printf '%q' "$claude_bin") -p $(prin
 line=${line//%/\\%}
 
 current=$(crontab -l 2>/dev/null || true)
-tag_re=$(printf '%s' "$tag" | sed 's/[][\.^$*\/&]/\\&/g')
+tag_re="$MARK_RE:$name:$(printf '%s' "$repo" | sed 's/[][\.^$*\/&]/\\&/g')"
 if echo "$current" | grep -qE "${tag_re}\$"; then
   echo "Replacing the existing entry for '$name' in $repo:"
   echo "$current" | grep -E "${tag_re}\$" | sed 's/^/  - /'

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>namht Kit (the namht-* commands) — Setup guide for a company machine (for Claude newcomers)</title>
+<title>Workflow Kit (the cwk-* commands) — Setup guide for a company machine (for Claude newcomers)</title>
 <style>
   :root{ --bg:#0f1115; --panel:#171a21; --panel2:#1d2129; --border:#2a2f3a; --text:#e6e9ef;
     --muted:#9aa3b2; --accent:#7c9cff; --accent2:#5ad1a8; --warn:#ffcf6b; --danger:#ff7b72; --code:#0b0d12; --chip:#222734; }
@@ -56,7 +56,7 @@
 
   <header class="hero">
     <div class="eyebrow">Claude Code · Company machine setup · For newcomers</div>
-    <h1>🏢 Install “namht Kit” (the <code>/namht-*</code> commands) on a company machine</h1>
+    <h1>🏢 Install “Workflow Kit” (the <code>/cwk-*</code> commands) on a company machine</h1>
     <p class="sub">A step-by-step, beginner-friendly guide for people <b>new to Claude Code</b>: copy the
     <code>claude-code-workflow-kit</code> toolkit onto your company machine, install it safely (no code leaks, no impact
     on team repos), and use it right away: understand the codebase, build features, fix bugs, review, write docs.</p>
@@ -70,7 +70,7 @@
     <div class="ti">🧠 First, a few concepts (30-second read)</div>
     <table style="margin:.4em 0 0">
       <tr><td><b>Claude Code</b></td><td>An AI coding assistant that runs in the terminal/IDE — the thing you type commands into.</td></tr>
-      <tr><td><b>Skill / Command</b></td><td>A pre-packaged “skill”. Type <code>/command-name</code> to run it (e.g. <code>/namht-build</code>).</td></tr>
+      <tr><td><b>Skill / Command</b></td><td>A pre-packaged “skill”. Type <code>/command-name</code> to run it (e.g. <code>/cwk-build</code>).</td></tr>
       <tr><td><b>Knowledge Base (KB)</b></td><td>The <code>knowledge-base/</code> folder in each repo — the AI reads it to understand the project's business.</td></tr>
       <tr><td><b>MCP</b></td><td>How external tools connect to Claude so it can query them.</td></tr>
       <tr><td><b>Hook</b></td><td>A guard enforced at the system level (e.g. blocking <code>git push</code> to a team repo) — the AI can't disable it on a whim.</td></tr>
@@ -121,7 +121,7 @@ git clone https://github.com/NamHT4Devlop/claude-code-workflow-kit.git ~/claude-
   <div class="cb"><button class="copy">Copy</button><pre><code>~/claude-code-workflow-kit/scripts/personal-install.sh</code></pre></div>
   <p>It prints the number of skills/commands linked + a reminder of the git-guard config snippet (done in step 3).
   Because it's symlinked, later a <code>cd ~/claude-code-workflow-kit &amp;&amp; git pull</code> updates everything instantly.</p>
-  <div class="box info"><div class="ti">💡</div> A skill auto-activates when you speak naturally (e.g. “review this file”), or type <code>/namht-...</code> directly. No API key needed — it runs on your own Claude Code.</div>
+  <div class="box info"><div class="ti">💡</div> A skill auto-activates when you speak naturally (e.g. “review this file”), or type <code>/cwk-...</code> directly. No API key needed — it runs on your own Claude Code.</div>
 
   <!-- 3 -->
   <h2 id="safe">3. Enable the safety guards — IMPORTANT on a company machine</h2>
@@ -129,15 +129,15 @@ git clone https://github.com/NamHT4Devlop/claude-code-workflow-kit.git ~/claude-
 
   <div class="step"><div class="num">A</div><div class="body">
     <h3>Global gitignore — keep artifacts out of commits</h3>
-    <p>Every <code>knowledge-base/</code> and <code>namht-sessions/</code> is ignored by git machine-wide (no repo is modified):</p>
+    <p>Every <code>knowledge-base/</code> and <code>cwk-sessions/</code> is ignored by git machine-wide (no repo is modified):</p>
     <div class="cb"><button class="copy">Copy</button><pre><code>touch ~/.gitignore_global
-printf '%s\n' 'namht-sessions/' 'spec-kit-sessions/' 'knowledge-base/' 'CLAUDE.local.md' >> ~/.gitignore_global
+printf '%s\n' 'cwk-sessions/' 'spec-kit-sessions/' 'knowledge-base/' 'CLAUDE.local.md' >> ~/.gitignore_global
 git config --global core.excludesfile ~/.gitignore_global</code></pre></div>
   </div></div>
 
   <div class="step"><div class="num">B</div><div class="body">
     <h3>git guard — read/sync only, no pushing to team repos</h3>
-    <p><code>personal-install.sh</code> has already placed the guard script at <code>~/.claude/hooks/namht-git-guard.sh</code>.
+    <p><code>personal-install.sh</code> has already placed the guard script at <code>~/.claude/hooks/cwk-git-guard.sh</code>.
     Now “wire” it into Claude Code: open <code>~/.claude/settings.json</code> and add the block below (merge it in, don't delete what's there):</p>
     <div class="cb"><button class="copy">Copy</button><pre><code>{
   "permissions": {
@@ -151,7 +151,7 @@ git config --global core.excludesfile ~/.gitignore_global</code></pre></div>
   "hooks": {
     "PreToolUse": [
       { "matcher": "Bash", "hooks": [
-        { "type": "command", "command": "~/.claude/hooks/namht-git-guard.sh", "timeout": 10 } ] }
+        { "type": "command", "command": "~/.claude/hooks/cwk-git-guard.sh", "timeout": 10 } ] }
     ]
   }
 }</code></pre></div>
@@ -173,10 +173,10 @@ cd /path/to/your-project
 <span class="cmt"># open Claude Code</span>
 claude</code></pre></div>
   <p>Inside Claude Code, the first time on a repo create the Knowledge Base, then use:</p>
-  <div class="cb"><button class="copy">Copy</button><pre><code>/namht-scan                 <span class="cmt"># scan the repo → generate knowledge-base/ (run once)</span>
-/namht-ask how does the login flow work?
-/namht-build add a forgot-password feature via email OTP
-/namht-fix-bug the /tasks API returns 500 on an invalid status</code></pre></div>
+  <div class="cb"><button class="copy">Copy</button><pre><code>/cwk-scan                 <span class="cmt"># scan the repo → generate knowledge-base/ (run once)</span>
+/cwk-ask how does the login flow work?
+/cwk-build add a forgot-password feature via email OTP
+/cwk-fix-bug the /tasks API returns 500 on an invalid status</code></pre></div>
   <p class="muted">Already have a <code>knowledge-base/</code> from another machine? Just copy it into the repo to reuse it — no need to scan.</p>
 
 
@@ -188,11 +188,11 @@ claude</code></pre></div>
   sentence is the point: a caller list from grep and one from a resolved call graph are not the
   same claim, and an impact analysis that hides which one it used is the kind that gets trusted
   wrongly.</p>
-  <p>What changes with an index: <code>/namht-build</code>'s <b>&gt;3 callers</b> approval gate is
-  counted from the graph instead of from grep hits; <code>/namht-review</code> and
-  <code>/namht-pr</code> list the consumers a diff really reaches together with the tests that
-  already cover them; <code>/namht-simplify</code>'s delete list excludes anything a template
-  names; <code>/namht-system-map</code> joins a producer in one repo to a consumer in another on a
+  <p>What changes with an index: <code>/cwk-build</code>'s <b>&gt;3 callers</b> approval gate is
+  counted from the graph instead of from grep hits; <code>/cwk-review</code> and
+  <code>/cwk-pr</code> list the consumers a diff really reaches together with the tests that
+  already cover them; <code>/cwk-simplify</code>'s delete list excludes anything a template
+  names; <code>/cwk-system-map</code> joins a producer in one repo to a consumer in another on a
   real queue name, across languages.</p>
   <p><b>Covers Java, Ruby, TypeScript and JavaScript only.</b> For Python, Go, C#, PHP, Rust or
   Kotlin the fallback is the only path, and the skills say so rather than implying coverage they
@@ -213,35 +213,35 @@ cd /path/to/your/repo &amp;&amp; provenlens init .</code></pre>
   <table>
     <thead><tr><th>Command</th><th>What it does</th></tr></thead>
     <tbody>
-      <tr><td><code>/namht-scan</code></td><td>Generate the Knowledge Base from the codebase (run first).</td></tr>
-      <tr><td><code>/namht-scan deep</code></td><td>Use this one when the service carries a lot of business logic: nothing is sampled, every module gets its own document, and each business rule records where it is enforced and whether a test covers it.</td></tr>
-      <tr><td><code>/namht-rescan</code></td><td>Update the KB after the code changes.</td></tr>
-      <tr><td><code>/namht-build</code></td><td>Build a feature: plan → code → review → test → evidence.</td></tr>
-      <tr><td><code>/namht-fix-bug</code></td><td>Production bug → root cause → regression test → minimal fix → verify.</td></tr>
-      <tr><td><code>/namht-review</code></td><td>Review a file/diff: quality + business consistency.</td></tr>
-      <tr><td><code>/namht-ask</code></td><td>Codebase Q&amp;A (explanation + diagram + technical detail).</td></tr>
-      <tr><td><code>/namht-plan</code></td><td>PO/BA: Epic → user stories → sprint plan.</td></tr>
-      <tr><td><code>/namht-qa</code></td><td>QA: user story → test cases covering old (regression) + new flows.</td></tr>
-      <tr><td><code>/namht-pr</code></td><td>Draft a PR description / review a GitHub PR (two-phase + blast radius).</td></tr>
-      <tr><td><code>/namht-security-audit</code></td><td>Whole-repo security audit (OWASP + STRIDE + secrets + authz), grounded in the KB.</td></tr>
-      <tr><td><code>/namht-discover</code></td><td>Interrogate a requirement before planning → a sharp brief.</td></tr>
-      <tr><td><code>/namht-plan-review</code></td><td>Critique a plan through multiple lenses before building.</td></tr>
-      <tr><td><code>/namht-qa-integration</code></td><td>Run E2E QA against the real app via a browser (pass/fail + screenshots).</td></tr>
-      <tr><td><code>/namht-design-review</code></td><td>Review UI/UX + accessibility.</td></tr>
-      <tr><td><code>/namht-user-story</code></td><td>Deep-investigate a requirement (or a Slack thread) → INVEST stories with granular ACs.</td></tr>
-      <tr><td><code>/namht-migrate</code></td><td>Safe API/DB/event/library change with rollback. <b>Edits code.</b></td></tr>
-      <tr><td><code>/namht-simplify</code></td><td>Behavior-preserving cleanup; tests stay green. <b>Edits code.</b></td></tr>
-      <tr><td><code>/namht-perf</code></td><td>Measure-first performance optimization. <b>Edits code.</b></td></tr>
-      <tr><td><code>/namht-observe</code></td><td>Structured logs + correlation IDs + metrics. <b>Edits code.</b></td></tr>
-      <tr><td><code>/namht-rails-to-spring</code></td><td>Contract-first stack port with golden-test parity. <b>Edits code.</b></td></tr>
-      <tr><td><code>/namht-splunk-report</code></td><td>Per-app Splunk error digest → Slack (network + env credentials).</td></tr>
-      <tr><td><code>/namht-pdf</code></td><td>Export a report to PDF.</td></tr>
-      <tr><td><code>/namht-retro</code></td><td>Retrospective from git history.</td></tr>
-      <tr><td><code>/namht-skillify</code></td><td>Scaffold a new skill following the convention.</td></tr>
-      <tr><td><code>/namht-map</code></td><td>Interactive dependency graph (HTML) opened in the browser — single repo.</td></tr>
-      <tr><td><code>/namht-system-map</code></td><td><b>Cross-service</b> map for a multi-microservice workspace: dependency graph + end-to-end flows.</td></tr>
-      <tr><td><code>/namht-document</code></td><td>Business↔code documentation, exported to HTML.</td></tr>
-      <tr><td><code>/namht-help</code></td><td>List commands + the repo's KB status.</td></tr>
+      <tr><td><code>/cwk-scan</code></td><td>Generate the Knowledge Base from the codebase (run first).</td></tr>
+      <tr><td><code>/cwk-scan deep</code></td><td>Use this one when the service carries a lot of business logic: nothing is sampled, every module gets its own document, and each business rule records where it is enforced and whether a test covers it.</td></tr>
+      <tr><td><code>/cwk-rescan</code></td><td>Update the KB after the code changes.</td></tr>
+      <tr><td><code>/cwk-build</code></td><td>Build a feature: plan → code → review → test → evidence.</td></tr>
+      <tr><td><code>/cwk-fix-bug</code></td><td>Production bug → root cause → regression test → minimal fix → verify.</td></tr>
+      <tr><td><code>/cwk-review</code></td><td>Review a file/diff: quality + business consistency.</td></tr>
+      <tr><td><code>/cwk-ask</code></td><td>Codebase Q&amp;A (explanation + diagram + technical detail).</td></tr>
+      <tr><td><code>/cwk-plan</code></td><td>PO/BA: Epic → user stories → sprint plan.</td></tr>
+      <tr><td><code>/cwk-qa</code></td><td>QA: user story → test cases covering old (regression) + new flows.</td></tr>
+      <tr><td><code>/cwk-pr</code></td><td>Draft a PR description / review a GitHub PR (two-phase + blast radius).</td></tr>
+      <tr><td><code>/cwk-security-audit</code></td><td>Whole-repo security audit (OWASP + STRIDE + secrets + authz), grounded in the KB.</td></tr>
+      <tr><td><code>/cwk-discover</code></td><td>Interrogate a requirement before planning → a sharp brief.</td></tr>
+      <tr><td><code>/cwk-plan-review</code></td><td>Critique a plan through multiple lenses before building.</td></tr>
+      <tr><td><code>/cwk-qa-integration</code></td><td>Run E2E QA against the real app via a browser (pass/fail + screenshots).</td></tr>
+      <tr><td><code>/cwk-design-review</code></td><td>Review UI/UX + accessibility.</td></tr>
+      <tr><td><code>/cwk-user-story</code></td><td>Deep-investigate a requirement (or a Slack thread) → INVEST stories with granular ACs.</td></tr>
+      <tr><td><code>/cwk-migrate</code></td><td>Safe API/DB/event/library change with rollback. <b>Edits code.</b></td></tr>
+      <tr><td><code>/cwk-simplify</code></td><td>Behavior-preserving cleanup; tests stay green. <b>Edits code.</b></td></tr>
+      <tr><td><code>/cwk-perf</code></td><td>Measure-first performance optimization. <b>Edits code.</b></td></tr>
+      <tr><td><code>/cwk-observe</code></td><td>Structured logs + correlation IDs + metrics. <b>Edits code.</b></td></tr>
+      <tr><td><code>/cwk-rails-to-spring</code></td><td>Contract-first stack port with golden-test parity. <b>Edits code.</b></td></tr>
+      <tr><td><code>/cwk-splunk-report</code></td><td>Per-app Splunk error digest → Slack (network + env credentials).</td></tr>
+      <tr><td><code>/cwk-pdf</code></td><td>Export a report to PDF.</td></tr>
+      <tr><td><code>/cwk-retro</code></td><td>Retrospective from git history.</td></tr>
+      <tr><td><code>/cwk-skillify</code></td><td>Scaffold a new skill following the convention.</td></tr>
+      <tr><td><code>/cwk-map</code></td><td>Interactive dependency graph (HTML) opened in the browser — single repo.</td></tr>
+      <tr><td><code>/cwk-system-map</code></td><td><b>Cross-service</b> map for a multi-microservice workspace: dependency graph + end-to-end flows.</td></tr>
+      <tr><td><code>/cwk-document</code></td><td>Business↔code documentation, exported to HTML.</td></tr>
+      <tr><td><code>/cwk-help</code></td><td>List commands + the repo's KB status.</td></tr>
     </tbody>
   </table>
   <p><b>Recommended flow:</b> <code>scan</code> (once) → <code>ask/map/document</code> (understand) → <code>plan</code> (break down) → <code>build</code>/<code>fix-bug</code> (do) → <code>rescan</code> (keep the KB fresh).</p>
@@ -249,9 +249,9 @@ cd /path/to/your/repo &amp;&amp; provenlens init .</code></pre>
   <!-- 7 -->
   <h2 id="verify">6. Verify it works</h2>
   <ul class="chk">
-    <li>In Claude Code, type <span class="kbd">/</span> → you see the <code>/namht-*</code> commands.</li>
-    <li>Run <code>/namht-help</code> → it lists commands + reports whether the repo has a KB.</li>
-    <li>git guard: <code>printf '{"tool_input":{"command":"git push https://github.com/some-org/x"}}' | ~/.claude/hooks/namht-git-guard.sh</code> → outputs JSON <code>deny</code>.</li>
+    <li>In Claude Code, type <span class="kbd">/</span> → you see the <code>/cwk-*</code> commands.</li>
+    <li>Run <code>/cwk-help</code> → it lists commands + reports whether the repo has a KB.</li>
+    <li>git guard: <code>printf '{"tool_input":{"command":"git push https://github.com/some-org/x"}}' | ~/.claude/hooks/cwk-git-guard.sh</code> → outputs JSON <code>deny</code>.</li>
   </ul>
 
   <!-- 8 -->
@@ -266,9 +266,9 @@ cd ~/claude-code-workflow-kit && git pull        <span class="cmt"># symlinked, 
   <table>
     <thead><tr><th>Symptom</th><th>Fix</th></tr></thead>
     <tbody>
-      <tr><td>Don't see the <code>/namht-*</code> commands</td><td>Reload/restart Claude Code; check <code>ls ~/.claude/skills | grep namht-</code>.</td></tr>
+      <tr><td>Don't see the <code>/cwk-*</code> commands</td><td>Reload/restart Claude Code; check <code>ls ~/.claude/skills | grep cwk-</code>.</td></tr>
       <tr><td><code>/plugin</code> or <code>/hooks</code> is unknown</td><td>Update Claude Code to a newer build.</td></tr>
-      <tr><td>A command says “no knowledge-base”</td><td>Run <code>/namht-scan</code> once in that repo.</td></tr>
+      <tr><td>A command says “no knowledge-base”</td><td>Run <code>/cwk-scan</code> once in that repo.</td></tr>
       <tr><td>The git guard isn't blocking</td><td>Open <span class="kbd">/hooks</span> or restart to load <code>settings.json</code>.</td></tr>
       <tr><td><code>git clone</code> asks for a password</td><td>Public repo — clone the HTTPS URL (no auth), or set up an SSH key for the git@ URL.</td></tr>
       <tr><td>Map/HTML doesn't render diagrams</td><td>Needs Node; the offline build bundles the libraries, so no network is required.</td></tr>
@@ -288,7 +288,7 @@ cd ~/claude-code-workflow-kit && git pull        <span class="cmt"># symlinked, 
   <p>Yes. Claude Code has auto-memory (per-project) + you can keep general preferences in <code>~/.claude/CLAUDE.md</code> (loaded in every repo). Each repo's KB also grows over each build/rescan.</p>
 
   <footer>
-    namht Kit (the namht-* commands) · a port of Auto Spec extension · Repo <code>NamHT4Devlop/claude-code-workflow-kit</code><br>
+    Workflow Kit (the cwk-* commands) · a port of Auto Spec extension · Repo <code>NamHT4Devlop/claude-code-workflow-kit</code><br>
     This file: <code>&lt;TOOL&gt;/docs/company-setup-guide.html</code> — open in any browser. Security details: <code>SECURITY.md</code>.
   </footer>
 </div>

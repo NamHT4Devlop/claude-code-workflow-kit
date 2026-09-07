@@ -85,5 +85,5 @@ run mkdir -p "$dest"
 run cp -R "$src/." "$dest/"
 [ "$DRY" = 1 ] && { echo "(dry run — nothing written)"; exit 0; }
 
-echo "✔ imported. The namht-* commands in that repo now read this KB."
-echo "  It is a snapshot: after the code moves on, run /namht-rescan there (or re-import a fresh export)."
+echo "✔ imported. The cwk-* commands in that repo now read this KB."
+echo "  It is a snapshot: after the code moves on, run /cwk-rescan there (or re-import a fresh export)."

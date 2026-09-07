@@ -9,12 +9,12 @@ verify it yourself.
   no dynamic `require`, no telemetry, no secrets.** Safe to copy and run locally.
 - Exactly **three opt-in components touch the network or a local process** — each only at the
   user's explicit request, never in the background:
-  1. `skills/namht-rails-to-spring/references/shadow-parity.cjs` — sends HTTP requests **only to
+  1. `skills/cwk-rails-to-spring/references/shadow-parity.cjs` — sends HTTP requests **only to
      the two `--source`/`--target` endpoints the user passes on the command line** (a parity test
      harness). No other destinations, no telemetry.
   2. The optional **VS Code extension** (`vscode-extension/`) — spawns the **local `claude` CLI**
      (whitelisted commands only); it makes no network calls of its own.
-  3. `namht-splunk-report` (a prompt, not code) — instructs the agent to query Splunk / post to
+  3. `cwk-splunk-report` (a prompt, not code) — instructs the agent to query Splunk / post to
      Slack using credentials from env/MCP, never hardcoded.
 - Generated HTML can load Mermaid/Cytoscape from a CDN at view-time — **eliminated** when the
   bundled `vendor/` libraries are present (default in this repo → fully offline HTML).
@@ -24,11 +24,11 @@ verify it yourself.
 | Type | Files | Risk |
 |------|-------|------|
 | Skill / command / agent prompts | `skills/`, `commands/`, `agents/` (Markdown) | Instructions for the AI; reviewed below |
-| Static code analyzer | `skills/namht-map/references/graph-builder.js` | Reads source files, builds a graph. `fs`/`path` only |
+| Static code analyzer | `skills/cwk-map/references/graph-builder.js` | Reads source files, builds a graph. `fs`/`path` only |
 | HTML renderers | `skills/*/references/html-builder.js` + `render-html.cjs`, `build-map.cjs` | Markdown/graph → HTML. `fs`/`path`/`crypto` only |
 | Vendored JS libs | `vendor/mermaid.min.js`, `vendor/cytoscape.min.js` | Upstream OSS, inlined into HTML for offline render |
 | Install scripts | `scripts/personal-install.sh`, `scripts/onboard-project.sh`, `scripts/sync-bundles.sh` | Symlink into `~/.claude`; write `.gitignore`/`CLAUDE.md`; copy bundled files |
-| Parity harness | `skills/namht-rails-to-spring/references/shadow-parity.cjs` | **Outbound HTTP — only to the two user-supplied `--source`/`--target` URLs** (opt-in per run) |
+| Parity harness | `skills/cwk-rails-to-spring/references/shadow-parity.cjs` | **Outbound HTTP — only to the two user-supplied `--source`/`--target` URLs** (opt-in per run) |
 | VS Code extension | `vscode-extension/` (TypeScript, proprietary) | **Spawns the local `claude` CLI** (whitelisted skill commands); no network of its own |
 | Git guard hook | `hooks/git-guard.sh` | Blocks remote-touching/destructive git; push only to the personal whitelist |
 
@@ -36,7 +36,7 @@ verify it yourself.
 ```bash
 # 1) Shell-out / eval / network surface — the ONLY expected matches are:
 #      - RegExp .exec(...) string matching (not process execution)
-#      - fetch( in skills/namht-rails-to-spring/references/shadow-parity.cjs (user-supplied endpoints only)
+#      - fetch( in skills/cwk-rails-to-spring/references/shadow-parity.cjs (user-supplied endpoints only)
 #      - child_process/spawn in vscode-extension/src/extension.ts (spawns the local claude CLI)
 grep -rnE "child_process|execSync|spawn|\beval\(|new Function|http\.|https\.|fetch\(|net\.|dns\." \
   --include='*.js' --include='*.cjs' --include='*.sh' --include='*.ts' .
@@ -62,12 +62,12 @@ invoke them.
 
 | Script | Writes to | Guards |
 |---|---|---|
-| `scripts/personal-install.sh` | `~/.claude/{skills,commands,agents,hooks}` — symlinks | Uninstall removes **only** links that resolve back into this repo; a foreign symlink survives. `NAMHT_CLAUDE_DIR` overrides the destination so the logic is testable. *(10 cases)* |
+| `scripts/personal-install.sh` | `~/.claude/{skills,commands,agents,hooks}` — symlinks | Uninstall removes **only** links that resolve back into this repo; a foreign symlink survives. `CWK_CLAUDE_DIR` overrides the destination so the logic is testable. *(10 cases)* |
 | `scripts/onboard-project.sh` | a target repo's `.gitignore`, and `CLAUDE.md` if absent | Whole-line ignore matching (a near-miss line does not count as present); an existing `CLAUDE.md` — root or `.claude/` — is never overwritten. *(14 cases)* |
 | `scripts/schedule.sh` | your **crontab** | Only lines carrying its own end-anchored marker; prints the change and asks before writing; refuses to schedule any code-editing skill; escapes `%`, which cron would otherwise read as a newline. *(20 cases, behind a stubbed `crontab`)* |
 | `scripts/kb-export.sh` | a hub directory | Refuses to write into a repo it can see is **public** (a KB is a readable distillation of your source); refuses to overwrite a snapshot taken from a *different* repo with the same folder name; never commits or pushes. *(part of 32 cases)* |
 | `scripts/kb-import.sh` | a target repo's `knowledge-base/` | Refuses to overwrite an existing KB without `--force`, and keeps a timestamped backup when forced — `knowledge-base/` is gitignored, so git is not an undo here. Warns when the snapshot's commit is absent from that checkout. |
-| `scripts/migrate-sessions.sh` | renames `spec-kit-sessions/` → `namht-sessions/` in a repo | Never overwrites on merge; leaves anything it could not merge in place; `--dry-run`. *(15 cases)* |
+| `scripts/migrate-sessions.sh` | renames `spec-kit-sessions/` → `cwk-sessions/` in a repo | Never overwrites on merge; leaves anything it could not merge in place; `--dry-run`. *(15 cases)* |
 
 `scripts/kb-site.cjs` and the other Node generators only read and write inside the directory you
 point them at. Their output is a self-contained HTML page: every document is JSON-escaped before it
@@ -96,16 +96,16 @@ declares a CSP whose `script-src` carries a nonce, and no external host is conta
 - `personal-install.sh` only creates symlinks under `~/.claude/{skills,commands,agents}` and, on
   uninstall, **only removes symlinks whose target points back into this repo** (`case "$SRC"/*`).
   It cannot delete arbitrary files.
-- `onboard-project.sh` **writes into a target project** (`.gitignore` += `namht-sessions/`,
+- `onboard-project.sh` **writes into a target project** (`.gitignore` += `cwk-sessions/`,
   `knowledge-base/`, `.provenlens/`,
   and a starter `CLAUDE.md` if absent). Do **not** run it on a shared/team repo if you want zero
   footprint — review its diff first.
 
 ## Built-in safety behavior (prompts)
-- `namht-build` / `namht-review` enforce a **change-discipline contract**: scope-locked, minimal
+- `cwk-build` / `cwk-review` enforce a **change-discipline contract**: scope-locked, minimal
   diff, no drive-by refactors, don't leave the build broken (verify + rollback), confirm before
   destructive/outward actions, never touch secrets.
-- `namht-scan` skips secret files and records that a secret exists, never its value.
+- `cwk-scan` skips secret files and records that a secret exists, never its value.
 - All tool calls (Bash, Edit, installs) remain gated by Claude Code's permission system — the
   user approves them. Use an **untrusted workspace** until you trust a repo.
 
@@ -157,7 +157,7 @@ first would be worse.
   `rebase`, `filter-branch/filter-repo`, `reflog expire`, `gc --prune`, `update-ref -d`.
 
 Wire it into `~/.claude/settings.json` (the installer symlinks the script to
-`~/.claude/hooks/namht-git-guard.sh`; arm it once with this snippet):
+`~/.claude/hooks/cwk-git-guard.sh`; arm it once with this snippet):
 
 ```jsonc
 {
@@ -173,14 +173,14 @@ Wire it into `~/.claude/settings.json` (the installer symlinks the script to
   "hooks": {
     "PreToolUse": [
       { "matcher": "Bash", "hooks": [
-        { "type": "command", "command": "~/.claude/hooks/namht-git-guard.sh", "timeout": 10 } ] }
+        { "type": "command", "command": "~/.claude/hooks/cwk-git-guard.sh", "timeout": 10 } ] }
     ]
   }
 }
 ```
 
 Verify (push to a team URL is denied, pull is allowed):
-`printf '{"tool_input":{"command":"git push https://github.com/some-org/repo"}}' | ~/.claude/hooks/namht-git-guard.sh`
+`printf '{"tool_input":{"command":"git push https://github.com/some-org/repo"}}' | ~/.claude/hooks/cwk-git-guard.sh`
 → `permissionDecision":"deny"`. A push to a whitelisted personal remote returns no output (allowed).
 Edit `ALLOW_OWNER_RE` / the rules in `hooks/git-guard.sh` to taste. (A settings change needs a
 Claude Code reload to go live; editing the hook script itself takes effect immediately.)

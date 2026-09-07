@@ -5,22 +5,22 @@ cd "$(dirname "$0")/.."
 fail=0
 
 # Intentional exceptions:
-#   help — command-only (commands/help.md is documentation; there is no skills/namht-help/).
+#   help — command-only (commands/help.md is documentation; there is no skills/cwk-help/).
 CMD_ONLY="help"
-# Tokens that match the namht-* shape but are NOT skills — the artifact folder every skill
-# writes to. Keep this list tiny; anything else matching namht-* must be a real skill/agent.
-NON_SKILL="namht-sessions"
+# Tokens that match the cwk-* shape but are NOT skills — the artifact folder every skill
+# writes to. Keep this list tiny; anything else matching cwk-* must be a real skill/agent.
+NON_SKILL="cwk-sessions"
 
 echo "consistency: commands reference existing skills"
 bad=0
 for f in commands/*.md; do
   base=$(basename "$f" .md)
-  refs=$(grep -oE 'namht-[a-z-]+' "$f" | sort -u | grep -vxF "$NON_SKILL")
-  if [ -z "$refs" ]; then echo "  ✗ $f references no namht-* skill"; bad=1; continue; fi
+  refs=$(grep -oE 'cwk-[a-z-]+' "$f" | sort -u | grep -vxF "$NON_SKILL")
+  if [ -z "$refs" ]; then echo "  ✗ $f references no cwk-* skill"; bad=1; continue; fi
   for r in $refs; do
     [ -d "skills/$r" ] && continue
-    [ -f "agents/$r.md" ] && continue   # sub-agents (namht-codebase-analyzer, …) are valid references
-    short=${r#namht-}
+    [ -f "agents/$r.md" ] && continue   # sub-agents (cwk-codebase-analyzer, …) are valid references
+    short=${r#cwk-}
     # help.md lists commands, so a command-only reference is fine there
     if [ "$base" = "help" ] && [ -f "commands/$short.md" ]; then continue; fi
     echo "  ✗ $f references $r — no skills/$r/ and no agents/$r.md"; bad=1
@@ -30,19 +30,19 @@ done
 
 echo "consistency: every skill has a matching command"
 bad=0
-for d in skills/namht-*/; do
-  s=$(basename "$d"); short=${s#namht-}
+for d in skills/cwk-*/; do
+  s=$(basename "$d"); short=${s#cwk-}
   [ -f "commands/$short.md" ] || { echo "  ✗ skills/$s/ has no commands/$short.md"; bad=1; }
 done
 [ "$bad" -eq 0 ] && echo "  ✓ skill → command mapping OK" || fail=1
 
-echo "consistency: extension ALLOWED == skills/namht-*/"
-allowed=$(sed -n '/const ALLOWED = new Set(\[/,/\]);/p' vscode-extension/src/extension.ts | grep -oE "'namht-[a-z-]+'" | tr -d "'" | sort -u)
-skills_set=$(for d in skills/namht-*/; do basename "$d"; done | sort -u)
+echo "consistency: extension ALLOWED == skills/cwk-*/"
+allowed=$(sed -n '/const ALLOWED = new Set(\[/,/\]);/p' vscode-extension/src/extension.ts | grep -oE "'cwk-[a-z-]+'" | tr -d "'" | sort -u)
+skills_set=$(for d in skills/cwk-*/; do basename "$d"; done | sort -u)
 if [ "$allowed" = "$skills_set" ]; then
   echo "  ✓ ALLOWED matches skills/"
 else
-  echo "  ✗ ALLOWED != skills/namht-*/ (< only in ALLOWED, > only in skills/):"
+  echo "  ✗ ALLOWED != skills/cwk-*/ (< only in ALLOWED, > only in skills/):"
   diff <(echo "$allowed") <(echo "$skills_set") | grep '^[<>]' | sed 's/^/    /'
   fail=1
 fi
@@ -52,13 +52,13 @@ bad=0
 for f in commands/*.md; do
   base=$(basename "$f" .md)
   [ "$base" = "$CMD_ONLY" ] && continue
-  grep -qE "/namht-$base([^a-z-]|\$)" commands/help.md || { echo "  ✗ /namht-$base missing from commands/help.md"; bad=1; }
+  grep -qE "/cwk-$base([^a-z-]|\$)" commands/help.md || { echo "  ✗ /cwk-$base missing from commands/help.md"; bad=1; }
 done
 [ "$bad" -eq 0 ] && echo "  ✓ help.md covers every command" || fail=1
 
 echo "consistency: extension card (media/main.js) per skill"
 bad=0
-cards=$(grep -oE "^  A\('namht-[a-z-]+'" vscode-extension/media/main.js | grep -oE "namht-[a-z-]+" | sort -u)
+cards=$(grep -oE "^  A\('cwk-[a-z-]+'" vscode-extension/media/main.js | grep -oE "cwk-[a-z-]+" | sort -u)
 for s in $skills_set; do
   echo "$cards" | grep -qxF "$s" || { echo "  ✗ $s has no A(...) card in media/main.js"; bad=1; }
 done
@@ -66,7 +66,7 @@ done
 
 echo "consistency: docs/skills-catalog.html lists every skill"
 bad=0
-rows=$(grep -oE 'class="name">namht-[a-z-]+' docs/skills-catalog.html | sed 's/.*>//' | sort -u)
+rows=$(grep -oE 'class="name">cwk-[a-z-]+' docs/skills-catalog.html | sed 's/.*>//' | sort -u)
 for s in $skills_set; do
   echo "$rows" | grep -qxF "$s" || { echo "  ✗ $s has no row in docs/skills-catalog.html"; bad=1; }
 done
@@ -78,7 +78,7 @@ done
 # The counts are written by hand in several docs; drift there is invisible until someone counts.
 echo "consistency: documented counts match reality"
 bad=0
-n_skills=$(ls -d skills/namht-*/ | wc -l | tr -d ' ')
+n_skills=$(ls -d skills/cwk-*/ | wc -l | tr -d ' ')
 n_cmds=$(ls commands/*.md | wc -l | tr -d ' ')
 check_count() {  # file, regex with ONE capture group, expected, label
   local f="$1" re="$2" want="$3" label="$4" got
@@ -99,8 +99,8 @@ check_count docs/manual-setup-guide.html '# [0-9]+ command'                  "$n
 # (see docs/skill-anatomy.md). Without a check they get written once and then omitted from the next
 # skill, and the standard quietly stops being one.
 echo "consistency: high-stakes skills carry rationalizations / red flags / verification"
-HIGH_STAKES="namht-build namht-fix-bug namht-migrate namht-simplify namht-perf namht-observe
-  namht-rails-to-spring namht-review namht-drift namht-runbook"
+HIGH_STAKES="cwk-build cwk-fix-bug cwk-migrate cwk-simplify cwk-perf cwk-observe
+  cwk-rails-to-spring cwk-review cwk-drift cwk-runbook"
 bad=0
 for sk in $HIGH_STAKES; do
   f="skills/$sk/SKILL.md"
@@ -112,7 +112,7 @@ for sk in $HIGH_STAKES; do
   awk '/^## Verification/,0' "$f" | grep -q '^- \[ \]' || { echo "  ✗ $sk: Verification has no checkbox items"; bad=1; }
 done
 # every code-editing skill must be on the list — a new one must not slip past this check
-for sk in namht-build namht-fix-bug namht-migrate namht-simplify namht-perf namht-observe namht-rails-to-spring; do
+for sk in cwk-build cwk-fix-bug cwk-migrate cwk-simplify cwk-perf cwk-observe cwk-rails-to-spring; do
   # collapse the newline in the list before matching — the same whitespace trap that once made
   # git-guard's multi-line subcommand allowlist miss whichever name sat at a line boundary.
   case " ${HIGH_STAKES//[$'\n\t']/ } " in *" $sk "*) ;; *) echo "  – note: $sk edits code but is not in HIGH_STAKES (deliberate?)";; esac
@@ -131,7 +131,7 @@ grep -q 'CF-01' resources/kb-steps.md       || { echo "  ✗ kb-steps.md no long
 for doc in 13-business-rules 10-core-flows 16-architecture-patterns 17-async-events; do
   grep -q "$doc" resources/kb-steps.md || { echo "  ✗ kb-steps.md does not define $doc.md, but skills reference it"; bad=1; }
 done
-for sk in namht-build namht-qa; do
+for sk in cwk-build cwk-qa; do
   grep -qE 'BR-[A-Z]?[0-9]' "skills/$sk/SKILL.md" || echo "  – note: $sk no longer cites rule ids"
 done
 [ "$bad" -eq 0 ] && echo "  ✓ kb-steps mandates the ids that other skills cite" || fail=1
@@ -142,7 +142,7 @@ done
 # A skill that genuinely never reads a call graph is listed here with a reason instead. A skill in
 # NEITHER list fails: that is what stops the standard from quietly ending at the last one written.
 echo "consistency: provenlens block present where it belongs, absent where it does not"
-PROVENLENS_OPT_OUT="namht-issues namht-pdf namht-splunk-report"
+PROVENLENS_OPT_OUT="cwk-issues cwk-pdf cwk-splunk-report"
 #   issues          — turns an APPROVED plan into tickets; the blast radius is already in the plan,
 #                     and re-deriving it here would be a second opinion nobody asked for
 #   pdf             — renders a Markdown/HTML file to PDF; never opens the source
@@ -154,7 +154,7 @@ PROVENLENS_MARK='### provenlens (optional)'
 PROVENLENS_FALLBACK='grep-depth only (no provenlens index)'
 bad=0
 n_with=0
-for d in skills/namht-*/; do
+for d in skills/cwk-*/; do
   sk=$(basename "$d"); f="$d/SKILL.md"
   case " ${PROVENLENS_OPT_OUT//[$'\n\t']/ } " in
     *" $sk "*)
@@ -170,7 +170,7 @@ for d in skills/namht-*/; do
 done
 [ -f docs/provenlens.md ] || { echo "  ✗ docs/provenlens.md is missing but every skill points at it"; bad=1; }
 # the sub-agents the skills fan out to must be able to reach provenlens, or the block is a lie there
-for a in namht-impact-detector namht-codebase-analyzer namht-security-reviewer; do
+for a in cwk-impact-detector cwk-codebase-analyzer cwk-security-reviewer; do
   grep -q 'mcp__provenlens__' "agents/$a.md" || { echo "  ✗ agents/$a.md cannot reach provenlens (no mcp__provenlens__ tool)"; bad=1; }
 done
 # read-only sub-agents must stay read-only: granting Bash to reach the CLI would undo that
@@ -180,7 +180,7 @@ done
 # The investigating skills carry the evidence protocol (reach ledger + code graph) as a bundled copy and
 # must point at it — a bundle nobody references is a file, not a standard. The list mirrors
 # map_evidence in scripts/sync-bundles.sh; sync-bundles --check catches a copy that is not mapped.
-PROVENLENS_EVIDENCE="namht-ask namht-document namht-user-story namht-plan namht-runbook namht-fix-bug namht-build namht-review namht-qa"
+PROVENLENS_EVIDENCE="cwk-ask cwk-document cwk-user-story cwk-plan cwk-runbook cwk-fix-bug cwk-build cwk-review cwk-qa"
 for sk in $PROVENLENS_EVIDENCE; do
   f="skills/$sk/SKILL.md"
   [ -f "skills/$sk/references/provenlens-evidence.md" ] || { echo "  ✗ $sk lacks references/provenlens-evidence.md (run scripts/sync-bundles.sh)"; bad=1; }

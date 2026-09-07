@@ -7,17 +7,17 @@
 # commit. Run `scripts/sync-bundles.sh --check` in CI to fail if any copy drifted.
 #
 # (Map-only files — graph-builder.js, build-map.cjs, viewer-template.html — live solely in
-#  skills/namht-map/references and are not duplicated, so they're not managed here.)
+#  skills/cwk-map/references and are not duplicated, so they're not managed here.)
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 SRC=resources
 CHECK="${1:-}"
 
 # canonical-file  ->  space-separated list of skills that bundle it
-map_review="namht-build namht-review namht-scan namht-rescan namht-security-audit namht-pr"
-map_kb="namht-scan namht-rescan"
-map_html="namht-ask namht-document namht-plan namht-qa namht-system-map namht-pr namht-security-audit namht-plan-review namht-retro namht-qa-integration namht-design-review namht-pdf namht-user-story namht-rails-to-spring namht-drift namht-issues namht-runbook"  # html-builder.js + render-html.cjs
-map_evidence="namht-ask namht-document namht-user-story namht-plan namht-runbook namht-fix-bug namht-build namht-review namht-qa"  # the reach-ledger + code-graph protocol (docs/provenlens.md)
+map_review="cwk-build cwk-review cwk-scan cwk-rescan cwk-security-audit cwk-pr"
+map_kb="cwk-scan cwk-rescan"
+map_html="cwk-ask cwk-document cwk-plan cwk-qa cwk-system-map cwk-pr cwk-security-audit cwk-plan-review cwk-retro cwk-qa-integration cwk-design-review cwk-pdf cwk-user-story cwk-rails-to-spring cwk-drift cwk-issues cwk-runbook"  # html-builder.js + render-html.cjs
+map_evidence="cwk-ask cwk-document cwk-user-story cwk-plan cwk-runbook cwk-fix-bug cwk-build cwk-review cwk-qa"  # the reach-ledger + code-graph protocol (docs/provenlens.md)
 
 emit() { # <canonical-file> <skill-list>
   local file="$1"; shift

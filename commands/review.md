@@ -3,7 +3,7 @@ description: Two-phase review of a file, branch, or PR — quality checklist + b
 argument-hint: "[file path | PR #/URL | empty = branch vs default (or working-tree diff)]"
 ---
 
-Use the **namht-review** skill to review the target below in two phases: (1) code quality
+Use the **cwk-review** skill to review the target below in two phases: (1) code quality
 against the full review checklist (`knowledge-base/review-skills.md` if present, else the
 bundled universal checklist), and (2) business consistency against the Knowledge Base.
 Every issue must include the exact bad code and complete fixed code.

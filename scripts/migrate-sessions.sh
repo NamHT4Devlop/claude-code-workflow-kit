@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# migrate-sessions.sh — rename a repo's legacy `spec-kit-sessions/` to `namht-sessions/`.
+# migrate-sessions.sh — rename a repo's legacy `spec-kit-sessions/` or `namht-sessions/` to `cwk-sessions/`.
 #
-# The folder was renamed so it is not confused with GitHub's unrelated "Spec Kit"
-# (github/spec-kit). Contents are identical; only the folder name changes.
+# The folder has been renamed twice: away from "spec-kit" so it is not confused with GitHub's
+# unrelated Spec Kit, and away from "namht" when the kit dropped its personal prefix (3.0.0).
+# Contents are identical; only the folder name changes.
 #
 # Usage:
 #   scripts/migrate-sessions.sh [REPO ...]     # migrate each repo (default: current dir)
@@ -13,8 +14,8 @@
 # whatever could not be merged in place for you to look at.
 set -euo pipefail
 
-OLD="spec-kit-sessions"
-NEW="namht-sessions"
+OLDS=("spec-kit-sessions" "namht-sessions")   # every name this folder has had, oldest first
+NEW="cwk-sessions"
 DRY=0
 targets=()
 
@@ -32,12 +33,11 @@ run() { if [ "$DRY" = 1 ]; then echo "   would: $*"; else "$@"; fi; }
 status=0
 for repo in "${targets[@]}"; do
   if [ ! -d "$repo" ]; then echo "✗ $repo — not a directory"; status=1; continue; fi
+  found=0
+  for OLD in "${OLDS[@]}"; do
   old="$repo/$OLD"; new="$repo/$NEW"
-
-  if [ ! -d "$old" ]; then
-    echo "• $repo — no $OLD/ (nothing to do)"
-    continue
-  fi
+  [ -d "$old" ] || continue
+  found=1
 
   if [ ! -e "$new" ]; then
     echo "→ $repo — renaming $OLD/ → $NEW/"
@@ -59,10 +59,12 @@ for repo in "${targets[@]}"; do
   done < <(find "$old" -type f)
 
   if [ "$DRY" = 0 ]; then
-    # Drop the legacy tree only when everything in it now exists on the new side.
+    # Drop the legacy tree only when every file in it is now on the new side WITH THE SAME CONTENT.
+    # A same-named file that was skipped (different content) is data the merge could not carry;
+    # deleting the tree would silently lose it, which is the one thing this script promises not to do.
     leftover=0
     while IFS= read -r f; do
-      [ -e "$new/${f#"$old"/}" ] || leftover=1
+      cmp -s "$f" "$new/${f#"$old"/}" 2>/dev/null || leftover=1
     done < <(find "$old" -type f)
     if [ "$leftover" = 0 ]; then
       rm -rf "$old"
@@ -72,11 +74,16 @@ for repo in "${targets[@]}"; do
       status=1
     fi
   fi
+  done
+  [ "$found" = 1 ] || echo "• $repo — no legacy sessions folder (nothing to do)"
 done
 
 cat <<EOF
 
-Reminder — the machine-wide ignore should list BOTH names while legacy folders exist:
-  grep -q '^namht-sessions/\$' ~/.gitignore_global || echo 'namht-sessions/' >> ~/.gitignore_global
+Reminder — the machine-wide ignore should list the new name (keep the old ones while legacy folders exist):
+  grep -q '^cwk-sessions/\
+EOF
+exit $status
+ ~/.gitignore_global || echo 'cwk-sessions/' >> ~/.gitignore_global
 EOF
 exit $status

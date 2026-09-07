@@ -14,6 +14,66 @@ noted per release when it changed.
 
 ---
 
+## [3.0.0] — 2026-09-08
+
+### Changed — the kit is `cwk`; the personal prefix is gone
+
+The repository became `claude-code-workflow-kit` in 2.9; the commands, skills, agents, hook, artifact
+folder and extension were still called `namht-*`. Now everything carries the repo's own
+abbreviation, **`cwk`**, and the display name is **Workflow Kit**:
+
+| Was | Is |
+|---|---|
+| `/namht:build` (plugin) · `/namht-build` (personal) | `/cwk:build` · `/cwk-build` |
+| `skills/namht-<x>` · `agents/namht-<x>` | `skills/cwk-<x>` · `agents/cwk-<x>` |
+| plugin `namht`, marketplace `namht-marketplace` | plugin `cwk`, marketplace `cwk-marketplace` |
+| `namht-sessions/` (every artifact the kit writes) | `cwk-sessions/` |
+| `~/.claude/hooks/namht-git-guard.sh` | `~/.claude/hooks/cwk-git-guard.sh` |
+| cron marker `# namht-kit` | `# cwk-kit` |
+| extension `namht-spec-ui`, settings `namhtSpecUi.*`, view `namhtSpec` | `cwk-ui`, `cwkUi.*`, `cwk` |
+
+This is a MAJOR release because a user has to do things after updating, and each one is covered:
+
+- **`scripts/migrate-sessions.sh` knows the second legacy name.** It renames `spec-kit-sessions/`
+  *or* `namht-sessions/` to `cwk-sessions/`, merges without overwriting when more than one exists,
+  and leaves anything it could not merge in place. Two new fixture cases pin it.
+- **`scripts/schedule.sh` still owns its 2.x cron lines.** `list` shows entries with either marker,
+  `add` replaces a `# namht-kit` entry instead of duplicating it, `remove` finds one. A job only the
+  old name could reach would have been a job nobody can delete.
+- **The 2.x hook alias is kept alive.** `personal-install.sh` links `hooks/cwk-git-guard.sh`; if a
+  `namht-git-guard.sh` link exists it is refreshed rather than removed, because settings.json still
+  names it and a hook whose file is gone stops running with no visible sign — the guard would be off
+  silently. Point settings.json at the new name, then uninstall/install once to drop the alias.
+- The VS Code extension reads its settings under new keys; values under `namhtSpecUi.*` are not
+  migrated (six keys, all with defaults). The report-path detector recognises `cwk-`, `namht-` and
+  `spec-kit-sessions` paths so old run logs still open their reports.
+- Earlier changelog entries keep the old names; they describe the versions they describe.
+
+### Fixed
+
+- **`migrate-sessions.sh` could delete a file it had refused to merge.** When both folders existed it
+  skipped a same-named file on the legacy side (correct — never overwrite), then removed the legacy
+  tree because its "everything is on the new side" check only asked whether a file with that *name*
+  existed. The skipped file's content went with the tree. The check now compares content (`cmp`);
+  a legacy folder holding an unmerged file stays in place, exit 1, and the test that used to assert
+  the deletion now asserts the survival.
+
+### After updating
+
+```
+/plugin uninstall namht                        # plugin install (Option A)
+/plugin marketplace remove namht-marketplace
+/plugin marketplace add <PLUGIN_DIR>  →  /plugin install cwk@cwk-marketplace
+```
+```bash
+scripts/personal-install.sh                    # personal install (Option C): relinks as cwk-*
+scripts/migrate-sessions.sh /path/to/each/repo # namht-sessions/ → cwk-sessions/
+echo 'cwk-sessions/' >> ~/.gitignore_global
+```
+Then change `namht-git-guard.sh` to `cwk-git-guard.sh` in `~/.claude/settings.json` and reload.
+
+---
+
 ## [2.10.0] — 2026-09-08
 
 ### Added — the evidence protocol: a reach ledger and a pasted code graph, where someone will act on the output

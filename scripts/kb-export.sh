@@ -53,7 +53,7 @@ for repo in "$@"; do
   repo=$(cd "$repo" && pwd)
   kb="$repo/knowledge-base"
   if [ ! -d "$kb" ]; then
-    echo "· $(basename "$repo") — no knowledge-base/ (run /namht-scan there first)"; skipped=$((skipped+1)); continue
+    echo "· $(basename "$repo") — no knowledge-base/ (run /cwk-scan there first)"; skipped=$((skipped+1)); continue
   fi
 
   project=$(basename "$repo")
@@ -92,8 +92,8 @@ for repo in "$@"; do
       printf 'exported: %s\nexported_from: %s\n' "$today" "$repo" >> "$dest/_meta.yml"
     else
       cat > "$dest/_meta.yml" <<EOF
-# Synthesised at export time — this KB predates namht-scan writing its own _meta.yml.
-# Rerun /namht-scan or /namht-rescan in the source repo to get a richer one.
+# Synthesised at export time — this KB predates cwk-scan writing its own _meta.yml.
+# Rerun /cwk-scan or /cwk-rescan in the source repo to get a richer one.
 project: $project
 repo: $origin
 branch: $branch
@@ -115,7 +115,7 @@ if [ "$DRY" = 0 ] && [ "$ok" -gt 0 ]; then
     echo
     echo "Generated Knowledge Bases for several repos, collected by \`scripts/kb-export.sh\`."
     echo "**Each folder is a snapshot** of one repo's \`knowledge-base/\` at the commit named below —"
-    echo "it does not update itself. Re-export after a \`/namht-rescan\`."
+    echo "it does not update itself. Re-export after a \`/cwk-rescan\`."
     echo
     echo "To use one in your own checkout:"
     echo '```bash'

@@ -64,7 +64,7 @@ cd /path/to/repo && provenlens init .
 ```
 
 `scripts/onboard-project.sh` adds `.provenlens/` to the project's `.gitignore` and reports index
-status, alongside the `namht-sessions/` and `knowledge-base/` hygiene it already does.
+status, alongside the `cwk-sessions/` and `knowledge-base/` hygiene it already does.
 
 ## Two ways a skill reaches it
 
@@ -105,7 +105,7 @@ reaches. That is a CI-grade gate, and the kit treats it as a blocker, not a note
 `provenlens serve` and the MCP server both accept a folder of checkouts: point either at a workspace
 root and every indexed repo underneath answers. Cross-repo chains are walked through the binding
 layer — a producer in one repo and a consumer in another are joined on the shared queue name or
-endpoint URI. This is what `namht-system-map` uses to mark an edge **confirmed** rather than
+endpoint URI. This is what `cwk-system-map` uses to mark an edge **confirmed** rather than
 inferred.
 
 ---
@@ -168,9 +168,9 @@ Nine skills go further — the ones whose output someone acts on without re-read
 
 | Skill | Why not |
 |---|---|
-| `namht-issues` | Turns an **approved** plan into tickets. The blast radius is already in the plan; re-deriving it here is a second opinion nobody asked for. |
-| `namht-pdf` | Renders a Markdown/HTML file to PDF. It never opens the source. |
-| `namht-splunk-report` | Queries Splunk and posts to Slack — it may not even run inside the app's repo. |
+| `cwk-issues` | Turns an **approved** plan into tickets. The blast radius is already in the plan; re-deriving it here is a second opinion nobody asked for. |
+| `cwk-pdf` | Renders a Markdown/HTML file to PDF. It never opens the source. |
+| `cwk-splunk-report` | Queries Splunk and posts to Slack — it may not even run inside the app's repo. |
 
 `discover` and `qa-integration` were on that list and should not have been. Both turn on a reach
 question — *"which existing flow does this touch?"* and *"which regressions do I run?"* — and

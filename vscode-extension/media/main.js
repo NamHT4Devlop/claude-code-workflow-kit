@@ -14,41 +14,41 @@ const one = (name, label, ph, type = 'textarea', optional = false) => ({ name, l
 
 const ACTIONS = [
   A('__chat', 'chat', '💬', 'Ask anything', 'A general question — not tied to this repo. Runs plain Claude (no skill).', [one('q', 'Your question (any topic)', 'Explain the difference between SQS and Kafka…')], v => v.q),
-  A('namht-scan', 'understand', '🧠', 'Scan → Knowledge Base', 'Generate the project Knowledge Base (run once).', [], () => ''),
-  A('namht-rescan', 'understand', '♻️', 'Rescan (update KB)', 'Refresh the KB after code changes.', [], () => ''),
-  A('namht-ask', 'understand', '❓', 'Ask the codebase', 'Plain-language answer + diagram + detail.', [one('q', 'Your question', 'How does the payment flow work?')], v => v.q),
-  A('namht-map', 'understand', '🕸️', 'Dependency map', 'Interactive HTML code graph (opens in browser).', [one('scope', 'Scope (optional)', 'e.g. src/', 'text', true)], v => v.scope || ''),
-  A('namht-system-map', 'understand', '🗺️', 'System map', 'Cross-service map — open the workspace root.', [], () => ''),
-  A('namht-document', 'understand', '📄', 'Document a feature', 'Business↔code doc anyone can follow.', [one('topic', 'Feature / module / entity', 'Orders module', 'text')], v => v.topic),
-  A('namht-discover', 'plan', '💡', 'Sharpen an idea', 'Turn a fuzzy idea into a crisp brief.', [one('idea', 'The idea / problem', 'I want to build…')], v => v.idea),
-  A('namht-plan', 'plan', '📋', 'Plan an epic', 'Epic → features → user stories → sprint plan.', [one('title', 'Epic title', 'Recurring invoices', 'text'), one('desc', 'Description (what & why)', 'Describe the epic…')], v => `${v.title}\n\n${v.desc}`),
-  A('namht-plan-review', 'plan', '🔎', 'Review a plan', 'Multi-lens critique + verdict.', [one('plan', 'The plan / user stories', 'Paste the plan…')], v => v.plan),
-  A('namht-user-story', 'plan', '📝', 'Create user stories', 'Deep-investigate → features + INVEST stories, each AC as granular as possible.', [one('req', 'Requirement / idea (leave blank if using Slack)', 'As a coach I want…', 'textarea', true), one('slack', 'Slack thread / channel URL (optional)', 'https://…slack.com/archives/…', 'text', true)], v => [v.req, v.slack ? ('Slack source: ' + v.slack) : ''].filter(Boolean).join('\n\n')),
-  A('namht-issues', 'plan', '🎫', 'Stories → tracker issues', 'Turn a plan / user stories into GitHub or Jira issues. Previews first — nothing is created without your OK.', [one('src', 'Plan or user-story file (blank = pick the most recent)', 'namht-sessions/plans/…md', 'text', true), one('target', 'Target project', 'e.g. github NamHT4Devlop/my-repo', 'text', true), one('create', 'Create them for real (otherwise it only writes a preview file)', 'It still shows you every issue and asks before creating anything.', 'checkbox', true)], v => [v.src || '', v.target || '', v.create ? '--create' : ''].filter(Boolean).join(' ')),
-  A('namht-build', 'build', '🏗️', 'Build a feature', '13-step pipeline: plan → code → review → test.', [one('req', 'Requirement', 'Add a forgot-password flow via email OTP')], v => v.req, true),
-  A('namht-fix-bug', 'build', '🐛', 'Fix a bug', 'Triage (code vs config/spec) → root-cause → regression test → minimal fix.', [one('err', 'Error / stack trace, or a QA report (expected vs actual + repro + environment + failing case)', 'Paste the error, or the QA bug report…')], v => v.err, true),
-  A('namht-migrate', 'build', '🔀', 'Migration / deprecation', 'Safe API/DB/event/lib change with rollback.', [one('change', "What's changing", 'Add nullable dueDate column to tasks')], v => v.change, true),
-  A('namht-simplify', 'build', '✨', 'Simplify code', 'Behavior-preserving cleanup; tests stay green.', [one('target', 'File / function (optional)', 'src/foo.ts', 'text', true)], v => v.target || '', true),
-  A('namht-perf', 'build', '⚡', 'Optimize performance', 'Measure-first; prove before/after.', [one('area', 'Slow area / endpoint / query', 'GET /orders is slow')], v => v.area, true),
-  A('namht-observe', 'build', '📡', 'Add observability', 'Structured logs + trace IDs + metrics.', [one('area', 'Service / flow to instrument', 'payments service')], v => v.area, true),
-  A('namht-rails-to-spring', 'build', '🔁', 'Port to another stack', 'Rails+GraphQL → Spring Boot, contract + behavior preserved (golden-test verified).', [one('scope', 'What to port (source → target stack, endpoint set)', 'Rails+GraphQL → Spring Boot/MyBatis; all GraphQL + these 3-5 REST APIs: …')], v => v.scope, true),
-  A('namht-review', 'review', '🔍', 'Review code / PR', 'Two-phase review vs the KB.', [one('target', 'File / PR# (blank = current branch)', 'e.g. #123 or src/foo.ts', 'text', true)], v => v.target || ''),
-  A('namht-qa', 'review', '✅', 'QA test cases', 'User story → new + regression cases.', [one('story', 'User story + acceptance criteria', 'As a…, I want…, so that…')], v => v.story),
-  A('namht-qa-integration', 'review', '🌐', 'Run E2E QA', 'Drive a running app in a browser (needs a URL).', [one('url', 'App URL', 'http://localhost:3000', 'text')], v => v.url),
-  A('namht-security-audit', 'review', '🛡️', 'Security audit', 'Whole-repo OWASP + STRIDE sweep.', [one('scope', 'Scope (optional)', 'e.g. auth module', 'text', true)], v => v.scope || ''),
-  A('namht-design-review', 'review', '🎨', 'Design / a11y review', 'UI/UX + accessibility (URL or components).', [one('target', 'URL or path', 'http://localhost:3000', 'text')], v => v.target),
-  A('namht-pr', 'review', '🔀', 'Prepare / review PR', 'Draft a PR desc, or review a PR#.', [one('pr', 'PR# to review (blank = prepare from branch)', 'e.g. 123', 'text', true)], v => (v.pr ? `review ${v.pr}` : '')),
-  A('namht-drift', 'review', '🧭', 'Docs vs reality check', 'Find where the Knowledge Base, plans and code have drifted apart — read-only.', [one('scope', 'Scope (optional)', 'e.g. orders module (blank = whole repo)', 'text', true), one('fix', 'Also refresh the stale docs it finds (--fix-docs)', 'Asks you first, backs the files up, and only updates the Knowledge Base — never your source code.', 'checkbox', true)], v => [v.scope || '', v.fix ? '--fix-docs' : ''].filter(Boolean).join(' ')),
-  A('namht-splunk-report', 'ops', '🚨', 'Splunk error digest', 'Per-app errors → table → Slack.', [one('args', 'index / env / app / window / Slack URL (blank = it asks)', 'index=app_logs cai_enviroment=prod cai_app=payments 24h')], v => v.args || ''),
-  A('namht-runbook', 'ops', '🛟', 'Operational runbook', 'Health checks, deploy/rollback and incident playbooks a teammate can follow at 2am.', [one('svc', 'Service / scope (blank = it asks)', 'e.g. payments service', 'text', true)], v => v.svc || ''),
-  A('namht-retro', 'ops', '🔄', 'Retrospective', 'What shipped + action items from git history.', [one('window', 'Time window', '7d', 'text')], v => v.window || ''),
-  A('namht-pdf', 'ops', '📑', 'Export to PDF', 'Turn a report/doc into a PDF.', [one('file', 'File to export (.md/.html)', 'namht-sessions/…/report.md', 'text')], v => v.file),
-  A('namht-skillify', 'ops', '🧩', 'Create a new skill', 'Scaffold a new namht-* skill (for devs).', [one('spec', 'Name + purpose', 'changelog — generate a release changelog from git')], v => v.spec),
+  A('cwk-scan', 'understand', '🧠', 'Scan → Knowledge Base', 'Generate the project Knowledge Base (run once).', [], () => ''),
+  A('cwk-rescan', 'understand', '♻️', 'Rescan (update KB)', 'Refresh the KB after code changes.', [], () => ''),
+  A('cwk-ask', 'understand', '❓', 'Ask the codebase', 'Plain-language answer + diagram + detail.', [one('q', 'Your question', 'How does the payment flow work?')], v => v.q),
+  A('cwk-map', 'understand', '🕸️', 'Dependency map', 'Interactive HTML code graph (opens in browser).', [one('scope', 'Scope (optional)', 'e.g. src/', 'text', true)], v => v.scope || ''),
+  A('cwk-system-map', 'understand', '🗺️', 'System map', 'Cross-service map — open the workspace root.', [], () => ''),
+  A('cwk-document', 'understand', '📄', 'Document a feature', 'Business↔code doc anyone can follow.', [one('topic', 'Feature / module / entity', 'Orders module', 'text')], v => v.topic),
+  A('cwk-discover', 'plan', '💡', 'Sharpen an idea', 'Turn a fuzzy idea into a crisp brief.', [one('idea', 'The idea / problem', 'I want to build…')], v => v.idea),
+  A('cwk-plan', 'plan', '📋', 'Plan an epic', 'Epic → features → user stories → sprint plan.', [one('title', 'Epic title', 'Recurring invoices', 'text'), one('desc', 'Description (what & why)', 'Describe the epic…')], v => `${v.title}\n\n${v.desc}`),
+  A('cwk-plan-review', 'plan', '🔎', 'Review a plan', 'Multi-lens critique + verdict.', [one('plan', 'The plan / user stories', 'Paste the plan…')], v => v.plan),
+  A('cwk-user-story', 'plan', '📝', 'Create user stories', 'Deep-investigate → features + INVEST stories, each AC as granular as possible.', [one('req', 'Requirement / idea (leave blank if using Slack)', 'As a coach I want…', 'textarea', true), one('slack', 'Slack thread / channel URL (optional)', 'https://…slack.com/archives/…', 'text', true)], v => [v.req, v.slack ? ('Slack source: ' + v.slack) : ''].filter(Boolean).join('\n\n')),
+  A('cwk-issues', 'plan', '🎫', 'Stories → tracker issues', 'Turn a plan / user stories into GitHub or Jira issues. Previews first — nothing is created without your OK.', [one('src', 'Plan or user-story file (blank = pick the most recent)', 'cwk-sessions/plans/…md', 'text', true), one('target', 'Target project', 'e.g. github NamHT4Devlop/my-repo', 'text', true), one('create', 'Create them for real (otherwise it only writes a preview file)', 'It still shows you every issue and asks before creating anything.', 'checkbox', true)], v => [v.src || '', v.target || '', v.create ? '--create' : ''].filter(Boolean).join(' ')),
+  A('cwk-build', 'build', '🏗️', 'Build a feature', '13-step pipeline: plan → code → review → test.', [one('req', 'Requirement', 'Add a forgot-password flow via email OTP')], v => v.req, true),
+  A('cwk-fix-bug', 'build', '🐛', 'Fix a bug', 'Triage (code vs config/spec) → root-cause → regression test → minimal fix.', [one('err', 'Error / stack trace, or a QA report (expected vs actual + repro + environment + failing case)', 'Paste the error, or the QA bug report…')], v => v.err, true),
+  A('cwk-migrate', 'build', '🔀', 'Migration / deprecation', 'Safe API/DB/event/lib change with rollback.', [one('change', "What's changing", 'Add nullable dueDate column to tasks')], v => v.change, true),
+  A('cwk-simplify', 'build', '✨', 'Simplify code', 'Behavior-preserving cleanup; tests stay green.', [one('target', 'File / function (optional)', 'src/foo.ts', 'text', true)], v => v.target || '', true),
+  A('cwk-perf', 'build', '⚡', 'Optimize performance', 'Measure-first; prove before/after.', [one('area', 'Slow area / endpoint / query', 'GET /orders is slow')], v => v.area, true),
+  A('cwk-observe', 'build', '📡', 'Add observability', 'Structured logs + trace IDs + metrics.', [one('area', 'Service / flow to instrument', 'payments service')], v => v.area, true),
+  A('cwk-rails-to-spring', 'build', '🔁', 'Port to another stack', 'Rails+GraphQL → Spring Boot, contract + behavior preserved (golden-test verified).', [one('scope', 'What to port (source → target stack, endpoint set)', 'Rails+GraphQL → Spring Boot/MyBatis; all GraphQL + these 3-5 REST APIs: …')], v => v.scope, true),
+  A('cwk-review', 'review', '🔍', 'Review code / PR', 'Two-phase review vs the KB.', [one('target', 'File / PR# (blank = current branch)', 'e.g. #123 or src/foo.ts', 'text', true)], v => v.target || ''),
+  A('cwk-qa', 'review', '✅', 'QA test cases', 'User story → new + regression cases.', [one('story', 'User story + acceptance criteria', 'As a…, I want…, so that…')], v => v.story),
+  A('cwk-qa-integration', 'review', '🌐', 'Run E2E QA', 'Drive a running app in a browser (needs a URL).', [one('url', 'App URL', 'http://localhost:3000', 'text')], v => v.url),
+  A('cwk-security-audit', 'review', '🛡️', 'Security audit', 'Whole-repo OWASP + STRIDE sweep.', [one('scope', 'Scope (optional)', 'e.g. auth module', 'text', true)], v => v.scope || ''),
+  A('cwk-design-review', 'review', '🎨', 'Design / a11y review', 'UI/UX + accessibility (URL or components).', [one('target', 'URL or path', 'http://localhost:3000', 'text')], v => v.target),
+  A('cwk-pr', 'review', '🔀', 'Prepare / review PR', 'Draft a PR desc, or review a PR#.', [one('pr', 'PR# to review (blank = prepare from branch)', 'e.g. 123', 'text', true)], v => (v.pr ? `review ${v.pr}` : '')),
+  A('cwk-drift', 'review', '🧭', 'Docs vs reality check', 'Find where the Knowledge Base, plans and code have drifted apart — read-only.', [one('scope', 'Scope (optional)', 'e.g. orders module (blank = whole repo)', 'text', true), one('fix', 'Also refresh the stale docs it finds (--fix-docs)', 'Asks you first, backs the files up, and only updates the Knowledge Base — never your source code.', 'checkbox', true)], v => [v.scope || '', v.fix ? '--fix-docs' : ''].filter(Boolean).join(' ')),
+  A('cwk-splunk-report', 'ops', '🚨', 'Splunk error digest', 'Per-app errors → table → Slack.', [one('args', 'index / env / app / window / Slack URL (blank = it asks)', 'index=app_logs cai_enviroment=prod cai_app=payments 24h')], v => v.args || ''),
+  A('cwk-runbook', 'ops', '🛟', 'Operational runbook', 'Health checks, deploy/rollback and incident playbooks a teammate can follow at 2am.', [one('svc', 'Service / scope (blank = it asks)', 'e.g. payments service', 'text', true)], v => v.svc || ''),
+  A('cwk-retro', 'ops', '🔄', 'Retrospective', 'What shipped + action items from git history.', [one('window', 'Time window', '7d', 'text')], v => v.window || ''),
+  A('cwk-pdf', 'ops', '📑', 'Export to PDF', 'Turn a report/doc into a PDF.', [one('file', 'File to export (.md/.html)', 'cwk-sessions/…/report.md', 'text')], v => v.file),
+  A('cwk-skillify', 'ops', '🧩', 'Create a new skill', 'Scaffold a new cwk-* skill (for devs).', [one('spec', 'Name + purpose', 'changelog — generate a release changelog from git')], v => v.spec),
 ];
 const byCmd = c => ACTIONS.find(a => a.cmd === c);
 
 // ---------- i18n ----------
-// LANG comes from namhtSpecUi.language via the 'config' message. Keys ARE the English
+// LANG comes from cwkUi.language via the 'config' message. Keys ARE the English
 // strings, so a missing translation shows English rather than a broken placeholder.
 let LANG = 'en';
 const t = s => (LANG === 'vi' && typeof I18N_VI !== 'undefined' && I18N_VI[s]) || s;
@@ -145,7 +145,7 @@ function mount() {
 }
 function renderRail(rail) {
   rail.innerHTML = '';
-  rail.appendChild(el('div', 'brand', '⬡ namht Kit'));
+  rail.appendChild(el('div', 'brand', '⬡ Workflow Kit'));
   const search = el('input', 'search'); search.type = 'text'; search.placeholder = 'Search…'; search.value = filter;
   search.oninput = () => { filter = search.value.toLowerCase(); refreshContentGrid(); };
   rail.appendChild(search);
@@ -198,7 +198,7 @@ function renderHome() {
   // narrow (sidebar) layout
   root.appendChild(nav());
   const head = el('div', 'head');
-  head.appendChild(el('div', 'brand', '⬡ namht Kit'));
+  head.appendChild(el('div', 'brand', '⬡ Workflow Kit'));
   head.appendChild(el('div', 'status ' + (statusOk === false ? 'bad' : statusOk ? 'ok' : ''), statusMsg));
   const sp = spendEl(); if (sp) head.appendChild(sp);
   root.appendChild(head);
@@ -431,7 +431,7 @@ window.addEventListener('message', ev => {
     statusOk = m.ok;
     // The host sends a key + one argument; the sentence is assembled here so it can be translated.
     statusMsg = m.key === 'cli-ready' ? t('Claude Code ready') + ' (' + (m.arg || '') + ')'
-      : m.key === 'cli-missing' ? t('Claude Code CLI not found') + ' ("' + (m.arg || '') + '"). ' + t('Install it and sign in, or set namhtSpecUi.claudePath.')
+      : m.key === 'cli-missing' ? t('Claude Code CLI not found') + ' ("' + (m.arg || '') + '"). ' + t('Install it and sign in, or set cwkUi.claudePath.')
       : (m.msg || statusMsg);
     if (cur.view === 'home') renderHome();
     return;

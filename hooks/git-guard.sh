@@ -31,7 +31,7 @@ input=$(cat)
 # empty $cmd used to mean "not a git command" -- exit 0, allowed. So a machine that simply lacked jq
 # had no guard at all, silently, for every push. Refuse to reason rather than guess.
 if ! command -v jq >/dev/null 2>&1; then
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"🚫 namht git-guard cannot run: jq is not installed, so the command cannot be read. Install jq (brew install jq / apt install jq) -- the guard fails closed rather than open."}}\n'
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"🚫 cwk git-guard cannot run: jq is not installed, so the command cannot be read. Install jq (brew install jq / apt install jq) -- the guard fails closed rather than open."}}\n'
   exit 0
 fi
 
@@ -40,7 +40,7 @@ cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)
 printf '%s' "$cmd" | grep -qE '(^|[^[:alnum:]_])git([^[:alnum:]_]|$)' || exit 0
 
 deny() {
-  local msg="🚫 namht git-guard blocked this command: $1
+  local msg="🚫 cwk git-guard blocked this command: $1
 Allowed: read/sync git (fetch·pull·status·log·diff·show·blame·add·commit·stash·merge·checkout <branch>) and PUSH to a whitelisted personal repo. Forbidden: pushing to other repos + destructive operations. Need something else → run it yourself in a terminal."
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":%s}}\n' \
     "$(printf '%s' "$msg" | jq -Rs .)"

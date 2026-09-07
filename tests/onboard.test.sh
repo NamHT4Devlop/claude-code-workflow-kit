@@ -15,7 +15,7 @@ TMP=$(cd "$(mktemp -d "${TMPDIR:-/tmp}/onboard-test.XXXXXX")" && pwd); trap 'rm 
 echo "onboard: a fresh repo gets both ignores and a starter CLAUDE.md"
 mkdir -p "$TMP/fresh"
 "$ONBOARD" "$TMP/fresh" >/dev/null 2>&1
-check "namht-sessions ignored"  "$(grep -cxF 'namht-sessions/' "$TMP/fresh/.gitignore")" 1
+check "cwk-sessions ignored"  "$(grep -cxF 'cwk-sessions/' "$TMP/fresh/.gitignore")" 1
 check "knowledge-base ignored"  "$(grep -cxF 'knowledge-base/' "$TMP/fresh/.gitignore")" 1
 check "CLAUDE.md created"       "$([ -f "$TMP/fresh/CLAUDE.md" ] && echo yes || echo no)" yes
 check "it names the project"    "$(grep -c '^# fresh$' "$TMP/fresh/CLAUDE.md")" 1
@@ -23,7 +23,7 @@ check "it names the project"    "$(grep -c '^# fresh$' "$TMP/fresh/CLAUDE.md")" 
 echo "onboard: re-running adds nothing twice"
 "$ONBOARD" "$TMP/fresh" >/dev/null 2>&1
 "$ONBOARD" "$TMP/fresh" >/dev/null 2>&1
-check "one namht-sessions line" "$(grep -cxF 'namht-sessions/' "$TMP/fresh/.gitignore")" 1
+check "one cwk-sessions line" "$(grep -cxF 'cwk-sessions/' "$TMP/fresh/.gitignore")" 1
 check "one knowledge-base line" "$(grep -cxF 'knowledge-base/' "$TMP/fresh/.gitignore")" 1
 
 echo "onboard: an existing CLAUDE.md is never overwritten (the costly failure)"

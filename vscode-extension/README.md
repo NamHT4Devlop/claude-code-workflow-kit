@@ -1,13 +1,13 @@
-# namht Kit UI — VS Code extension (for PM / SM)
+# Workflow Kit UI — VS Code extension (for PM / SM)
 
-A **point-and-click** panel over the `namht-*` skills, so non-technical roles
+A **point-and-click** panel over the `cwk-*` skills, so non-technical roles
 (Product Managers, Scrum Masters) can use them **without typing slash commands or opening a terminal**.
 It runs the **Claude Code CLI** under the hood — no API key of its own.
 
 **Two ways to view it:**
-- **Sidebar** — click the **namht Kit** icon in the Activity Bar (compact, single column).
-- **App window** — click the **⧉ Open namht Kit App** button in the sidebar's title bar (or run
-  *"Open namht Kit App"* from the Command Palette). It opens a wide, app-like layout in the editor
+- **Sidebar** — click the **Workflow Kit** icon in the Activity Bar (compact, single column).
+- **App window** — click the **⧉ Open Workflow Kit App** button in the sidebar's title bar (or run
+  *"Open Workflow Kit App"* from the Command Palette). It opens a wide, app-like layout in the editor
   area: a **left nav rail** (Home + categories + recent/running + status) beside a roomy content
   area with a hero and skill cards. Both stay in sync — a run started in one shows in the other.
 
@@ -34,7 +34,7 @@ tables, code); a **"📄 Report"** button opens the skill's saved HTML (with Mer
 
 ## Prerequisites
 1. **Claude Code CLI** installed and signed in (`claude --version` works). The extension shells out to it.
-2. The **`namht-*` skills installed** on the machine (`scripts/personal-install.sh` from this repo →
+2. The **`cwk-*` skills installed** on the machine (`scripts/personal-install.sh` from this repo →
    symlinked into `~/.claude`). The CLI picks them up automatically.
 3. **Open the target project folder** in VS Code — skills read *that* project's `knowledge-base/`.
 
@@ -46,12 +46,12 @@ yarn install
 yarn compile
 ```
 Then open this `vscode-extension/` folder in VS Code and press **F5** (Run → Start Debugging). A second
-VS Code window opens with the extension loaded — click the **namht Kit** icon in the Activity Bar.
+VS Code window opens with the extension loaded — click the **Workflow Kit** icon in the Activity Bar.
 
 ## Package + install (share with PM/SM)
 ```bash
 yarn compile
-npx @vscode/vsce package        # produces namht-spec-ui-<version>.vsix (vsce auto-detects yarn.lock)
+npx @vscode/vsce package        # produces cwk-ui-<version>.vsix (vsce auto-detects yarn.lock)
 ```
 Send the `.vsix`; each person installs via **Extensions ▸ … ▸ Install from VSIX**. (They still need the
 Claude Code CLI + the skills installed on their machine.)
@@ -61,22 +61,22 @@ Claude Code CLI + the skills installed on their machine.)
 webview (cards + form)  --run{command,args}-->  extension host
                                                    └─ spawn: claude -p "/<command> <args>"  (cwd = project)
                                                    └─ stream stdout back to the webview
-                                                   └─ detect the saved namht-sessions report → "Open report"
+                                                   └─ detect the saved cwk-sessions report → "Open report"
 ```
 - **Only whitelisted commands run** — the host rejects anything not in `ALLOWED` (see `src/extension.ts`).
 - The **git-guard hook** still applies (PreToolUse runs before the permission check). Note that the
-  default `bypassPermissions` mode skips Claude Code's own approval prompts - see `namhtSpecUi.extraArgs`.
+  default `bypassPermissions` mode skips Claude Code's own approval prompts - see `cwkUi.extraArgs`.
 
 ## Cost & tokens
 Each run shows a **cost chip** — the tokens used (`input→output`, plus **`… cached`** = KB context
 re-read from cache, which is the usual reason the number looks big) and the **API-equivalent cost in
 USD** for that run (summed across follow-ups), read straight from Claude's `result` event (`usage` +
-`total_cost_usd`). It also shows an approx **₫** figure by default (rate `namhtSpecUi.usdToVnd`,
+`total_cost_usd`). It also shows an approx **₫** figure by default (rate `cwkUi.usdToVnd`,
 default 26000 — adjust to your rate, or set 0 to hide VND). Note: on a **Team/Enterprise seat you are
 not billed per token** — the number reflects usage value, not a charge.
 
 ## Pick a model per run (cost lever)
-Every form has a **Model** dropdown (pre-set to `namhtSpecUi.model`) — choose **Haiku** for a cheap
+Every form has a **Model** dropdown (pre-set to `cwkUi.model`) — choose **Haiku** for a cheap
 lookup, **Sonnet** for balanced Q&A/planning, **Opus** for the hardest code. Each run view shows a
 **⚙ model chip**, and the **follow-up box has its own model dropdown**: you can switch model mid-session
 (e.g. plan on Sonnet, then a cheap Haiku follow-up) and **the session keeps its full context** — the
@@ -84,20 +84,20 @@ extension resumes the same Claude session (`--resume`), so the new model still k
 
 ## Running total (what has this cost me?)
 Besides the per-run cost chip, the panel shows a **running total** — `this session · today (n runs) ·
-7d` — kept per day on this machine for 60 days (`namhtSpecUi.usdToVnd` adds the ₫ figure). It counts
+7d` — kept per day on this machine for 60 days (`cwkUi.usdToVnd` adds the ₫ figure). It counts
 only runs started from this panel. On a **Team/Enterprise seat you are not billed per token**, so
 read it as usage value rather than a bill.
 
 ## Vietnamese UI
-Set `namhtSpecUi.language` to `vi` and the panel's own labels, cards and buttons are in Vietnamese.
+Set `cwkUi.language` to `vi` and the panel's own labels, cards and buttons are in Vietnamese.
 It does **not** change the language Claude answers in — that comes from the skill and from how the
 request is written. A string with no translation falls back to English, and `tests/i18n.test.cjs`
 fails the build if a card is reworded and leaves its translation stranded.
 
 ## Settings
-- `namhtSpecUi.claudePath` — path to the `claude` CLI (default `claude`). **Machine-scoped**: a repo's
+- `cwkUi.claudePath` — path to the `claude` CLI (default `claude`). **Machine-scoped**: a repo's
   `.vscode/settings.json` cannot change which binary this extension launches.
-- `namhtSpecUi.extraArgs` — extra args for `claude -p` (**machine-scoped**, same reason). Default
+- `cwkUi.extraArgs` — extra args for `claude -p` (**machine-scoped**, same reason). Default
   `--permission-mode bypassPermissions` so skills can run the tools they need headlessly (`node` for
   the map/PDF, `npm`/`npx`/`jest` for build & tests, `gh`, `curl`) — otherwise those commands surface
   as **"error"**, because a headless run can't answer an approval prompt.
@@ -107,15 +107,15 @@ fails the build if a card is reworded and leaves its translation stranded.
   before the permission check — verified by `tests/git-guard.test.sh`), but it is **defense-in-depth,
   not a sandbox**. Prefer approval prompts? Set `--permission-mode acceptEdits` — then map/build/test
   commands fail with "error" here; use **⚡ Interactive** (a real terminal) for those.
-- `namhtSpecUi.mode` — `full` (default) or `readonly`. In **readonly** the host refuses **every path
+- `cwkUi.mode` — `full` (default) or `readonly`. In **readonly** the host refuses **every path
   that could reach an edit**, not just the cards: the seven code-editing skills, the free-chat
   "Ask anything" card (a raw prompt can ask for anything), and **follow-ups** (a follow-up resumes
   the same session with the same permissions, so "now edit src/foo.ts" typed after an innocent run
   used to land). Hiding the cards is a convenience; the host check is the control. Package a separate
   `.vsix` with this default flipped and hand that one out.
-- `namhtSpecUi.usdToVnd` — VND rate to show next to the USD cost (0 = off; e.g. `25400`).
-- `namhtSpecUi.language` — `en` (default) or `vi` for the panel's own labels. Does not affect Claude's answers.
-- `namhtSpecUi.model` — model for the UI's runs (default **`sonnet`** — ~5x cheaper than Opus for
+- `cwkUi.usdToVnd` — VND rate to show next to the USD cost (0 = off; e.g. `25400`).
+- `cwkUi.language` — `en` (default) or `vi` for the panel's own labels. Does not affect Claude's answers.
+- `cwkUi.model` — model for the UI's runs (default **`sonnet`** — ~5x cheaper than Opus for
   read-only Q&A/planning; use `opus` for the hardest code tasks, `haiku` for cheap lookups, empty to inherit).
 
 ## Keeping cost down
@@ -126,7 +126,7 @@ Q&A/planning; ask **specific** questions (shorter answers); keep the KB lean; us
 Add an action in `media/main.js` (`ACTIONS`) **and** add its command to `ALLOWED` in `src/extension.ts`.
 
 ## Localization
-Set `namhtSpecUi.language` to `vi` — the translations live in `media/i18n.js`, keyed by the English
+Set `cwkUi.language` to `vi` — the translations live in `media/i18n.js`, keyed by the English
 string, so anything untranslated falls back to English rather than breaking. Adding a card means
 adding its strings there too; `tests/i18n.test.cjs` fails the build if you forget.
 

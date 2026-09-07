@@ -68,7 +68,7 @@ else {
   if (unhandled.length) { bad(`status key(s) the webview never handles: ${unhandled.join(', ')}`); }
   else ok(`all ${hostKeys.length} host status keys are handled in main.js`);
   // and the human-readable pieces those branches translate must exist in the dictionary
-  const pieces = ['Claude Code ready', 'Claude Code CLI not found', 'Install it and sign in, or set namhtSpecUi.claudePath.'];
+  const pieces = ['Claude Code ready', 'Claude Code CLI not found', 'Install it and sign in, or set cwkUi.claudePath.'];
   const missingPieces = pieces.filter(x => !VI[x] && !same.has(x));
   if (missingPieces.length) bad(`status wording with no Vietnamese: ${missingPieces.join(' | ')}`);
   else ok('status wording is translated');

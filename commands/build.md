@@ -1,9 +1,9 @@
 ---
 description: Build a feature end-to-end — size → plan → safety net → code → independent review → tests (incl. regression) → verify vs baseline → evidence → KB → handoff
-argument-hint: <requirement to implement, or a path to a story/plan under namht-sessions/>
+argument-hint: <requirement to implement, or a path to a story/plan under cwk-sessions/>
 ---
 
-Use the **namht-build** skill to implement the following requirement, following its pipeline exactly.
+Use the **cwk-build** skill to implement the following requirement, following its pipeline exactly.
 If a user story / plan is given (path, session folder, story id, link or pasted text), **read it and
 treat its acceptance criteria as already approved — build from it without re-asking**. Answer open
 questions from the story, the `knowledge-base/` and the code before asking the user anything; ask only

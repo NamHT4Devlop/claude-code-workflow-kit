@@ -1,14 +1,14 @@
 {
-  "name": "namht-marketplace",
+  "name": "cwk-marketplace",
   "owner": {
     "name": "NamHT Labs"
   },
   "metadata": {
-    "description": "Local marketplace hosting the namht (namht Kit) plugin."
+    "description": "Local marketplace hosting the cwk (Workflow Kit) plugin."
   },
   "plugins": [
     {
-      "name": "namht",
+      "name": "cwk",
       "source": "./",
       "description": "Spec-driven dev workflow for Claude Code: /build, /fix-bug, /scan, /rescan, /review, /ask, /plan, /map, /system-map, /document. Ships a read/sync-in-only git guard hook."
     }

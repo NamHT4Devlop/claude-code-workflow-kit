@@ -107,8 +107,8 @@ const I18N_VI = {
     'Kiểm tra sức khoẻ hệ thống, deploy/rollback và kịch bản xử lý sự cố — đọc lúc 2 giờ sáng vẫn làm theo được.',
   'Turn a report/doc into a PDF.':
     'Chuyển báo cáo/tài liệu thành PDF.',
-  'Scaffold a new namht-* skill (for devs).':
-    'Tạo khung một skill namht-* mới (cho dev).',
+  'Scaffold a new cwk-* skill (for devs).':
+    'Tạo khung một skill cwk-* mới (cho dev).',
 
   // ---- field labels ----
   'Your question (any topic)': 'Câu hỏi của bạn (chủ đề bất kỳ)',
@@ -163,8 +163,8 @@ const I18N_VI = {
   'Checking Claude Code…': 'Đang kiểm tra Claude Code…',
   'Claude Code ready': 'Claude Code đã sẵn sàng',
   'Claude Code CLI not found': 'Không tìm thấy Claude Code CLI',
-  'Install it and sign in, or set namhtSpecUi.claudePath.':
-    'Hãy cài đặt và đăng nhập, hoặc chỉnh namhtSpecUi.claudePath.',
+  'Install it and sign in, or set cwkUi.claudePath.':
+    'Hãy cài đặt và đăng nhập, hoặc chỉnh cwkUi.claudePath.',
   '↵ Enter to run · ⇧ Shift+Enter for a new line': '↵ Enter để chạy · ⇧ Shift+Enter để xuống dòng',
   '  ·  ⚡ Interactive = terminal with approve/reject per edit':
     '  ·  ⚡ Tương tác = terminal, duyệt/từ chối từng thay đổi',

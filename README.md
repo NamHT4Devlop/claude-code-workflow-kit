@@ -1,4 +1,4 @@
-# namht Kit for Claude Code
+# Workflow Kit for Claude Code
 
 A native **Claude Code** port of the author's private Auto Spec VS Code
 extension. Same spec-driven workflow — **Requirement → Plan → Code → Review → Test →
@@ -8,7 +8,7 @@ tools: file ops, Bash, git, parallel sub-agents) instead of GitHub Copilot / `vs
 
 > **Your existing Knowledge Bases work as-is.** The KBs you generated with the old extension
 > are plain Markdown under each repo's `knowledge-base/`. Every command here reads that same
-> folder — nothing to migrate or regenerate. Only run `/namht-scan` for brand-new repos.
+> folder — nothing to migrate or regenerate. Only run `/cwk-scan` for brand-new repos.
 
 ---
 
@@ -19,16 +19,16 @@ claude-code-workflow-kit/
 ├── .claude-plugin/
 │   ├── plugin.json          # plugin manifest
 │   └── marketplace.json     # local marketplace (for one-command install)
-├── commands/                # 31 slash commands → /namht:build (plugin) or /namht-build (personal), …
+├── commands/                # 31 slash commands → /cwk:build (plugin) or /cwk-build (personal), …
 ├── skills/                  # 30 skills (the methodology — also usable standalone)
-│   ├── namht-build/          #   13-step pipeline   (+ bundled review checklist)
-│   ├── namht-scan/           #   KB generation       (+ bundled kb-steps spec)
-│   ├── namht-rescan/         #   incremental KB update
-│   ├── namht-review/         #   two-phase review    (+ bundled review checklist)
-│   ├── namht-ask/            #   KB-grounded Q&A
-│   ├── namht-plan/           #   PO/BA user stories
-│   ├── namht-map/            #   interactive HTML code graph (Cytoscape)
-│   └── namht-document/       #   business↔code doc
+│   ├── cwk-build/          #   13-step pipeline   (+ bundled review checklist)
+│   ├── cwk-scan/           #   KB generation       (+ bundled kb-steps spec)
+│   ├── cwk-rescan/         #   incremental KB update
+│   ├── cwk-review/         #   two-phase review    (+ bundled review checklist)
+│   ├── cwk-ask/            #   KB-grounded Q&A
+│   ├── cwk-plan/           #   PO/BA user stories
+│   ├── cwk-map/            #   interactive HTML code graph (Cytoscape)
+│   └── cwk-document/       #   business↔code doc
 ├── agents/                  # 7 specialist sub-agents (planning + review)
 ├── resources/               # review-skills-universal.md, kb-steps.md
 ├── hooks/                   # git-guard.sh + hooks.json (PreToolUse git guardrail)
@@ -89,28 +89,28 @@ If you keep the files somewhere else, substitute that absolute path.
 ## Install — Option A: as a plugin (recommended)
 
 Best when you want every command available across **all** your repos on a machine, with clean
-`/namht:*` namespacing. Run these **inside a Claude Code session** (the `/plugin`
+`/cwk:*` namespacing. Run these **inside a Claude Code session** (the `/plugin`
 commands are typed into Claude Code, not your shell):
 
 ```
 /plugin marketplace add ~/claude-code-workflow-kit
-/plugin install namht@namht-marketplace
+/plugin install cwk@cwk-marketplace
 ```
 
 - `marketplace add <PLUGIN_DIR>` registers the local marketplace defined in
   `.claude-plugin/marketplace.json`. You can also point it straight at the GitHub repo:
   `/plugin marketplace add NamHT4Devlop/claude-code-workflow-kit` (Claude Code clones it for you; requires
   repo access).
-- `install namht@namht-marketplace` installs the plugin named `namht` from that
+- `install cwk@cwk-marketplace` installs the plugin named `cwk` from that
   marketplace.
 - Reload when prompted (or run `/plugin` to manage installed plugins).
 
 After install, commands are namespaced by the plugin (type `/` to see them):
-`/namht:scan`, `/namht:rescan`, `/namht:build`, `/namht:fix-bug`, `/namht:review`, `/namht:ask`,
-`/namht:plan`, `/namht:map`, `/namht:system-map`, `/namht:document`, `/namht:help`.
+`/cwk:scan`, `/cwk:rescan`, `/cwk:build`, `/cwk:fix-bug`, `/cwk:review`, `/cwk:ask`,
+`/cwk:plan`, `/cwk:map`, `/cwk:system-map`, `/cwk:document`, `/cwk:help`.
 The 30 skills and 7 sub-agents load automatically (skills also activate from plain English), and the
 **git-guard hook ships with the plugin** (`hooks/hooks.json`) so it's active right after install.
-(The personal symlink install — Option C — exposes the same commands as `/namht-build`, etc.)
+(The personal symlink install — Option C — exposes the same commands as `/cwk-build`, etc.)
 
 > **Team install:** commit/host this repo, then each teammate runs the two `/plugin` commands
 > above pointing at their clone (or at `NamHT4Devlop/claude-code-workflow-kit`). To pin the plugin for a
@@ -164,12 +164,12 @@ Copy-Item -Recurse -Force <PLUGIN_DIR>\agents\*   $HOME\.claude\agents\
 **You do NOT need to copy the plugin's `resources/` folder for Option B.** Each skill is
 self-contained — it bundles whatever it needs under its own `references/` subfolder, which
 comes along automatically with `cp -R skills/*`:
-`namht-build`/`namht-review`/`namht-scan`/`namht-rescan` carry the review checklist and/or the
+`cwk-build`/`cwk-review`/`cwk-scan`/`cwk-rescan` carry the review checklist and/or the
 KB-section spec. `resources/` at the repo root is only a canonical copy for the plugin form.
 
 > ⚠️ **Difference from Option A:** as plain skills the slash commands are **not** namespaced —
 > they're `/build`, `/review`, `/scan`, etc. If those names clash with other commands you have,
-> rename the files in `.claude/commands/` (e.g. `build.md` → `namht-build.md`).
+> rename the files in `.claude/commands/` (e.g. `build.md` → `cwk-build.md`).
 
 ## Install — Option C: personal-only, zero footprint in any repo (just for you)
 
@@ -178,20 +178,20 @@ committed to — any team/project repo. It installs into your home dir via symli
 all generated artifacts to a machine-wide gitignore.
 
 ```bash
-# 1) symlink skills/agents/commands into ~/.claude (commands get a namht- prefix)
+# 1) symlink skills/agents/commands into ~/.claude (commands get a cwk- prefix)
 <PLUGIN_DIR>/scripts/personal-install.sh
 
-# 2) make every namht Kit artifact invisible to git, machine-wide (no per-repo edits)
+# 2) make every Workflow Kit artifact invisible to git, machine-wide (no per-repo edits)
 touch ~/.gitignore_global
-printf '%s\n' 'namht-sessions/' 'spec-kit-sessions/' 'knowledge-base/' 'CLAUDE.local.md' >> ~/.gitignore_global
+printf '%s\n' 'cwk-sessions/' 'spec-kit-sessions/' 'knowledge-base/' 'CLAUDE.local.md' >> ~/.gitignore_global
 git config --global core.excludesfile ~/.gitignore_global
 ```
 
-- Commands become `/namht-build`, `/namht-scan`, `/namht-review`, … (prefixed so they don't shadow
+- Commands become `/cwk-build`, `/cwk-scan`, `/cwk-review`, … (prefixed so they don't shadow
   built-ins like `/help`). Skills also auto-activate from plain English.
 - Because it's symlinks, `git pull` in `<PLUGIN_DIR>` instantly updates your install.
-- The global gitignore means even if you run `/namht-scan` inside a team repo, its
-  `knowledge-base/` and `namht-sessions/` stay **local and uncommitted** — nothing leaks.
+- The global gitignore means even if you run `/cwk-scan` inside a team repo, its
+  `knowledge-base/` and `cwk-sessions/` stay **local and uncommitted** — nothing leaks.
 - **Pick ONE method** — if you use this, do *not* also `/plugin install` the same plugin.
 - Uninstall: `<PLUGIN_DIR>/scripts/personal-install.sh uninstall`.
 
@@ -202,11 +202,21 @@ git config --global core.excludesfile ~/.gitignore_global
 
 ## Verify the install
 
-1. In a Claude Code session, type `/` and confirm the `namht:` commands (Option A) or
+1. In a Claude Code session, type `/` and confirm the `cwk:` commands (Option A) or
    `/build`, `/scan`… (Option B) appear.
-2. Run `/namht-help` (or `/help` for plain skills) — it prints all commands **and** checks
+2. Run `/cwk-help` (or `/help` for plain skills) — it prints all commands **and** checks
    whether the current repo has a `knowledge-base/`.
-3. Plugin only: run `/plugin` → you should see **namht** listed as installed/enabled.
+3. Plugin only: run `/plugin` → you should see **cwk** listed as installed/enabled.
+
+## Upgrading from 2.x (`namht-*` → `cwk-*`)
+
+Version 3.0.0 dropped the personal prefix. Commands are `/cwk:build` (plugin) or `/cwk-build`
+(personal), the artifact folder is `cwk-sessions/`, the hook is `hooks/cwk-git-guard.sh`. After
+`git pull`: reinstall (Option A: uninstall `namht`, re-add the marketplace, install `cwk`; Option C:
+rerun `scripts/personal-install.sh`), run `scripts/migrate-sessions.sh <repo>` in each repo that has
+a `namht-sessions/`, add `cwk-sessions/` to `~/.gitignore_global`, and rename the hook in
+`~/.claude/settings.json`. The installer keeps the old hook name alive as an alias until you do.
+Details in [CHANGELOG.md](CHANGELOG.md#300--2026-09-08).
 
 ## Update to the latest version
 
@@ -214,15 +224,15 @@ git config --global core.excludesfile ~/.gitignore_global
   ```bash
   cd <PLUGIN_DIR> && git pull
   ```
-  then in Claude Code: `/plugin marketplace update namht-marketplace` (or remove & re-add
+  then in Claude Code: `/plugin marketplace update cwk-marketplace` (or remove & re-add
   the marketplace, then reinstall). Reload when prompted.
 - **Option B (plain skills):** `git pull` in `<PLUGIN_DIR>`, then re-run the `cp -R` commands
   to overwrite the copies.
 
 ## Uninstall
 
-- **Option A:** `/plugin uninstall namht` (and optionally
-  `/plugin marketplace remove namht-marketplace`).
+- **Option A:** `/plugin uninstall cwk` (and optionally
+  `/plugin marketplace remove cwk-marketplace`).
 - **Option B:** delete the copied folders, e.g.
   run `<PLUGIN_DIR>/scripts/personal-install.sh uninstall` (removes only the symlinks that point back to this repo).
 
@@ -234,7 +244,7 @@ git config --global core.excludesfile ~/.gitignore_global
 | `marketplace add` fails on a path | Pass an **absolute** path to `<PLUGIN_DIR>` and ensure `.claude-plugin/marketplace.json` exists there. |
 | `git clone` asks for a password / permission denied | The repo is public — clone the HTTPS URL (no auth needed), or set up an SSH key for the `git@` URL. |
 | Commands don't show up | Reload the Claude Code window/session after install; for plain skills, confirm files landed in `.claude/commands` & `.claude/skills`. |
-| A command says "no knowledge-base found" | Run `/namht-scan` once in that repo (or reuse an existing `knowledge-base/` folder). |
+| A command says "no knowledge-base found" | Run `/cwk-scan` once in that repo (or reuse an existing `knowledge-base/` folder). |
 | Command name clash (Option B) | Rename the files in `.claude/commands/`. |
 
 ---
@@ -246,13 +256,13 @@ If you keep many repos under one parent folder (a "workspace"), follow this sepa
 - **Tool = global, from git.** Install once as a plugin (Option A). Update everywhere with one
   `git pull` + marketplace update. Don't copy skills into each repo.
 - **Knowledge Base = per project, versioned with the code.** Each repo keeps its own
-  `knowledge-base/`; commit it so the team shares it. Refresh with `/namht-rescan`.
+  `knowledge-base/`; commit it so the team shares it. Refresh with `/cwk-rescan`.
 - **Operate one project per session.** `cd <project> && claude` so commands read *that*
   project's `knowledge-base/`. The parent workspace is just an organizing folder — don't run
   from the workspace root and expect commands to guess which sub-project you mean. (A true
   **monorepo** — one git repo, many packages — is the opposite: run at the repo root; `scan`
   produces per-module docs under `knowledge-base/modules/`.)
-- **Per-project hygiene** — gitignore the generated `namht-sessions/`, and drop a short
+- **Per-project hygiene** — gitignore the generated `cwk-sessions/`, and drop a short
   `CLAUDE.md` so every session in that repo knows the KB exists. Automate it:
 
   ```bash
@@ -260,44 +270,44 @@ If you keep many repos under one parent folder (a "workspace"), follow this sepa
   scripts/onboard-project.sh /path/to/your/project   # idempotent; commits nothing
   ```
 
-  It adds `namht-sessions/` to `.gitignore`, creates a starter `CLAUDE.md` (only if absent),
-  and reports whether the project has a KB yet (→ run `/namht-scan` if not).
+  It adds `cwk-sessions/` to `.gitignore`, creates a starter `CLAUDE.md` (only if absent),
+  and reports whether the project has a KB yet (→ run `/cwk-scan` if not).
 
 ## Commands
 
 | Command | What it does |
 |---------|--------------|
-| `/namht-scan` | Generate the Knowledge Base from the codebase (16 docs + `review-skills.md` + per-module docs). Run first on a new repo. |
-| `/namht-rescan` | Update the KB incrementally after code changes (git-diff aware). |
-| `/namht-build <requirement>` | 13-step pipeline: clarify → plan (impact + business flow) → code → multi-lens review → tests → run tests → evidence → update KB. |
-| `/namht-fix-bug <error/stack trace>` | Production hotfix: triage → locate (read the code) → root-cause → failing regression test → minimal surgical fix → verify (tests+build, rollback) → hotfix report + KB update. Does not deploy. |
-| `/namht-review [file\|PR#]` | Two-phase review: quality checklist + business consistency vs the KB. Empty arg = current branch vs the default branch (or working-tree diff if uncommitted); accepts a PR #/URL (`gh pr diff`). |
-| `/namht-ask <question>` | Q&A grounded in the KB — plain language + Mermaid diagram + technical detail. |
-| `/namht-plan <epic>` | PO/BA: Epic → features → impact → user stories (Given/When/Then) → sprint plan. |
-| `/namht-issues [plan] [target] [--create]` | Turn a plan / user stories into real tracker issues — GitHub via `gh`, Jira/Linear via a connected MCP. One issue per story, ACs as a checklist, ids kept so re-runs update instead of duplicating. Preview-by-default; creating needs an explicit yes. |
-| `/namht-qa <user story>` | QA: user story → test cases covering the **NEW flow + regression for OLD business flows** (Gherkin + manual table + AC↔case traceability). Designs tests; doesn't code them. |
-| `/namht-pr [review <PR#>]` | Prepare a PR description from the current branch, or review a GitHub PR (`gh pr diff` → two-phase review + blast radius). Read-only on the remote. |
-| `/namht-security-audit [scope]` | Whole-repo security audit: attack surface + injection/authz/IDOR/secrets/exposure/AI, grounded in the KB, with severities + fixes. Read-only. |
-| `/namht-drift [scope] [--fix-docs]` | Docs-vs-reality audit of the whole repo: stale KB entries, undocumented behavior, acceptance criteria promised but never shipped, broken architecture invariants. Read-only by default and routes each finding to rescan/build/review; `--fix-docs` additionally offers to refresh the stale **docs** (never source). See [Keeping docs and code from drifting apart](#keeping-docs-and-code-from-drifting-apart). |
-| `/namht-map [scope]` | Interactive HTML code graph (Cytoscape): files/classes + imports/DI/inheritance/calls; zoom, click, filter, search. Opens in browser. |
-| `/namht-system-map` | **Cross-service** map for a multi-repo microservices workspace: stitches each service's API/integrations into a dependency graph + end-to-end flows (sequence diagrams) + contracts/events + risks. Run at the workspace root. |
-| `/namht-document <topic>` | Business↔code field-level technical document for a feature/entity/module. |
-| `/namht-discover <idea>` | Discovery before planning: forcing questions, push back on framing, output a sharpened problem brief. |
-| `/namht-plan-review <plan>` | Critique a plan before building — Product / Architecture / Risk-QA / DevEx lenses + verdict. |
-| `/namht-qa-integration <url>` | Execute E2E/integration QA against a **running app** via a real browser (Claude-in-Chrome); pass/fail + screenshots. |
-| `/namht-design-review <url\|path>` | UI/UX + accessibility review via browser screenshots / frontend code; findings + fixes. Read-only. |
-| `/namht-pdf <file>` | Export a Markdown/HTML report to PDF (renders Mermaid first; headless Chrome/wkhtmltopdf). |
-| `/namht-retro [window]` | Engineering retrospective from git history — shipped, pain, quality signals, action items. |
-| `/namht-runbook [service]` | Turn the KB + the repo's real deploy/CI/error-handling config into an **operational runbook**: health checks, deploy and rollback (incl. what rollback does *not* undo), symptom→fix incident playbooks, alerts→action, data recovery. Marks what only a human knows instead of inventing it. |
-| `/namht-skillify <name+purpose>` | Scaffold a new `namht-*` skill + command following the conventions (self-extend the kit). |
-| `/namht-splunk-report [apps + window]` | Query Splunk for per-app errors over a window (default today), aggregate into one table, and post it to Slack. Read-only on Splunk; credentials from env/MCP, never hardcoded. Needs network. |
-| `/namht-user-story <requirement or Slack link>` | Deep-investigate a requirement (or comprehend a Slack thread) → features + INVEST user stories with maximally granular Given/When/Then ACs. |
-| `/namht-rails-to-spring <endpoint set>` | Contract-first port to another stack (e.g. Rails+GraphQL → Spring Boot/MyBatis) — golden-test parity per endpoint, strangler cutover. Edits code. |
-| `/namht-observe [area]` | Instrument code for observability — structured logs, correlation/trace IDs (HTTP + SQS), metrics, error context; matches the backend field schema. Edits code. |
-| `/namht-migrate [change]` | Plan + execute a safe migration/deprecation (API, DB schema, event contract, library) — backward-compatible, staged, with a rollback per step + deprecation window. |
-| `/namht-simplify [target]` | Behavior-preserving simplification — remove dead code, flatten nesting, extract/rename, kill duplication; one refactor at a time, tests stay green. |
-| `/namht-perf [area]` | Measure-first performance optimization — N+1, indexes, blocking calls, caching, pagination; proves the win with before/after numbers. |
-| `/namht-help` | Show all commands + KB status for the current repo. |
+| `/cwk-scan` | Generate the Knowledge Base from the codebase (16 docs + `review-skills.md` + per-module docs). Run first on a new repo. |
+| `/cwk-rescan` | Update the KB incrementally after code changes (git-diff aware). |
+| `/cwk-build <requirement>` | 13-step pipeline: clarify → plan (impact + business flow) → code → multi-lens review → tests → run tests → evidence → update KB. |
+| `/cwk-fix-bug <error/stack trace>` | Production hotfix: triage → locate (read the code) → root-cause → failing regression test → minimal surgical fix → verify (tests+build, rollback) → hotfix report + KB update. Does not deploy. |
+| `/cwk-review [file\|PR#]` | Two-phase review: quality checklist + business consistency vs the KB. Empty arg = current branch vs the default branch (or working-tree diff if uncommitted); accepts a PR #/URL (`gh pr diff`). |
+| `/cwk-ask <question>` | Q&A grounded in the KB — plain language + Mermaid diagram + technical detail. |
+| `/cwk-plan <epic>` | PO/BA: Epic → features → impact → user stories (Given/When/Then) → sprint plan. |
+| `/cwk-issues [plan] [target] [--create]` | Turn a plan / user stories into real tracker issues — GitHub via `gh`, Jira/Linear via a connected MCP. One issue per story, ACs as a checklist, ids kept so re-runs update instead of duplicating. Preview-by-default; creating needs an explicit yes. |
+| `/cwk-qa <user story>` | QA: user story → test cases covering the **NEW flow + regression for OLD business flows** (Gherkin + manual table + AC↔case traceability). Designs tests; doesn't code them. |
+| `/cwk-pr [review <PR#>]` | Prepare a PR description from the current branch, or review a GitHub PR (`gh pr diff` → two-phase review + blast radius). Read-only on the remote. |
+| `/cwk-security-audit [scope]` | Whole-repo security audit: attack surface + injection/authz/IDOR/secrets/exposure/AI, grounded in the KB, with severities + fixes. Read-only. |
+| `/cwk-drift [scope] [--fix-docs]` | Docs-vs-reality audit of the whole repo: stale KB entries, undocumented behavior, acceptance criteria promised but never shipped, broken architecture invariants. Read-only by default and routes each finding to rescan/build/review; `--fix-docs` additionally offers to refresh the stale **docs** (never source). See [Keeping docs and code from drifting apart](#keeping-docs-and-code-from-drifting-apart). |
+| `/cwk-map [scope]` | Interactive HTML code graph (Cytoscape): files/classes + imports/DI/inheritance/calls; zoom, click, filter, search. Opens in browser. |
+| `/cwk-system-map` | **Cross-service** map for a multi-repo microservices workspace: stitches each service's API/integrations into a dependency graph + end-to-end flows (sequence diagrams) + contracts/events + risks. Run at the workspace root. |
+| `/cwk-document <topic>` | Business↔code field-level technical document for a feature/entity/module. |
+| `/cwk-discover <idea>` | Discovery before planning: forcing questions, push back on framing, output a sharpened problem brief. |
+| `/cwk-plan-review <plan>` | Critique a plan before building — Product / Architecture / Risk-QA / DevEx lenses + verdict. |
+| `/cwk-qa-integration <url>` | Execute E2E/integration QA against a **running app** via a real browser (Claude-in-Chrome); pass/fail + screenshots. |
+| `/cwk-design-review <url\|path>` | UI/UX + accessibility review via browser screenshots / frontend code; findings + fixes. Read-only. |
+| `/cwk-pdf <file>` | Export a Markdown/HTML report to PDF (renders Mermaid first; headless Chrome/wkhtmltopdf). |
+| `/cwk-retro [window]` | Engineering retrospective from git history — shipped, pain, quality signals, action items. |
+| `/cwk-runbook [service]` | Turn the KB + the repo's real deploy/CI/error-handling config into an **operational runbook**: health checks, deploy and rollback (incl. what rollback does *not* undo), symptom→fix incident playbooks, alerts→action, data recovery. Marks what only a human knows instead of inventing it. |
+| `/cwk-skillify <name+purpose>` | Scaffold a new `cwk-*` skill + command following the conventions (self-extend the kit). |
+| `/cwk-splunk-report [apps + window]` | Query Splunk for per-app errors over a window (default today), aggregate into one table, and post it to Slack. Read-only on Splunk; credentials from env/MCP, never hardcoded. Needs network. |
+| `/cwk-user-story <requirement or Slack link>` | Deep-investigate a requirement (or comprehend a Slack thread) → features + INVEST user stories with maximally granular Given/When/Then ACs. |
+| `/cwk-rails-to-spring <endpoint set>` | Contract-first port to another stack (e.g. Rails+GraphQL → Spring Boot/MyBatis) — golden-test parity per endpoint, strangler cutover. Edits code. |
+| `/cwk-observe [area]` | Instrument code for observability — structured logs, correlation/trace IDs (HTTP + SQS), metrics, error context; matches the backend field schema. Edits code. |
+| `/cwk-migrate [change]` | Plan + execute a safe migration/deprecation (API, DB schema, event contract, library) — backward-compatible, staged, with a rollback per step + deprecation window. |
+| `/cwk-simplify [target]` | Behavior-preserving simplification — remove dead code, flatten nesting, extract/rename, kill duplication; one refactor at a time, tests stay green. |
+| `/cwk-perf [area]` | Measure-first performance optimization — N+1, indexes, blocking calls, caching, pagination; proves the win with before/after numbers. |
+| `/cwk-help` | Show all commands + KB status for the current repo. |
 
 **Recommended flow:** `discover` → `plan` → `plan-review` → `qa` (design tests) → `build` →
 `qa-integration` (run them) → `review`/`security-audit` → `pr`. Run `scan` once first; `rescan` to
@@ -305,7 +315,7 @@ keep the KB fresh, and `drift` every so often to find what `rescan` never heard 
 
 ---
 
-## The Knowledge Base — what `/namht-scan` actually produces
+## The Knowledge Base — what `/cwk-scan` actually produces
 
 Every other command reads this. It is the difference between an assistant that guesses about your
 system and one that cites it.
@@ -330,12 +340,12 @@ system does, end to end) and **`13-business-rules.md`** (the rules it enforces).
 ### If your system has a lot of business logic, read this part
 
 ```bash
-claude "/namht-scan deep"
+claude "/cwk-scan deep"
 ```
 
 - **Rules and flows get stable ids.** `BR-V2` (Validation #2), `BR-S1` (State), `CF-03` (core flow),
-  and so on. `/namht-qa` writes a regression test that says *which* rule it protects; `/namht-build`
-  ties an acceptance criterion to one; `/namht-review` cites one in a finding. Ids are **append-only**
+  and so on. `/cwk-qa` writes a regression test that says *which* rule it protects; `/cwk-build`
+  ties an acceptance criterion to one; `/cwk-review` cites one in a finding. Ids are **append-only**
   — never renumbered, never reused, and a rule whose code is gone is marked `[REMOVED <date>]` rather
   than deleted, because those ids live on in test names and past reports that a rescan cannot see.
 - **Each rule records where it is enforced and how it is tested.** A `NONE` in the test column is a
@@ -363,8 +373,8 @@ tokens. Whichever it used is stated at the top of `_coverage-report.md`.
 ### Keeping it true
 
 ```bash
-claude "/namht-rescan"      # after code changes — git-diff aware, updates only what moved
-claude "/namht-drift"       # every so often — finds what rescan never heard about
+claude "/cwk-rescan"      # after code changes — git-diff aware, updates only what moved
+claude "/cwk-drift"       # every so often — finds what rescan never heard about
 ```
 
 `rescan` refreshes `_meta.yml`'s commit and date, so a stale KB stops passing itself off as current.
@@ -397,12 +407,12 @@ What changes when the index is there:
 
 | Skill | Without | With |
 |---|---|---|
-| `/namht-build` | callers counted by grep — including the ones that are only a string match | `provenlens impact`; the **>3 callers** approval gate is counted from the graph, and `affected --fail-if-untested` blocks a change no test reaches |
-| `/namht-review` · `/namht-pr` | consumers inferred from the diff | `git diff --name-only \| provenlens affected` — resolved consumers, with the tests that already cover them |
-| `/namht-simplify` | "nothing references it" | `provenlens dead`, already filtered against names used in `.erb`/`.vue`/`.html`/`.yml` |
-| `/namht-security-audit` | a sink that *looks* reachable | `provenlens path <entry point> <sink>` — the chain, pasted into the finding |
-| `/namht-system-map` | cross-service edges read out of KB prose | producer ↔ consumer joined on a real queue name or endpoint URI, across repos and languages |
-| `/namht-map` | regex import + inheritance scan (9 languages) | resolved call edges with a confidence (Java · Ruby · TS/JS), regex scan kept for the rest |
+| `/cwk-build` | callers counted by grep — including the ones that are only a string match | `provenlens impact`; the **>3 callers** approval gate is counted from the graph, and `affected --fail-if-untested` blocks a change no test reaches |
+| `/cwk-review` · `/cwk-pr` | consumers inferred from the diff | `git diff --name-only \| provenlens affected` — resolved consumers, with the tests that already cover them |
+| `/cwk-simplify` | "nothing references it" | `provenlens dead`, already filtered against names used in `.erb`/`.vue`/`.html`/`.yml` |
+| `/cwk-security-audit` | a sink that *looks* reachable | `provenlens path <entry point> <sink>` — the chain, pasted into the finding |
+| `/cwk-system-map` | cross-service edges read out of KB prose | producer ↔ consumer joined on a real queue name or endpoint URI, across repos and languages |
+| `/cwk-map` | regex import + inheritance scan (9 languages) | resolved call edges with a confidence (Java · Ruby · TS/JS), regex scan kept for the rest |
 
 **Covers Java, Ruby, TypeScript and JavaScript only.** For Python, Go, C#, PHP, Rust or Kotlin the
 fallback is the only path, and the skills say so rather than implying coverage they do not have.
@@ -432,7 +442,7 @@ Nine skills whose output someone acts on — `ask`, `document`, `user-story`, `p
 (`resources/provenlens-evidence.md`): an evidence line at the top, a **reach ledger** (every consumer
 the graph reaches is covered in the output or named as a gap — the anti-miss table), and the
 `provenlens export --format mermaid` / `path` graph pasted in. A runbook's playbooks each carry their
-**Where in code** chain; `/namht-ask` re-runs the chain live when asked "what happens if X fails now".
+**Where in code** chain; `/cwk-ask` re-runs the chain live when asked "what happens if X fails now".
 
 `scripts/onboard-project.sh` adds `.provenlens/` to the project's `.gitignore` (it is a rebuildable
 cache and must never reach a team repo) and reports the index status. The seven sub-agents in
@@ -442,26 +452,26 @@ stay read-only. Full detail, including which five skills deliberately opt out an
 
 ## Keeping docs and code from drifting apart
 
-Every other command works **one change at a time**. `/namht-build` updates the KB for what it just
-touched, `/namht-rescan` updates it for what git shows changed. Neither catches the slow rot: a
+Every other command works **one change at a time**. `/cwk-build` updates the KB for what it just
+touched, `/cwk-rescan` updates it for what git shows changed. Neither catches the slow rot: a
 hotfix applied by hand, a colleague's merge, a feature that was planned and quietly never built, an
 architecture rule broken once "just for now". After a few months the Knowledge Base is confidently
 describing software that no longer exists — and every answer built on it is wrong.
 
-`/namht-drift` is the periodic check for exactly that. It audits the whole repo and reports four
+`/cwk-drift` is the periodic check for exactly that. It audits the whole repo and reports four
 kinds of drift:
 
 | | Drift | Question it answers | Fix route |
 |---|---|---|---|
-| **D1** | Stale doc | The KB describes something the code no longer does | `/namht-rescan` |
-| **D2** | Undocumented code | Real behavior no document mentions | `/namht-rescan` |
-| **D3** | Unbuilt promise | An AC from a story/plan in `namht-sessions/` that never shipped | `/namht-build` |
-| **D4** | Broken invariant | Code violates the documented "DO NOT BREAK" rules | `/namht-review` |
+| **D1** | Stale doc | The KB describes something the code no longer does | `/cwk-rescan` |
+| **D2** | Undocumented code | Real behavior no document mentions | `/cwk-rescan` |
+| **D3** | Unbuilt promise | An AC from a story/plan in `cwk-sessions/` that never shipped | `/cwk-build` |
+| **D4** | Broken invariant | Code violates the documented "DO NOT BREAK" rules | `/cwk-review` |
 
 Each finding must cite **`file:line` on one side and the document line on the other**, and state
 **which side is wrong** — sub-agents only produce leads; the skill re-verifies every one against the
 source before it appears in the report. It ends with a verdict (`CONVERGED` / `DRIFTING` / `STALE`)
-and appends a row to `namht-sessions/drift/_journal.md`, so successive runs show whether drift is
+and appends a row to `cwk-sessions/drift/_journal.md`, so successive runs show whether drift is
 growing or shrinking.
 
 **When to run it**
@@ -472,18 +482,18 @@ growing or shrinking.
 | After a stretch of rushed work (crunch sprint, incident firefighting) | Exactly when drift is created |
 | Every ~month, or at each sprint boundary | The journal turns it into a trend instead of a snapshot |
 | Before onboarding someone new | They will trust the KB; a wrong KB teaches them the wrong system |
-| When `/namht-ask` starts answering *almost* right | That is the symptom of a KB going stale |
+| When `/cwk-ask` starts answering *almost* right | That is the symptom of a KB going stale |
 | Before a large port or migration | Porting from wrong docs copies the mistake into the new stack |
 
-You don't need it after every task — `/namht-build` already keeps its own footprint documented.
+You don't need it after every task — `/cwk-build` already keeps its own footprint documented.
 
 ### `--fix-docs` — the one thing it will fix for you
 
-By default `/namht-drift` **changes nothing**: it reports and hands off. With `--fix-docs` it also
+By default `/cwk-drift` **changes nothing**: it reports and hands off. With `--fix-docs` it also
 offers to close the documentation half of the drift:
 
 ```bash
-claude "/namht-drift --fix-docs"
+claude "/cwk-drift --fix-docs"
 ```
 
 What that mode will and will not do:
@@ -491,16 +501,16 @@ What that mode will and will not do:
 - ✅ Only **D1/D2** findings where the audit concluded **the document** was wrong.
 - ✅ Shows the findings and the exact `knowledge-base/` files first, and needs **one explicit yes**
   — a "go" in your original request does not count, because you have not seen the findings yet.
-- ✅ **Backs those KB files up** to `namht-sessions/drift/<date>-kb-backup/` before anything is
+- ✅ **Backs those KB files up** to `cwk-sessions/drift/<date>-kb-backup/` before anything is
   written. `knowledge-base/` is normally gitignored, so git is *not* your undo here.
-- ✅ Delegates the actual writing to `/namht-rescan` (one owner for KB writes), then **re-verifies**
+- ✅ Delegates the actual writing to `/cwk-rescan` (one owner for KB writes), then **re-verifies**
   each fixed claim and reports what it could not confirm.
-- ❌ Never edits **source code** — in any mode, with any flag. That is `/namht-build`'s job.
+- ❌ Never edits **source code** — in any mode, with any flag. That is `/cwk-build`'s job.
 - ❌ Never auto-resolves **D3** (writing an unbuilt AC into the docs as if shipped) or **D4**
   (relaxing a documented invariant to match the code). Rewriting the rule to match the violation is
   precisely the failure this command exists to catch.
 - ❌ Refuses surgical patching when the verdict is `STALE` — a KB that broadly stopped matching the
-  codebase needs a full `/namht-rescan`, not fifty patches.
+  codebase needs a full `/cwk-rescan`, not fifty patches.
 
 The reason it stops there: when a doc and the code disagree, **you do not yet know which one is
 wrong**. Sometimes the doc lags. Sometimes the doc is the agreed intent and the code is the bug.
@@ -517,7 +527,7 @@ existing KBs, the machine-wide ignore, and every skill at once. The name only be
 moment KBs from several projects sit **side by side**. So the fix is not a folder name, it is
 **identity inside the KB plus a namespace at collection time**.
 
-**1. Every KB now says who it is.** `/namht-scan` and `/namht-rescan` write
+**1. Every KB now says who it is.** `/cwk-scan` and `/cwk-rescan` write
 `knowledge-base/_meta.yml`:
 
 ```yaml
@@ -574,8 +584,8 @@ someone who is not a developer:
 
 | Run at the hub root | What you get |
 |---|---|
-| `/namht-system-map` | The cross-service dependency graph + end-to-end flows. Everything it consumes (`11-api-docs`, `14-integrations`, `17-async-events`) is in the hub, so an architect or a new joiner can produce the map **without cloning a single repo**. |
-| `/namht-ask "which services validate tenant id?"` | An answer **across projects**, attributing every claim to a project and leading with the contrast between them — usually the interesting part. |
+| `/cwk-system-map` | The cross-service dependency graph + end-to-end flows. Everything it consumes (`11-api-docs`, `14-integrations`, `17-async-events`) is in the hub, so an architect or a new joiner can produce the map **without cloning a single repo**. |
+| `/cwk-ask "which services validate tenant id?"` | An answer **across projects**, attributing every claim to a project and leading with the contrast between them — usually the interesting part. |
 
 Both are required to state the two limits out loud: a hub has **no source code**, so nothing can be
 confirmed against real files, and every project is a **snapshot** at the commit in its `_meta.yml`.
@@ -603,7 +613,7 @@ snapshot's commit is not in that checkout, which usually means the wrong repo.
 ## Running a skill on a schedule
 
 Two skills are genuinely periodic — the Splunk error digest, and keeping a Knowledge Base fresh —
-and `/namht-drift` is worth a monthly run. `scripts/schedule.sh` wires them to cron:
+and `/cwk-drift` is worth a monthly run. `scripts/schedule.sh` wires them to cron:
 
 ```bash
 scripts/schedule.sh add rescan "0 7 * * 1"  ~/work/my-repo          # Mondays 07:00
@@ -614,10 +624,10 @@ scripts/schedule.sh remove rescan ~/work/my-repo
 ```
 
 It edits a persistent system setting, so it is deliberately careful: every line it writes carries a
-`# namht-kit:<preset>:<repo>` marker and it only ever adds or removes **its own** lines; it prints
+`# cwk-kit:<preset>:<repo>` marker and it only ever adds or removes **its own** lines; it prints
 the exact change and asks before writing (`--dry-run` to just look, `--yes` to skip the prompt); and
 it **refuses to schedule any skill that edits code** — an unattended source change should not be
-something you can set up by accident. Output goes to `~/.claude/logs/namht-<preset>.log`. Note that
+something you can set up by accident. Output goes to `~/.claude/logs/cwk-<preset>.log`. Note that
 an unattended run cannot answer a permission prompt, so a skill that needs one simply fails in the
 log rather than hanging.
 
@@ -664,7 +674,7 @@ See **[SECURITY.md](SECURITY.md)** for the full audit. In short:
 - **Offline HTML:** with `vendor/` (Mermaid + Cytoscape, bundled) the generated HTML inlines the
   chart libs → **zero external network calls** (air-gapped / strict-proxy safe). Delete `vendor/`
   to get smaller CDN-linked output instead.
-- **Change discipline** is built into `namht-build`/`namht-review`: scope-locked, minimal diff,
+- **Change discipline** is built into `cwk-build`/`cwk-review`: scope-locked, minimal diff,
   no drive-by refactors, verify-and-rollback (don't leave the build broken), confirm before
   destructive/outward actions, never touch secrets.
 - **Git guardrail (hard-enforced):** a PreToolUse hook (`hooks/git-guard.sh`) + `permissions.deny`
@@ -674,18 +684,18 @@ See **[SECURITY.md](SECURITY.md)** for the full audit. In short:
   local git (`reset --hard`, `clean -f`, `checkout --`, `rebase`, `branch -D`, …) — even in chained
   commands. See [SECURITY.md](SECURITY.md#git-guardrail-hard-blocked-readsync-in-only).
 - The real data-egress is the AI agent reading code (inherent to any AI assistant), fine under a
-  company **Team/Enterprise** Claude plan. `knowledge-base/` and `namht-sessions/`
+  company **Team/Enterprise** Claude plan. `knowledge-base/` and `cwk-sessions/`
   are gitignored machine-wide.
 
 ## How this maps to the original extension
 
-| Auto Spec extension (VS Code + Copilot) | namht Kit for Claude Code |
+| Auto Spec extension (VS Code + Copilot) | Workflow Kit for Claude Code |
 |-----------------------------------|--------------------------|
 | `vscode.lm` calls to Copilot | Claude Code itself (no external API key) |
 | `agent-orchestrator` parallel sub-agents | `Task` tool fan-out to the `agents/` specialists |
 | Emits ```### FILE:``` code blocks to copy | Applies changes directly with Edit/Write |
 | `testCommand` run by the extension | `Bash` runs the project's test command |
-| Session outputs in `namht-sessions/` | Same — artifacts saved per run |
+| Session outputs in `cwk-sessions/` | Same — artifacts saved per run |
 | `knowledge-base/` (16 docs + review-skills + modules) | **Identical format — reused as-is** |
 | Webview HTML (ask/plan/document) | Markdown + Mermaid; **`map` = interactive Cytoscape HTML** (bundled analyzer) |
 
@@ -699,11 +709,11 @@ See **[SECURITY.md](SECURITY.md)** for the full audit. In short:
 
 ## Notes
 - Every command degrades gracefully if a repo has no `knowledge-base/` — it'll read source
-  directly and suggest running `/namht-scan`, but results are richer with a KB.
+  directly and suggest running `/cwk-scan`, but results are richer with a KB.
 - `build` and `review` enforce the **"Architecture Invariants — DO NOT BREAK"** list from
   `knowledge-base/16-architecture-patterns.md` and the rules in `knowledge-base/review-skills.md`.
 - Source of truth for the methodology: the original prompts of the author's private Auto Spec VS Code
   extension (pipeline steps, its `kb-steps` constants, and `review-skills-universal.md`).
-- **Slash-command prefix depends on install method:** `/namht-build` (personal symlink install) vs
-  `/namht:build` (plugin install) vs `/build` (plain copy). Skills also auto-activate from plain English.
+- **Slash-command prefix depends on install method:** `/cwk-build` (personal symlink install) vs
+  `/cwk:build` (plugin install) vs `/build` (plain copy). Skills also auto-activate from plain English.
 - **Licensing:** MIT — except `vscode-extension/`, which is proprietary (see `vscode-extension/LICENSE`).

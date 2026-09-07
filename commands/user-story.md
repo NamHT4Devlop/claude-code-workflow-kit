@@ -3,9 +3,9 @@ description: Deep-investigate a requirement (or a Slack thread you provide) → 
 argument-hint: <requirement text, and/or a Slack thread/channel URL> (add "quick" for a lighter pass)
 ---
 
-Use the **namht-user-story** skill on the input below. By default run in **deep mode**: first
-investigate the codebase (KB + the read-only analysis agents — namht-business-flow-tracer, namht-codebase-analyzer,
-namht-impact-detector) to ground everything in real entities/flows/rules and the blast radius, then write
+Use the **cwk-user-story** skill on the input below. By default run in **deep mode**: first
+investigate the codebase (KB + the read-only analysis agents — cwk-business-flow-tracer, cwk-codebase-analyzer,
+cwk-impact-detector) to ground everything in real entities/flows/rules and the blast radius, then write
 **features + INVEST user stories** with **maximally granular acceptance criteria** — one atomic,
 testable assertion per AC (each field × rule, each role, each state transition, each error/edge/
 concurrency case as its own numbered Given/When/Then with concrete values) plus an AC coverage matrix.

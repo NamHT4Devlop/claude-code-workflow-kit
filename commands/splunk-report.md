@@ -3,7 +3,7 @@ description: Query Splunk for per-app errors over a window (default today), aggr
 argument-hint: "[index=A cai_enviroment=B cai_app=C + window | empty = the skill asks]"
 ---
 
-Use the **namht-splunk-report** skill to query Splunk for errors/exceptions, aggregate them into a
+Use the **cwk-splunk-report** skill to query Splunk for errors/exceptions, aggregate them into a
 single table (app · total · top error · severity), and post it to Slack. The query filter is
 `index={A} cai_enviroment={B} cai_app={C}` — the skill **asks for A/B/C** and **skips any variable
 you don't pass**. **Time window** defaults to the **last 1 day**; pass a custom one (`4h`, `30m`,
