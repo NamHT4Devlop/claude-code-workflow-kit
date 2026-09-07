@@ -37,6 +37,7 @@ fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` 
 is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
+- **Protocol:** `references/provenlens-evidence.md` — the evidence line, the **reach ledger** and the pasted **code graph** are required parts of this skill's output, not options; the ledger is what turns "nothing was missed" into a checked claim.
 - `provenlens explore "<Entity>"` — the real field list with line numbers for the Business ↔ Code
   mapping table. Every row must come from this or from source you read; an invented field is the
   exact failure this document exists to prevent.
@@ -73,6 +74,12 @@ Be exhaustive; cite real names.
 ## 3. Business Flows (mapped to code)
 Step-by-step; for each step name the file + function that implements it.
 
+## 3b. Code graph (provenlens)
+One `provenlens export --format mermaid` block per flow entry point in §3, pasted verbatim, and the
+**reach ledger** for the entities in §2: which flows read each field, which consumers the graph
+reaches that this document does not describe. Without an index: `⚠️ grep-depth only` and an
+inferred diagram labelled as such.
+
 ## 4. Business Rules & Invariants
 | Rule | Where enforced (file · function) | Severity |
 
@@ -80,7 +87,8 @@ Step-by-step; for each step name the file + function that implements it.
 | Method | Path | Purpose | Auth |
 
 ## 6. Assumptions & Gaps
-Anything inferred, ambiguous, or "(not found in codebase)".
+Anything inferred, ambiguous, or "(not found in codebase)" — and every **reached, not covered** row
+from the reach ledger, by name, with the reason it is out of scope.
 
 ## 7. Glossary (plain words)
 Every technical term used above → a one-line everyday definition (entity, DTO, endpoint, enum,

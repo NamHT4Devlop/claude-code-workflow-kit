@@ -37,6 +37,7 @@ fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` 
 is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
+- **Protocol:** `references/provenlens-evidence.md` — the evidence line, the **reach ledger** and the pasted **code graph** are required parts of this skill's output, not options; the ledger is what turns "nothing was missed" into a checked claim.
 - `provenlens explore "<feature area>"` before sizing. Story points derived from the real number of
   touched symbols beat points derived from how the requirement is worded.
 - `provenlens impact` on the entity or service a feature changes → the Impact Analysis section's
@@ -52,7 +53,10 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
    affected entities, affected flows, complexity (Low/Med/High).
 3. **Impact Analysis per feature** — for each feature: EXISTING flow (before) → NEW flow
    (after, step by step) → DELTA / breaking changes (data model, API, state machines,
-   permissions, integrations) → migration / backward compatibility → dependencies.
+   permissions, integrations) → migration / backward compatibility → dependencies. With an index,
+   each feature's DELTA carries a **reach ledger** and a pasted **code graph**
+   (`references/provenlens-evidence.md`) in `impact-analysis-<epic>-<date>.md`; a consumer the graph
+   reaches that no story covers is a 🔴 item in step 4, not a silence.
 4. **Confirmation Checklist** — categorize open questions: 🔴 MUST CONFIRM BEFORE DEV
    (blocking), 🟡 SHOULD CLARIFY EARLY, 🔵 ASSUMPTIONS MADE (validate later), ⚪ OUT OF SCOPE.
    Each item: clear question/assumption, context, who to ask (PO/Tech Lead/Designer/Security),

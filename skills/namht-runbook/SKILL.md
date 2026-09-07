@@ -39,6 +39,8 @@ Read **both** halves, and cite files for everything:
 | Failure modes | KB `15-error-scenarios`, plus real `catch`/`rescue`/error branches, retry/timeout settings, circuit breakers, DLQ config |
 | Data recovery | migration tool (Flyway/Prisma/Liquibase), backup config, queue redrive settings |
 | Alerts | monitoring config in the repo, log/metric names actually emitted |
+| Where a playbook lands in the code | `provenlens path <entry point> <external call>` — the chain hop by hop, `file:line` each; `provenlens export --format mermaid` for the service-card graph (`references/provenlens-evidence.md`) |
+| Served HTTP routes — health, readiness, the endpoint an alert names | `provenlens routes` when indexed; the README's list is a claim, the router is the fact |
 
 ### provenlens (optional)
 `.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
@@ -52,12 +54,17 @@ fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` 
 is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
+- **Protocol:** `references/provenlens-evidence.md` — the evidence line, the **reach ledger** and the pasted **code graph** are required parts of this skill's output, not options; the ledger is what turns "nothing was missed" into a checked claim.
 - `provenlens explore "<entry point>"` — the real call chain behind an alert, so symptom → diagnosis
   points at the function that actually runs rather than the one with the matching name.
 - `provenlens hotspots` — the components whose failure is widest earn a playbook first; that is the
   ordering an on-call reader needs at 2am.
 - `provenlens path <entry point> <external call>` — where a downstream dependency enters the flow,
   which is what a "third party is down" playbook has to name.
+- `provenlens routes` — the routes this service really serves, with their callers; the health and
+  readiness checks in "Is it healthy?" are cited from here, not from a README.
+- `provenlens export --format mermaid` centred on the entry points (or the top `hotspots`) → the
+  service card's code graph; the **reach ledger** of those hotspots says what falls over with each.
 
 ## Procedure
 1. **Pick the scope and name the service** the way the team says it out loud, not the folder name.
@@ -72,6 +79,9 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
    ```
    ### Symptom: orders stop appearing, queue depth climbing
    Likely cause · Consumer is failing and messages are landing in the DLQ.
+   Where in code · `provenlens path OrdersConsumer#handle PaymentsClient#charge` →
+                   OrdersConsumer#handle (app/consumers/orders.rb:41) → OrderService#record (…:88)
+                   → PaymentsClient#charge (…:17)      [or: ❓ not reachable in the graph]
    1. Confirm     — <exact command / dashboard / query>            → you should see …
    2. Contain     — <the safe first action: scale, disable a flag, pause the consumer>
    3. Diagnose    — <where the error is logged; what to grep for>
@@ -116,19 +126,24 @@ What this service does, what users lose when it is down, and how urgent that is.
 ## Service card
 Purpose · criticality · runtime & where it runs · upstream/downstream dependencies · data stores ·
 queues/topics · scheduled jobs. Each with a file citation.
+**Code graph (provenlens)** — `export --format mermaid` centred on the entry points (or the top
+`hotspots`), pasted verbatim, then the **reach ledger** of those hotspots: what stops working when
+each one does. State the commit the graph was taken at, or `⚠️ grep-depth only (no provenlens index)`.
 
 ## Before you touch anything
 Access you need · which environment is which · the read-only checks that are always safe.
 
 ## Is it healthy?
-The exact checks, in order, with what a good answer looks like.
+The exact checks, in order, with what a good answer looks like. Health/readiness routes come
+from `provenlens routes` or the router file — cite which.
 
 ## Deploy · rollback
 Normal deploy · how to roll back · how long it takes · what rollback does NOT undo
 (migrations, consumed messages, sent emails) — this line matters more than the rest.
 
 ## Incident playbooks
-One per real failure mode, in the Symptom/Confirm/Contain/Diagnose/Fix/Verify/Escalate shape.
+One per real failure mode, in the Symptom/Confirm/Contain/Diagnose/Fix/Verify/Escalate shape, each
+with its **Where in code** chain (or `❓ not reachable in the graph`).
 
 ## Alerts → what to do
 | Alert / log signature | Means | First action | Playbook |
@@ -136,6 +151,11 @@ One per real failure mode, in the Symptom/Confirm/Contain/Diagnose/Fix/Verify/Es
 ## Data & recovery
 Migrations (forward + backward) · DLQ / redrive · backups & restore · reconciliation jobs.
 Mark destructive steps.
+
+## Ask this runbook
+A runbook is a snapshot. For "what happens if X fails *now*", ask `/namht-ask` inside the repo: it
+reads this file, re-runs `provenlens path` / `impact` against the current index and answers with the
+live chain, citing the playbook it started from. Graphs above were taken at commit <sha>.
 
 ## Known gaps
 What could not be determined from the repo, and who could answer it. Be specific — this list is
@@ -157,6 +177,8 @@ default is zero footprint in repos you don't own.
   liability.
 - **Never put secrets in it** — name the variable and where it lives, never the value. Runbooks get
   pasted into chat during incidents.
+- **A function named in a playbook comes from `explore`/`path`, never from a name match.** The one
+  with the matching name is how a 2am reader ends up in the wrong file.
 - **This skill writes; it does not operate.** No deploying, restarting, replaying, or migrating.
 - **Prefer the safe action first.** Every playbook contains a containment step before a fix step —
   in an incident, stopping the bleeding beats being right.
@@ -187,3 +209,5 @@ default is zero footprint in repos you don't own.
 - [ ] Every playbook has Confirm → Contain → Diagnose → Fix → Verify → Escalate.
 - [ ] Destructive steps marked, with what they cannot be undone from.
 - [ ] Known gaps listed with **who** can answer each.
+- [ ] Service card carries the pasted code graph + reach ledger (or the ⚠️ grep-depth line); every
+      playbook has a Where-in-code chain or `❓ not reachable in the graph`.

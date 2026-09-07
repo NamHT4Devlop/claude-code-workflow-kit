@@ -47,6 +47,7 @@ fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` 
 is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
+- **Protocol:** `references/provenlens-evidence.md` — the evidence line, the **reach ledger** and the pasted **code graph** are required parts of this skill's output, not options; the ledger is what turns "nothing was missed" into a checked claim.
 - **Step 1 impact** — `provenlens impact <symbol>` replaces the caller grep. The **>3 callers**
   approval trigger is counted from `provenlens callers <symbol> --json`, not from a grep hit count;
   those two numbers are not the same and only one of them is the blast radius.
@@ -192,7 +193,9 @@ Synthesize a **comprehensive implementation plan**:
    **cross-service impact** (if the change alters a published message / SQS topic / REST contract, list
    the **consumer services** from the Event/Contract Catalog — `17-async-events.md` or the workspace
    `system-map/` — plus async hazards: duplicate/idempotency, ordering, DLQ, schema/version skew),
-   and a risk matrix `| Risk | Likelihood | Impact | Mitigation |`.
+   and a risk matrix `| Risk | Likelihood | Impact | Mitigation |`. With an index, §2 opens with the
+   **reach ledger** and the pasted **code graph** of the touched symbols
+   (`references/provenlens-evidence.md`); the ledger's rows are the Step 7 regression targets.
 3. **Business Flow Mapping** — existing flows affected (before→after), new flow step-by-step, state-machine changes.
 4. **Technical Design** — modules/layers affected, files to MODIFY, files to CREATE (full paths following
    existing patterns), and a mandatory **Reuse Report** that justifies every new artifact:
@@ -332,7 +335,8 @@ Only report success for gates that actually ran and passed.
 Write `07-evidence/EVIDENCE.md` with: a header table (requirement, session, date, test status —
 including `NOT RUN` where applicable, coverage); Implementation Summary; Files Changed table;
 **Acceptance Criteria Verification** table (each AC → ✅/❌ → **the named test** that proves it, not
-prose); Business Flow Validation; Test Results (vs baseline); any test edited in Step 11 + why; Code
+prose); Business Flow Validation; **Reach ledger vs tests** (every consumer the graph reaches → the named
+regression test, or `not covered — <why>`); Test Results (vs baseline); any test edited in Step 11 + why; Code
 Quality score; Risk Assessment (reference the plan's matrix — don't restate it); Rollout notes from
 plan §5; Known Limitations & Next Steps. Also write the session `README.md` with quick links.
 
@@ -397,6 +401,7 @@ Stop when you notice any of these — they mean the process already went wrong, 
 ## Verification — the run is not finished until every box is true
 
 - [ ] Every AC maps to a **named test**, and those tests actually ran.
+- [ ] Every reach-ledger row maps to a regression test, or says `not covered — <why>`.
 - [ ] Gates compared **against `01-plan/baseline.md`** — nothing newly red.
 - [ ] No test was weakened; anything skipped is labelled `NOT RUN (<reason>)`.
 - [ ] Code changed **after** Step 5 was re-reviewed.

@@ -427,6 +427,13 @@ degraded to grep must say so — and `resources/kb-steps.md` makes structural cl
 graph where one exists, while forbidding graph output from being pasted into a KB page (a fan-in
 number is not a business meaning).
 
+Nine skills whose output someone acts on — `ask`, `document`, `user-story`, `plan`, `runbook`,
+`fix-bug`, `build`, `review`, `qa` — go further and carry the **evidence protocol**
+(`resources/provenlens-evidence.md`): an evidence line at the top, a **reach ledger** (every consumer
+the graph reaches is covered in the output or named as a gap — the anti-miss table), and the
+`provenlens export --format mermaid` / `path` graph pasted in. A runbook's playbooks each carry their
+**Where in code** chain; `/namht-ask` re-runs the chain live when asked "what happens if X fails now".
+
 `scripts/onboard-project.sh` adds `.provenlens/` to the project's `.gitignore` (it is a rebuildable
 cache and must never reach a team repo) and reports the index status. The seven sub-agents in
 `agents/` are granted the **read-only MCP tools only** — never `Bash` — so the review specialists

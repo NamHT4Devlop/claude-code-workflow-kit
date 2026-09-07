@@ -72,6 +72,7 @@ fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` 
 is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
+- **Protocol:** `references/provenlens-evidence.md` — the evidence line, the **reach ledger** and the pasted **code graph** are required parts of this skill's output, not options; the ledger is what turns "nothing was missed" into a checked claim.
 - `provenlens path <entry point> <suspect>` — the actual chain from the reproduced symptom to the
   suspect, hop by hop. A root cause that cannot be reached from the entry point is not the root cause.
 - `provenlens impact <symbol>` — before the fix, everything the change can break. That list is what
@@ -114,8 +115,9 @@ Classify the root cause into one of these, gathering the matching evidence:
 State your classification with evidence. **Only continue to a code fix if it's a genuine code defect.**
 
 ### 3. Locate the code path
-From the trace/repro, find the exact failing code: Read the top files and **grep the failing
-function** → its source + callers; map the request/flow end-to-end (entry → service → data) via KB
+From the trace/repro, find the exact failing code: `provenlens explore "<failing function>"` for its
+source and callers, then `provenlens path <entry point> <suspect>` — the chain, hop by hop, goes into
+the report as-is (no index → grep both, and say so); map the request/flow end-to-end (entry → service → data) via KB
 `10-core-flows` / `modules/`. Identify the precise function(s) and line(s).
 
 ### 4. Reproduce (environment-aware)
@@ -133,7 +135,9 @@ Name **which acceptance criterion / business rule the bug violated** (from the s
 exposed an **under-enforced** rule. If the code actually matched the AC → it's a spec bug (step 2).
 
 ### 6. Blast radius
-Grep the callers/impact of the function you'll change → every consumer to re-verify. Does the **same
+Build the **reach ledger** (`references/provenlens-evidence.md` §2) for the function you'll change —
+`impact` + `callers --json` → every consumer to re-verify, and every row gets a regression target in
+step 8 or an explicit "not covered — <why>". Does the **same
 defect pattern** exist elsewhere (search siblings)? For a multi-repo/SQS system, check cross-service
 consumers via the Event/Contract Catalog (`17-async-events` / `system-map`). Note which flows/rules the
 fix must preserve.
@@ -171,7 +175,8 @@ and treat the repetition itself as a finding (the real fix may be the shared sou
 Save the report to `namht-sessions/fixes/<slug>-<date>.md` (offer a PDF/HTML export via the namht-pdf skill if useful):
 - **In plain words** (incident comms / non-tech): what broke, impact, what we changed, status.
 - **Classification** (code / config / data / flag / spec — from step 2), **root cause** (cited), **the
-  fix** (diff summary), **regression test** (+ the QA case it maps to), **test results**, **blast
+  fix** (diff summary), **regression test** (+ the QA case it maps to), **test results**, **code graph** (the `path` chain and the `export` around the fixed symbol,
+  pasted), **reach ledger** (each consumer ↔ the test that re-verified it), **blast
   radius checked**, **risk + rollback plan**, **follow-ups**.
 - **Close the loop:** tell the user to **redeploy, then re-verify on the environment** — re-run the
   failing case, ideally with `/namht-qa-integration` against the running app (or ask QA to re-test that

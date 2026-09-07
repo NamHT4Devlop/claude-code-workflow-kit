@@ -47,6 +47,7 @@ fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` 
 is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
+- **Protocol:** `references/provenlens-evidence.md` — the evidence line, the **reach ledger** and the pasted **code graph** are required parts of this skill's output, not options; the ledger is what turns "nothing was missed" into a checked claim.
 - `provenlens explore "<area>"` before writing acceptance criteria. An AC that names a field, an
   endpoint or a state that does not exist is the failure mode this step prevents — and it is the one
   that survives all the way into QA.
@@ -112,7 +113,9 @@ yourself:
 Write an **Investigation Notes** section capturing: real entities & fields (with types), the
 existing flow (before), the new flow (after), business rules in play (cite BR ids), roles/permissions,
 state machine, integration/async touchpoints, blast radius (who else is affected), and the concrete
-edge cases the code/KB reveal. **Cite real file paths, endpoints, field names** — not invented ones.
+edge cases the code/KB reveal. With an index the blast radius **is** the reach ledger
+(`references/provenlens-evidence.md` §2) plus a pasted code graph of the touched area; a consumer the
+graph reaches and no story covers becomes an open question in §6, never a silence. **Cite real file paths, endpoints, field names** — not invented ones.
 
 ### 3. Clarify intent & assumptions
 Restate in one plain sentence: WHO needs it, WHAT they want, WHY (value). Where the source is
@@ -174,7 +177,7 @@ Each AC must be **specific and measurable** — a tester can execute it and get 
 ## Output (dual-audience; save + render HTML)
 Save to `namht-sessions/user-stories/<slug>-<date>.md`, opening with a **plain-language summary**
 (3–5 sentences: what this delivers, how many features/stories, rough size, top things to confirm),
-then in order: **Investigation Notes** → **Feature map** → **Stories** (each with its granular ACs in
+then in order: **Investigation Notes** (evidence line · reach ledger · code graph) → **Feature map** → **Stories** (each with its granular ACs in
 Given/When/Then) → a **manual table** (`ID · title · role · priority · points · #ACs · source`) →
 **AC coverage matrix** → **Assumptions & open questions**. Cite the Slack messages / requirement
 lines and the real files/endpoints used. Then render to a self-contained HTML (styled, Mermaid drawn)

@@ -45,6 +45,7 @@ fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` 
 is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
+- **Protocol:** `references/provenlens-evidence.md` — the evidence line, the **reach ledger** and the pasted **code graph** are required parts of this skill's output, not options; the ledger is what turns "nothing was missed" into a checked claim.
 - `git diff --name-only | provenlens affected` — its `tests:` list names the existing tests that
   already cover the change (your regression set), and its **absence** is proof of the gap rather
   than a worry about one.
@@ -103,6 +104,8 @@ Structure:
 role/action/benefit · acceptance criteria · modules/endpoints touched · old flows at risk.
 
 ## Traceability matrix
+(the evidence column is the reach-ledger row — `references/provenlens-evidence.md` §2 — a resolved
+caller with its confidence, or `(grep)`; a regression row with no ledger row is a guess, labelled)
 | AC / Flow | Test case IDs | Type (new/regression) | Covered? |
 
 ## Test cases (Gherkin)

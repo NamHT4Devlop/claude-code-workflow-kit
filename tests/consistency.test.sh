@@ -177,7 +177,17 @@ done
 for a in agents/*.md; do
   grep -m1 '^tools:' "$a" | grep -q '\bBash\b' && { echo "  ✗ $a grants Bash — sub-agents are read-only; pass CLI output in via the prompt"; bad=1; }
 done
-[ "$bad" -eq 0 ] && echo "  ✓ provenlens block in $n_with skills, opted out of $(echo $PROVENLENS_OPT_OUT | wc -w | tr -d ' '), agents wired read-only" || fail=1
+# The investigating skills carry the evidence protocol (reach ledger + code graph) as a bundled copy and
+# must point at it — a bundle nobody references is a file, not a standard. The list mirrors
+# map_evidence in scripts/sync-bundles.sh; sync-bundles --check catches a copy that is not mapped.
+PROVENLENS_EVIDENCE="namht-ask namht-document namht-user-story namht-plan namht-runbook namht-fix-bug namht-build namht-review namht-qa"
+for sk in $PROVENLENS_EVIDENCE; do
+  f="skills/$sk/SKILL.md"
+  [ -f "skills/$sk/references/provenlens-evidence.md" ] || { echo "  ✗ $sk lacks references/provenlens-evidence.md (run scripts/sync-bundles.sh)"; bad=1; }
+  grep -qF "provenlens-evidence.md" "$f" || { echo "  ✗ $sk bundles the evidence protocol but never points at it"; bad=1; }
+  grep -qiE "reach.ledger" "$f" || { echo "  ✗ $sk has no reach ledger in its output — the anti-miss table is the point"; bad=1; }
+done
+[ "$bad" -eq 0 ] && echo "  ✓ provenlens block in $n_with skills + evidence protocol in $(echo $PROVENLENS_EVIDENCE | wc -w | tr -d ' '), opted out of $(echo $PROVENLENS_OPT_OUT | wc -w | tr -d ' '), agents wired read-only" || fail=1
 
 echo "consistency: version + changelog"
 bad=0

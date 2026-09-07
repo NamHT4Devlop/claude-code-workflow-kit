@@ -14,6 +14,52 @@ noted per release when it changed.
 
 ---
 
+## [2.10.0] — 2026-09-08
+
+### Added — the evidence protocol: a reach ledger and a pasted code graph, where someone will act on the output
+
+2.7–2.9 made the call graph *available* to 27 skills. Available is not the same as used: a skill
+could run `provenlens impact`, read the list, and still write a document that mentioned half of
+it — and nobody notices an absence. Two failures were left open: being **wrong** (a reach claim
+that rests on a name match) and being **incomplete** (a consumer the graph knows and the document
+never names).
+
+- **`resources/provenlens-evidence.md`** — a shared, bundled protocol in five steps: a preflight and
+  an **evidence line** at the top of the output (resolution %, languages, sync date — or
+  `⚠️ grep-depth only`); anchor symbols resolved with `explore`/`node` and cited `file:line` from
+  that output; a **reach ledger** with one row per anchor *and per consumer `impact` returns*, each
+  either covered in the document or listed under Gaps as "reached, not covered"; a **code graph**
+  pasted verbatim from `provenlens export --format mermaid` (truncation stated) and `provenlens
+  path` wherever the question is "how does A reach B"; and the exact wording for degrading without
+  an index. It ends with a verification checklist.
+- **Nine skills carry it** — the ones whose output someone acts on without re-reading the code:
+  `ask`, `document`, `user-story`, `plan`, `runbook`, `fix-bug`, `build`, `review`, `qa`. Each
+  bundles the file (`map_evidence` in `scripts/sync-bundles.sh`), points at it from `**Here:**`,
+  and gains the required output sections: `ask` a **Code graph (provenlens)** section after the
+  diagram; `document` §3b and reached-not-covered rows in §6; `user-story` and `plan` the ledger
+  and graph in Investigation Notes / the impact-analysis doc, with an uncovered consumer becoming a
+  🔴 must-confirm item; `build` a **Reach ledger vs tests** table in EVIDENCE.md and a verification
+  box; `fix-bug` the `path` chain in step 3, the ledger in step 6, both in the hotfix report;
+  `review` a **REACH LEDGER** block in the output format; `qa` the ledger row as the traceability
+  evidence column.
+- **Runbook, specifically.** Every playbook carries a **Where in code** line — the `provenlens path`
+  chain from the entry point to the external call, `file:line` each hop, or `❓ not reachable in
+  the graph`. The service card carries the pasted graph centred on the entry points and a reach
+  ledger of the hotspots (what falls over with each). Health and readiness routes are cited from
+  `provenlens routes`, not a README. A new **Ask this runbook** section says the graphs are a
+  snapshot at a commit, and `/namht-ask` learned to answer operational questions ("what do we do
+  when X fails") from the runbook while re-running `path`/`impact` against the current index, so
+  the answer is live and cites the playbook it started from.
+- **Enforced.** `tests/consistency.test.sh` checks that each of the nine bundles the file, points at
+  it, and has a reach ledger in its output; `sync-bundles --check` catches a copy that is not
+  mapped. `docs/skill-anatomy.md` gains the row; `docs/provenlens.md` the contract points 6–8.
+
+The output shapes the protocol pastes — `export --format mermaid`, `explore`, `path`, `impact`,
+`callers --json`, `routes`, `why` — were captured from a real provenlens run before being written
+down, not recalled.
+
+---
+
 ## [2.9.0] — 2026-09-08
 
 ### Changed — the call-graph dependency is `provenlens`, and the kit now says so

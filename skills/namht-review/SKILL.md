@@ -61,6 +61,7 @@ fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` 
 is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
+- **Protocol:** `references/provenlens-evidence.md` — the evidence line, the **reach ledger** and the pasted **code graph** are required parts of this skill's output, not options; the ledger is what turns "nothing was missed" into a checked claim.
 - `git diff --name-only | provenlens affected` — the downstream consumers this diff actually reaches.
   A finding that says "this breaks X" now cites a resolved edge, with its confidence.
 - **Phase 2** — `provenlens impact <symbol>` on anything whose logic was removed or narrowed shows
@@ -80,6 +81,9 @@ only if the project has AI components.
 Cross-reference the Knowledge Base:
 - Does this code violate any documented business rule or invariant?
 - Was any existing business logic deleted or silently overridden?
+  → for every symbol whose logic was removed or narrowed, a **reach ledger** row
+  (`references/provenlens-evidence.md` §2): what reaches it, and whether the diff or a test accounts
+  for each consumer.
 - Are entity state transitions valid per the domain model?
 - Is any existing API contract changed (breaking)?
 - (For a change) are all the relevant acceptance criteria satisfied?
@@ -98,6 +102,10 @@ Cross-reference the Knowledge Base:
 | No logic removed | ✅/❌ | |
 | State machine valid | ✅/❌/N/A | |
 | API contract preserved | ✅/❌/N/A | |
+
+## 🔗 REACH LEDGER (provenlens)
+| Symbol | Direct callers | Transitive reach | Accounted for? | Where — or why not |
+(one row per changed symbol; `⚠️ grep-depth only` when there is no index)
 
 ## 🐛 ISSUES   (each issue has all 4 parts)
 ### Issue #N — [CRITICAL/MAJOR/MINOR] · `function()` · line ~XX

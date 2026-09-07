@@ -32,6 +32,7 @@ fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` 
 is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
+- **Protocol:** `references/provenlens-evidence.md` — the evidence line, the **reach ledger** and the pasted **code graph** are required parts of this skill's output, not options; the ledger is what turns "nothing was missed" into a checked claim.
 - `provenlens explore "<symbol|Type#method|phrase>"` — verbatim source, callers, callees and blast
   radius in one call. This *is* the answer to "how does X work" and "where is Y implemented"; reach
   for it before opening files.
@@ -67,6 +68,11 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
 1. **Ground code answers in real source.** When the question is about *how code works / where
    something is*, use Grep/Glob/Read to ground the **Technical detail** section in real files; the
    KB supplies business meaning.
+1b. **Operational questions go through the runbook.** "What do we do when X fails", "Y is down",
+   "how do we roll back" → if `namht-sessions/runbook/*.md` exists, read the matching playbook first,
+   then re-run `provenlens path` / `impact` against the **current** index so the chain you answer with
+   is live, not the snapshot in the document. Cite the playbook and the commit its graphs were taken
+   at; if the code moved since, say what changed.
 2. **Select relevant KB context.** Map the question to topics and load just those
    `knowledge-base/` docs (don't dump the whole KB). If the question names a module/feature,
    load the matching `knowledge-base/modules/<module>.md` first — those deep docs are the
@@ -93,6 +99,14 @@ reader must fully understand this section on its own.
 A Mermaid diagram that fits the question — flowchart for a flow, erDiagram for data/fields,
 sequenceDiagram for an interaction. Use a valid ```mermaid block, short plain labels. If a
 diagram truly doesn't apply, write "(no diagram needed)".
+
+## Code graph (provenlens)
+The `provenlens export --format mermaid` block for the symbol the answer centres on, pasted
+verbatim (truncation stated), plus the `provenlens path` chain when the question is "how does A
+reach B". Under it, the **reach ledger** for that symbol — symbol · direct callers · transitive
+reach · covered in this answer? — so a consumer the graph knows and the answer skipped is listed,
+not lost. Without an index: `⚠️ grep-depth only (no provenlens index)` and a diagram labelled
+"inferred from imports and names".
 
 ## Technical detail (engineers)
 The precise answer, citing concrete names from the KB: files, modules, endpoints,

@@ -17,6 +17,7 @@ CHECK="${1:-}"
 map_review="namht-build namht-review namht-scan namht-rescan namht-security-audit namht-pr"
 map_kb="namht-scan namht-rescan"
 map_html="namht-ask namht-document namht-plan namht-qa namht-system-map namht-pr namht-security-audit namht-plan-review namht-retro namht-qa-integration namht-design-review namht-pdf namht-user-story namht-rails-to-spring namht-drift namht-issues namht-runbook"  # html-builder.js + render-html.cjs
+map_evidence="namht-ask namht-document namht-user-story namht-plan namht-runbook namht-fix-bug namht-build namht-review namht-qa"  # the reach-ledger + code-graph protocol (docs/provenlens.md)
 
 emit() { # <canonical-file> <skill-list>
   local file="$1"; shift
@@ -52,12 +53,14 @@ emit review-skills-universal.md $map_review
 emit kb-steps.md               $map_kb
 emit html-builder.js           $map_html
 emit render-html.cjs           $map_html
+emit provenlens-evidence.md   $map_evidence
 
 if [ "$CHECK" = "--check" ]; then
   sweep review-skills-universal.md $map_review
   sweep kb-steps.md               $map_kb
   sweep html-builder.js           $map_html
   sweep render-html.cjs           $map_html
+  sweep provenlens-evidence.md   $map_evidence
   [ "$DRIFT" = 0 ] && { echo "✔ bundles in sync with resources/"; exit 0; } || { echo "✗ drift — run scripts/sync-bundles.sh to fix"; exit 1; }
 fi
 # render-html.cjs needs +x

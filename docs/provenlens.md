@@ -143,6 +143,20 @@ fallback sentence cannot be quietly dropped from one skill:
 4. **Never launder a guess.** A grep hit is not a resolved call and must never be reported as one.
 5. **Cite the confidence** when a conclusion rests on an edge below `direct`.
 
+Nine skills go further — the ones whose output someone acts on without re-reading the code: `ask`,
+`document`, `user-story`, `plan`, `runbook`, `fix-bug`, `build`, `review`, `qa`. Each bundles
+`references/provenlens-evidence.md` and adds three required pieces to its output:
+
+6. **An evidence line** at the top — `provenlens · <resolution>% · <languages> · synced <date>`, or
+   `⚠️ grep-depth only`. The reader knows what the rest rests on before reading it.
+7. **A reach ledger** — one row per anchor symbol *and per consumer `impact` returns*: covered in
+   this output, or listed under Gaps as "reached, not covered". This is the anti-miss table: a
+   consumer the graph knows and the document skipped is named, not lost.
+8. **A code graph** — the `provenlens export --format mermaid` block pasted verbatim (truncation
+   stated), and the `provenlens path` chain wherever the question is "how does A reach B". In a
+   runbook every playbook carries that chain as its **Where in code** line, and the health routes
+   come from `provenlens routes`.
+
 ## Which skills use it
 
 **Integrated (27):** `ask` `build` `design-review` `discover` `document` `drift` `fix-bug` `map`

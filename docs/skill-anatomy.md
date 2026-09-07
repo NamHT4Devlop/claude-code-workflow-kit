@@ -30,6 +30,7 @@ description: >-
 | **Output** | ✅ | Exact save path under `namht-sessions/…`, the dual-audience structure, and the HTML render step if it produces a report. |
 | **Rules** | ✅ | The non-negotiables specific to this skill. |
 | **`### provenlens (optional)`** | if it reads a call graph | The shared paragraph **verbatim** (fallback sentence included), then `**Here:**` and the specific commands this skill uses. A skill that never reasons about who-calls-what goes on the opt-out list in `tests/consistency.test.sh` instead, with a reason. See `docs/provenlens.md`. |
+| **Reach ledger + code graph** | if someone acts on its findings | Bundle `references/provenlens-evidence.md` (via `scripts/sync-bundles.sh`, `map_evidence`), point at it from `**Here:**`, and make the evidence line, the **reach ledger** and the pasted `export`/`path` graph required sections of the output. `tests/consistency.test.sh` checks all three. |
 | **Common rationalizations** | high-stakes only | The excuse for skipping a step, and the fact that answers it. |
 | **Red flags** | high-stakes only | Detectable signals that you are already off the rails — written so you can notice mid-task. |
 | **Verification** | high-stakes only | Checkbox exit criteria. **"Seems right" is never enough.** |
