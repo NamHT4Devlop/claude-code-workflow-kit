@@ -556,6 +556,13 @@ It **never clones**: point it at checkouts you already have. It prints the full 
 step list before spending a token, and asks. `--dry-run` prints and runs nothing, `--force` redoes a
 step whose output exists.
 
+> **Permissions.** A headless `claude -p` cannot answer an approval prompt, so on the CLI default it
+> refuses to write and the scan produces nothing. The script passes `--permission-mode acceptEdits`,
+> which lets the skills write the KB and the runbook; steps that shell out (HTML render, git,
+> `/cwk-map`) still degrade. `--permission-mode bypassPermissions` makes every step run and is what
+> the VS Code panel uses — it also permits any Bash command and network access, so use it only in a
+> workspace you trust. The git-guard hook applies in both modes, as defence in depth, not a sandbox.
+
 **2. Collect them into one hub repo, namespaced by project:**
 
 ```bash

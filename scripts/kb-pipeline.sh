@@ -16,6 +16,7 @@
 #   --depth quick|standard|deep   scan depth (default: standard)
 #   --hub <dir>                   where to publish (default: ~/kb-hub)
 #   --model <name>                passed to `claude --model`
+#   --permission-mode <mode>      passed to `claude --permission-mode` (default: acceptEdits)
 #   --force                       redo a step whose output already exists
 #   --dry-run                     print every command, run nothing
 #   --yes                         skip the confirmation
@@ -23,20 +24,31 @@
 # It does NOT clone anything: point it at checkouts you already have. Steps 2-4 spend tokens
 # through `claude -p`, and a scan is the most expensive thing in this kit — hence the estimate and
 # the prompt before any of it runs.
+#
+# PERMISSIONS. A headless `claude -p` cannot answer an approval prompt, so with the CLI default it
+# refuses to write and the scan produces nothing (verified: "Việc ghi file bị từ chối quyền").
+# The default here is `acceptEdits`, which lets the skills write the Knowledge Base and the runbook.
+# Steps that shell out — the HTML render, git reads, /cwk-map — still need Bash approval and will be
+# skipped or degrade under it. `--permission-mode bypassPermissions` is what makes every step run,
+# and is what the VS Code panel uses; it also permits ANY Bash command, writes outside the workspace
+# and network calls, so it belongs in a workspace you trust. The git-guard hook still applies in
+# either mode (PreToolUse runs before the permission check), but that is defence in depth, not a
+# sandbox. Whichever mode is in effect is printed in the plan before you confirm.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEPTH=standard; HUB="$HOME/kb-hub"; MODEL=""; FORCE=0; DRY=0; YES=0; repos=()
+DEPTH=standard; HUB="$HOME/kb-hub"; MODEL=""; PERM=acceptEdits; FORCE=0; DRY=0; YES=0; repos=()
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --depth) DEPTH="${2:-}"; shift 2;;
     --hub)   HUB="${2:-}";   shift 2;;
     --model) MODEL="${2:-}"; shift 2;;
+    --permission-mode) PERM="${2:-}"; shift 2;;
     --force) FORCE=1; shift;;
     --dry-run|-n) DRY=1; shift;;
     --yes|-y) YES=1; shift;;
-    -h|--help) sed -n '2,26p' "$0"; exit 0;;
+    -h|--help) sed -n '2,40p' "$0"; exit 0;;
     *) repos+=("$1"); shift;;
   esac
 done
@@ -44,6 +56,8 @@ done
 die() { echo "✗ $*" >&2; exit 1; }
 [ ${#repos[@]} -gt 0 ] || die "give me at least one repo path (this script never clones — see --help)"
 case "$DEPTH" in quick|standard|deep) ;; *) die "--depth must be quick, standard or deep (got '$DEPTH')";; esac
+case "$PERM" in acceptEdits|bypassPermissions|auto|dontAsk|manual|plan) ;;
+  *) die "--permission-mode must be one the CLI accepts (got '$PERM')";; esac
 
 command -v claude >/dev/null 2>&1 || die "the 'claude' CLI is not on PATH — steps 2-4 run through it"
 command -v node   >/dev/null 2>&1 || die "node is not on PATH — steps 4-5 need it"
@@ -69,7 +83,7 @@ for r in "${repos[@]}"; do
 done
 [ ${#plan[@]} -gt 0 ] || die "nothing to do"
 
-echo "Plan — depth '$DEPTH', publishing to $HUB"
+echo "Plan — depth '$DEPTH', permission-mode '$PERM', publishing to $HUB"
 echo
 printf '  %-26s %-34s %s\n' REPO "STEPS" "SOURCE FILES"
 for row in "${plan[@]}"; do
@@ -83,11 +97,17 @@ cat <<TXT
   A scan is the most expensive thing in this kit — 'deep' reads every file with no sampling.
   Each step runs 'claude -p' and spends tokens. Steps already done are skipped (--force redoes them).
 TXT
+if [ "$PERM" != bypassPermissions ]; then cat <<TXT
+  Permission mode '$PERM' lets the skills WRITE, but anything shelling out (HTML render, git,
+  /cwk-map) still needs approval a headless run cannot give, and will degrade or be skipped.
+  Use --permission-mode bypassPermissions for a complete run, in a workspace you trust.
+TXT
+fi
 if [ "$DRY" = 0 ] && [ "$YES" != 1 ]; then
   printf 'Run this? [y/N] '; read -r a; [ "$a" = y ] || [ "$a" = Y ] || die "aborted"
 fi
 
-CL=(claude); [ -n "$MODEL" ] && CL+=(--model "$MODEL")
+CL=(claude --permission-mode "$PERM"); [ -n "$MODEL" ] && CL+=(--model "$MODEL")
 did=(); failed=0
 
 for row in "${plan[@]}"; do

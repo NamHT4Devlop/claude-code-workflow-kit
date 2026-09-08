@@ -14,6 +14,21 @@ noted per release when it changed.
 
 ---
 
+## [3.2.1] — 2026-09-08
+
+### Fixed
+
+- **`kb-pipeline.sh` ran the scan and produced nothing.** It invoked `claude -p` with no
+  `--permission-mode`, and a headless run cannot answer an approval prompt: the first write is
+  refused, so the pipeline reported success over an empty `knowledge-base/`. Verified directly —
+  a bare `claude -p` asked to write a file came back refusing. It now passes
+  `--permission-mode acceptEdits` by default, validates the value against what the CLI accepts, and
+  prints the mode in the plan you confirm. `bypassPermissions` is documented as what makes every
+  step run, with its trade-off, and left opt-in: the safe mode is the default and the hammer is
+  named. Four more cases pin the pass-through and the rejection of an invented mode.
+
+---
+
 ## [3.2.0] — 2026-09-08
 
 ### Added — one command for the whole chain, and the code graph reachable from the page

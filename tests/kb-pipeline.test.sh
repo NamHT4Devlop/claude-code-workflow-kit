@@ -50,12 +50,12 @@ out=$("$PIPE" --dry-run --hub "$TMP/hub" "$r" 2>&1)
 check "nothing left to do" "$(printf '%s' "$out" | grep -c '(nothing to do)')" 1
 r=$(mk_repo partial kb index)
 out=$("$PIPE" --dry-run --hub "$TMP/hub" "$r" 2>&1)
-check "scan skipped when a KB exists"   "$(printf '%s' "$out" | grep -c 'would: claude -p /cwk-scan')" 0
-check "runbook still queued"            "$(printf '%s' "$out" | grep -c 'would: claude -p /cwk-runbook')" 1
+check "scan skipped when a KB exists"   "$(printf '%s' "$out" | grep -cE 'would: claude .*-p /cwk-scan')" 0
+check "runbook still queued"            "$(printf '%s' "$out" | grep -cE 'would: claude .*-p /cwk-runbook')" 1
 
 echo "kb-pipeline: --force redoes what is already there"
 out=$("$PIPE" --dry-run --force --hub "$TMP/hub" "$r" 2>&1)
-check "scan queued again" "$(printf '%s' "$out" | grep -c 'would: claude -p /cwk-scan')" 1
+check "scan queued again" "$(printf '%s' "$out" | grep -cE 'would: claude .*-p /cwk-scan')" 1
 
 echo "kb-pipeline: the depth is validated before anything runs"
 "$PIPE" --depth exhaustive --yes --hub "$TMP/hub" "$r" >/dev/null 2>&1
@@ -70,6 +70,21 @@ echo "kb-pipeline: it never clones — a URL is not a repo path"
 out=$("$PIPE" --dry-run --hub "$TMP/hub" "https://github.com/x/y" 2>&1)
 check "URL rejected as a path" "$(printf '%s' "$out" | grep -c 'not a directory')" 1
 check "no clone attempted"     "$(grep -c 'clone' "$CALLS" 2>/dev/null; true)" 0
+
+echo "kb-pipeline: the permission mode is passed through, and validated"
+r=$(mk_repo perms kb map)
+: > "$CALLS"
+"$PIPE" --yes --hub "$TMP/hubp" "$r" >/dev/null 2>&1
+# A headless `claude -p` on the CLI default REFUSES to write, so the scan would produce nothing.
+# The mode must reach the command line, or this script silently does nothing useful.
+check "default mode reaches claude" "$(grep -c -- '--permission-mode acceptEdits' "$CALLS")" 1
+: > "$CALLS"
+"$PIPE" --yes --permission-mode bypassPermissions --hub "$TMP/hubp" "$r" >/dev/null 2>&1
+check "an explicit mode is honoured"  "$(grep -c -- '--permission-mode bypassPermissions' "$CALLS")" 1
+: > "$CALLS"
+"$PIPE" --yes --permission-mode yolo --hub "$TMP/hubp" "$r" >/dev/null 2>&1
+check "an invented mode is refused"   "$([ $? -ne 0 ] && echo yes || echo no)" yes
+check "and spent nothing"             "$(calls '^claude')" 0
 
 echo "kb-pipeline: a real run spends exactly the queued steps"
 r=$(mk_repo real kb)
