@@ -58,10 +58,20 @@ Analyze the project structure. Always cite actual paths.
 ## 04 — `04-business-domain.md` — Business Domain & User Stories ★DEEP
 Answer as a Business Analyst reading the ENTIRE codebase.
 1. **Product Brief**  2. **User Roles & Capabilities Matrix**  3. **Top 10 Core Features (ranked by business importance)**  4. **User Journey (main flow)**  5. **Business Constraints Evident in Code**.
+- **Main user journey** as a ```mermaid `flowchart LR` whose nodes are the flows of §10 (labelled
+  with their `CF-xx` id), with the decision points a user meets between them; each node links to
+  the corresponding `CF-xx` section by id.
+- **Domain map** as a `flowchart` of the bounded contexts/modules (`Pms`, `Oms`, … or the
+  equivalent) and the data each owns, with the arrows that cross contexts labelled by what moves
+  (an order id, a stock reservation, an event).
 
 ## 05 — `05-domain-model.md` — Domain Model & Entity Lifecycle ★DEEP
 Check ALL sources: JPA `@Entity`, Prisma schema, TypeORM, Django models, ActiveRecord, MyBatis mapper XML (resultMap/resultType), SQL `CREATE TABLE`, Proto messages.
 1. **Entity Catalog**  2. **State Machines**  3. **Entity Relationships** (ORM + MyBatis XML joins)  4. **Aggregate Boundaries**  5. **Data Lifecycle**.
+- **One `stateDiagram-v2` per entity that has a lifecycle**, with every stored status value, every
+  transition labelled `who/what / guard` (the check the code makes, or `no guard`; Mermaid allows only one `:` per transition line, so never put a second one in the label), and the
+  states the schema defines but no code writes marked as such. A transition with no guard is a
+  finding and is repeated in `13-business-rules.md` §7.
 
 ## 06 — `06-modules.md` — Module Map & Feature Boundaries
 1. **Module Overview Table**  2. **Module Deep-Dive**  3. **Cross-Module Communication**  4. **Feature Flags / Toggles**  5. **Module Maturity Assessment**.
@@ -99,8 +109,33 @@ twenty, and a cap would silently drop the ones that matter to somebody. Practica
 Give each flow a stable id — `CF-01`, `CF-02`, … — and **never renumber** them (see the id rule
 under §13; `/cwk-qa` and `/cwk-build` cite these).
 
-For each flow, trace through EVERY layer (entry → service → domain → data → response), with state
-transitions and error/rollback paths.
+**Each flow is a full walk-through, not a summary row.** A reader must be able to answer "what
+does the system check at step 4, what does the user see if it fails, and which rule is that" from
+this document alone. Every flow carries all of the following, in this order:
+
+1. **Entry and trigger** — the route/handler/job/message with `file:line`, who can call it, and
+   the input it takes.
+2. **Step diagram** — a ```mermaid `flowchart TD` of the flow *as the code runs it*: one node per
+   step, a **decision diamond for every check** (its edges labelled with the outcome, the failing
+   edge ending in the exact error text the user sees), one node per **write** naming the table and
+   columns (or the message/queue/external call), and the rule id (`BR-xx`) on the check that
+   enforces it. Mark the transaction boundary with a `subgraph`. Keep node labels short; put the
+   `file:line` in the step table, not the node.
+3. **Step table** — `| # | step | check or effect | on failure | rule | code |`: one row per node in
+   the diagram, in execution order, with the exact error string and `file:line`.
+4. **Interaction diagram** when the flow crosses components — a `sequenceDiagram` across the real
+   participants (client, controller, service, repository/DB, queue, external API), with `alt/else`
+   blocks for the failure branches and notes for retries, timeouts and idempotency keys.
+5. **State effect** — what each entity's status/columns are before and after, and which
+   `05-domain-model.md` transition this is.
+6. **Rollback and partial failure** — what is inside one transaction, what survives a rollback
+   (counters, messages already sent, external side effects), and how a retry behaves.
+7. **Variants and edge cases** — the branches a stakeholder would ask about (empty cart, expired
+   coupon, duplicate submit, concurrent update), each as one line pointing at the diagram edge.
+8. **Verified defects** in this flow, if any, stated plainly with `file:line`.
+
+Every node, check and error string is read from the source, not inferred from a name. A flow
+diagram with no decision diamonds means the checks were not traced; go back and find them.
 
 ## 11 — `11-api-docs.md` — API Reference
 **API Overview** · **Endpoints by Module** · **Rate Limits & Special Behaviors**. List ALL endpoints.

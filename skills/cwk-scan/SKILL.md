@@ -115,6 +115,15 @@ Angles to split across sub-agents (then merge, deduplicate, keep every cited ite
 - **Test/Validation analyzer** — tests reveal intended business scenarios; validators reveal enforced constraints. Treat tests as specifications.
 - **Model/Schema analyzer** — entities, state machines, DB constraints, relationships, migration history (business evolution).
 
+**`10-core-flows.md` is where a scan is judged.** A flow section that is a summary table with no
+diagram has not been traced. Each `CF-xx` carries the eight parts in `references/kb-steps.md` §10:
+a `flowchart TD` with a decision diamond for every check the code makes and the exact error on the
+failing edge, the step table with `file:line` per row, a `sequenceDiagram` when the flow crosses
+components, state effect, rollback, variants and verified defects. `04` carries the user journey
+over the `CF` ids and `05` a `stateDiagram-v2` per entity with guards on every transition. Before
+finishing, count: every `CF-xx` has at least one ```mermaid block and a step table, or the doc is
+not done.
+
 ## Auxiliary outputs (also required)
 1. **`review-skills.md`** — start from the bundled universal checklist
    (`references/review-skills-universal.md` in this skill) and append a **Section 14 —
@@ -146,6 +155,11 @@ Angles to split across sub-agents (then merge, deduplicate, keep every cited ite
 enforceable checklist with `[CRITICAL]`/`[MAJOR]` severities.
 
 ## Finish
+Check the flow docs before reporting: every `CF-xx` in `10-core-flows.md` has a `flowchart` with
+decision diamonds and a step table with `file:line`; `05` has a state diagram per lifecycle entity;
+`04` has the journey and domain-map diagrams. Then open `knowledge-base/index.html` (built with
+`scripts/kb-site.cjs <repo>`) and confirm every diagram renders rather than showing a Mermaid
+syntax error.
 Report: number of section docs, module docs, and coverage %. Point the user to the most
 valuable files (04, 05, 10, 13, review-skills) and suggest running `/cwk-build` next.
 Be efficient with reads on huge repos — sample representative files per layer rather than

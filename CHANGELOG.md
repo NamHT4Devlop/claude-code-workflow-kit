@@ -14,6 +14,22 @@ noted per release when it changed.
 
 ---
 
+## [3.4.0] — 2026-09-19
+
+### Changed
+
+- **`/cwk-scan` core flows are walk-throughs, not summary tables.** §10 of `kb-steps.md` now
+  requires eight parts per `CF-xx`: entry and trigger, a `flowchart TD` with a decision diamond for
+  every check the code makes and the exact error on the failing edge, a step table with
+  `file:line` per row, a `sequenceDiagram` with `alt/else` when the flow crosses components, state
+  effect, rollback and what survives it, variants, and verified defects. §04 gains the user journey
+  over the `CF` ids and a domain map; §05 a `stateDiagram-v2` per lifecycle entity with a guard on
+  every transition (`who/what / guard`, one colon per line so Mermaid parses it). The skill's
+  finish step counts diagrams per flow and renders `knowledge-base/index.html` to catch a broken
+  one. On the four benchmark repositories this took the flow docs from 0 diagrams to 103.
+
+---
+
 ## [3.3.1] — 2026-09-19
 
 ### Fixed
