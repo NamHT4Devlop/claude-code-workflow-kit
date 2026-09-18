@@ -14,6 +14,19 @@ noted per release when it changed.
 
 ---
 
+## [3.3.1] — 2026-09-19
+
+### Fixed
+
+- **`kb-site.cjs` on a single repo wrote over the repo's own `index.html`.** With no output path it
+  defaulted to `<repo>/index.html`, which for a static site is the application's landing page;
+  it happened on metadata-maker and was restored from git. A single repo's page now defaults to
+  `knowledge-base/index.html` (gitignored, beside the documents it renders), and the script
+  refuses to overwrite any file it did not write, recognised by a generator tag. Four cases in
+  `tests/kb-hub.test.sh` pin both.
+
+---
+
 ## [3.3.0] — 2026-09-19
 
 ### Added

@@ -4,7 +4,7 @@
  *
  *   node scripts/kb-site.cjs <hub-dir> [output.html]
  *   node scripts/kb-site.cjs ~/kb-hub                  → ~/kb-hub/index.html
- *   node scripts/kb-site.cjs ~/work/taskflow           → a single-project site
+ *   node scripts/kb-site.cjs ~/work/taskflow           → ~/work/taskflow/knowledge-base/index.html
  *
  * Why this exists: a hub is a folder of Markdown. Twelve projects times twenty documents is 240
  * files that nobody browses. This renders all of them into one page — project picker on the left,
@@ -31,7 +31,10 @@ if (!src || !fs.existsSync(src)) {
   process.exit(1);
 }
 const root = path.resolve(src);
-const out = process.argv[3] || path.join(root, 'index.html');
+let out = process.argv[3] || '';
+
+// A page this script wrote carries this tag. Anything else at the output path is someone's file.
+const GENERATOR = '<meta name="generator" content="cwk kb-site">';
 
 // ---------- collect projects ----------
 // Two shapes are accepted: a hub (projects/<name>/knowledge-base/) or one repo (knowledge-base/).
@@ -59,6 +62,9 @@ if (fs.existsSync(hubDir) && fs.statSync(hubDir).isDirectory()) {
     graphFile: newestMap(path.join(root, 'cwk-sessions', 'maps')),
   });
 }
+// Default output: beside the hub's projects, or inside a single repo's knowledge-base/ (gitignored),
+// never at the repo root.
+if (!out) out = path.join(fs.existsSync(hubDir) ? root : path.join(root, 'knowledge-base'), 'index.html');
 if (!projects.length) {
   console.error(`no Knowledge Base found under ${root}
   expected either  <dir>/projects/<name>/knowledge-base/   (a hub, from kb-export.sh)
@@ -151,6 +157,16 @@ const nonce = 'n' + Math.random().toString(36).slice(2) + Date.now().toString(36
 let html = page(dataJson, nonce, path.basename(root));
 html = inlineMermaid(html, __dirname, nonce);
 
+// Never overwrite a file this script did not write. A repo's own index.html is its landing page
+// (a static site's whole front door), and the single-repo default used to land exactly there.
+if (fs.existsSync(out)) {
+  const head = fs.readFileSync(out, 'utf8').slice(0, 4096);
+  const ours = head.includes(GENERATOR) || /<title>Knowledge Base — /.test(head);
+  if (!ours) {
+    console.error(`✖ refusing to overwrite ${out}: it was not written by kb-site. Pass another output path.`);
+    process.exit(1);
+  }
+}
 fs.writeFileSync(out, html, 'utf8');
 const docCount = projects.reduce((n, p) => n + p.docs.length, 0);
 const runbookCount = projects.reduce((n, p) => n + (p.runbookCount || 0), 0);
@@ -187,6 +203,7 @@ function page(json, nce, title) {
      those get blocked and diagrams render unstyled (black boxes, blob arrows). Scripts keep the
      nonce, which is the directive that actually matters: no external or injected script can run. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nce}'; img-src 'self' data:;">
+${GENERATOR}
 <title>Knowledge Base — ${esc(title)}</title>
 <style nonce="${nce}">
 :root{--bg:#0f1420;--panel:#151b2b;--panel2:#1b2233;--line:#2a3348;--fg:#e6e9ef;--dim:#94a0b8;--accent:#6ea8fe;--warn:#e0b341;--bad:#f2777a;--ok:#5fd08a}

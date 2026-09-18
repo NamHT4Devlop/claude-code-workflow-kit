@@ -127,6 +127,15 @@ if command -v node >/dev/null 2>&1; then
   printf '# Runbook — solo\n\nrestart the consumer\n' > "$TMP/solo/cwk-sessions/runbook/solo.md"
   node "$PWD/scripts/kb-site.cjs" "$TMP/solo" "$TMP/solo2.html" >/dev/null 2>&1
   check "runbook found in a single repo" "$(grep -c 'restart the consumer' "$TMP/solo2.html" 2>/dev/null)" 1
+  # With no output path, a single repo's page goes inside knowledge-base/, never over the repo's own
+  # index.html, and a file kb-site did not write is never overwritten.
+  printf '<!DOCTYPE html><title>Landing</title>\n' > "$TMP/solo/index.html"
+  node "$PWD/scripts/kb-site.cjs" "$TMP/solo" >/dev/null 2>&1
+  check "single-repo default lands in knowledge-base/" "$([ -f "$TMP/solo/knowledge-base/index.html" ] && echo yes || echo no)" yes
+  check "the repo's own index.html is untouched" "$(grep -c Landing "$TMP/solo/index.html")" 1
+  node "$PWD/scripts/kb-site.cjs" "$TMP/solo" "$TMP/solo/index.html" >/dev/null 2>&1
+  check "refuses to overwrite a foreign file" "$([ $? -ne 0 ] && echo yes || echo no)" yes
+  check "and leaves it as it was" "$(grep -c Landing "$TMP/solo/index.html")" 1
   mkdir -p "$TMP/nokb"
   node "$PWD/scripts/kb-site.cjs" "$TMP/nokb" "$TMP/nokb.html" >/dev/null 2>&1
   check "no-KB dir exits non-zero"  "$([ $? -ne 0 ] && echo yes || echo no)" yes
