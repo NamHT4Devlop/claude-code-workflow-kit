@@ -26,10 +26,39 @@ if (!fs.existsSync(root)) { console.error('✖ project root not found:', root); 
 
 const { buildGraphData } = require('./graph-builder.js');
 const { buildFromProvenlens } = require('./provenlens-graph.cjs');
+const { buildFullIndex, pack } = require('./provenlens-full.cjs');
+const { LAYER_CONFIG } = require('./graph-builder.js');
 
 console.error('▶ analyzing', root, '(mode:', mode + ')…');
 
 let data = null;
+
+// Whole-index explorer: every symbol, edge, unresolved call and source line, drawn on demand.
+// The sampled graph below draws ~400 nodes around the hubs and cannot find anything outside
+// them, so it is only the fallback. PROVENLENS_FULL=0 forces the sampled picture.
+if (mode === 'all' && process.env.PROVENLENS !== '0' && process.env.PROVENLENS_FULL !== '0') {
+  const full = buildFullIndex(root);
+  if (full.ok) {
+    const st = full.stats;
+    console.error(`  using the full provenlens index: ${st.symbols} symbols · ${st.edges} edges · ${st.missed} unresolved · ${st.library} library calls`);
+    if (st.skippedSource) console.error(`  note: ${st.skippedSource} files over the size limit or unreadable — no source shown for them`);
+    const projectName = path.basename(root);
+    const layers = Object.entries(LAYER_CONFIG).map(([id, cfg]) => ({ id, label: cfg.label, color: cfg.color }));
+    const tpl = fs.readFileSync(path.join(__dirname, 'explorer-template.html'), 'utf8');
+    // base64 is inert in markup; the layer table is ours. Function replacers, as below.
+    let html = tpl
+      .replace(/__PROJECT__/g, () => escapeHtml(projectName))
+      .replace('__LAYERS__', () => JSON.stringify(layers))
+      .replace('__GRAPH_DATA__', () => pack(full.data));
+    html = inlineVendored(html, __dirname);
+    const target = out || defaultOut(projectName);
+    fs.writeFileSync(target, html, 'utf8');
+    console.error(`✔ explorer · ${st.symbols} symbols · ${(Buffer.byteLength(html) / 1e6).toFixed(1)} MB · provenlens (full index)`);
+    console.log(target);
+    process.exit(0);
+  }
+  console.error(`  full index not used (${full.why}) → sampled graph`);
+}
 
 // A resolved call graph beats an import regex wherever one exists. `domain` mode draws the
 // Knowledge Base rather than the code, so it never applies there; PROVENLENS=0 forces the
@@ -97,16 +126,18 @@ let html = tpl
 html = inlineVendored(html, __dirname); // offline: inline Cytoscape from vendor/ if present
 
 // Default output: <root>/cwk-sessions/maps/<name>-<YYYY-MM-DD>.html  (gitignored)
-if (!out) {
-  const dir = path.join(root, 'cwk-sessions', 'maps');
-  fs.mkdirSync(dir, { recursive: true });
-  const slug = projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'project';
-  out = path.join(dir, `${slug}-${new Date().toISOString().slice(0, 10)}.html`);
-}
+if (!out) out = defaultOut(projectName);
 fs.writeFileSync(out, html, 'utf8');
 
 console.error(`✔ ${data.nodes.length} nodes · ${data.edges.length} edges · langs: ${(data.metadata.languages || []).join(', ') || 'n/a'} · ${data.metadata.source}`);
 console.log(out); // stdout = the path, so callers can open it
+
+function defaultOut(projectName) {
+  const dir = path.join(root, 'cwk-sessions', 'maps');
+  fs.mkdirSync(dir, { recursive: true });
+  const slug = projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'project';
+  return path.join(dir, `${slug}-${new Date().toISOString().slice(0, 10)}.html`);
+}
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 

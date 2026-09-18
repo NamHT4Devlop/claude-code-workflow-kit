@@ -145,6 +145,36 @@ function typeFor(kind) {
 }
 
 /**
+ * Up to `max` lines of a symbol's source, starting at its declaration.
+ *
+ * Read per file once and cached: a 400-node export touches a few dozen files. Stops early at a
+ * blank line after the first few lines, which in practice is where the symbol's head ends, and
+ * gives up quietly on anything unreadable -- an excerpt is a convenience, never a claim.
+ */
+const fileCache = new Map();
+function excerpt(root, file, line, max = 25) {
+  if (!file || !line) return undefined;
+  let lines = fileCache.get(file);
+  if (lines === undefined) {
+    try {
+      const abs = path.resolve(root, file);
+      if (!abs.startsWith(path.resolve(root) + path.sep)) throw new Error('outside root');
+      lines = fs.readFileSync(abs, 'utf8').split('\n');
+    } catch {
+      lines = null;
+    }
+    fileCache.set(file, lines);
+  }
+  if (!lines || line > lines.length) return undefined;
+  const out = [];
+  for (let i = line - 1; i < lines.length && out.length < max; i++) {
+    if (out.length > 3 && !lines[i].trim()) break;
+    out.push(lines[i].length > 160 ? lines[i].slice(0, 160) + '…' : lines[i]);
+  }
+  return out.join('\n');
+}
+
+/**
  * Read the graph around the busiest hubs.
  *
  * `provenlens export` with no symbol seeds from the top hubs, which is exactly the "show me
@@ -188,7 +218,12 @@ function buildFromProvenlens(root, { depth = 3, max = 400 } = {}) {
       description: `${n.fqn || n.name}${n.derived ? '  (derived, not written in this file)' : ''}`,
       file: n.file,
       line: n.line,
+      fqn: n.fqn || n.name,
+      kind: n.kind,
       language: n.lang,
+      // The first lines of the symbol, so a click answers "what is this" without leaving the
+      // page. Derived symbols are not written where they point, so they get no excerpt.
+      source: n.derived ? undefined : excerpt(root, n.file, n.line),
       size: n.seed ? 5 : 3,
       details: n.derived ? 'derived by a framework binding' : undefined,
     };
@@ -206,9 +241,13 @@ function buildFromProvenlens(root, { depth = 3, max = 400 } = {}) {
       source,
       target,
       type: e.kind === 'declares' ? 'defines' : 'calls',
+      via: e.via,
+      confidence: e.confidence,
       // The confidence is the whole reason to prefer this graph: keep it visible so a
       // 0.4 unique-name guess never looks like a 1.0 direct call.
-      label: e.via && e.via !== 'direct' ? `${e.label || e.kind} · ${e.via} ${e.confidence}` : e.label || e.kind,
+      // `via` and `confidence` travel separately and the viewer prints them beside each
+      // neighbour, so the label stays the plain edge kind.
+      label: e.label || e.kind,
       weight: typeof e.confidence === 'number' ? Math.max(1, Math.round(e.confidence * 3)) : 1,
     });
   }
@@ -223,7 +262,9 @@ function buildFromProvenlens(root, { depth = 3, max = 400 } = {}) {
     data: {
       nodes,
       edges,
-      legend: Object.entries(LAYER_CONFIG).map(([id, cfg]) => ({
+      // `layers` is the key viewer-template.html reads for colours and the legend; the regex
+      // analyzer emits the same one. Under any other name every node draws grey.
+      layers: Object.entries(LAYER_CONFIG).map(([id, cfg]) => ({
         id,
         label: cfg.label,
         color: cfg.color,

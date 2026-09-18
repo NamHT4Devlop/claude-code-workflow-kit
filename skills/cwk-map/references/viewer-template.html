@@ -27,13 +27,20 @@
   #legend .row.off{opacity:.35}
   #legend .dot{width:12px;height:12px;border-radius:50%;flex:0 0 12px}
   #legend .ti{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px}
-  #details{top:64px;right:12px;width:300px;max-height:calc(100% - 120px);overflow:auto;display:none}
+  #details{top:64px;right:12px;width:420px;height:auto;max-width:calc(100% - 24px);max-height:calc(100% - 80px);overflow:auto;display:none;resize:both;min-width:220px;min-height:44px}
+  #details .bar{cursor:move;user-select:none;margin:-12px -14px 6px;padding:10px 64px 6px 14px;border-bottom:1px solid var(--border)}
+  #details.min{height:auto!important;resize:none;overflow:hidden} #details.min #dsub,#details.min #dbody{display:none} #details.min .bar{margin-bottom:-12px;border-bottom:0}
+  #details .btn{position:absolute;top:8px;cursor:pointer;color:var(--muted);font-size:16px;line-height:1;padding:0 4px} #details .btn:hover{color:var(--text)}
   #details h2{font-size:14px;margin:0 0 2px}
   #details .sub{color:var(--muted);font-size:11px;word-break:break-all;margin-bottom:8px}
   #details .k{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;margin-top:10px}
   #details code{background:#0b0d12;padding:1px 5px;border-radius:5px;font-size:12px}
   #details ul{margin:4px 0;padding-left:16px} #details li{margin:2px 0;font-size:12px}
-  #details .close{position:absolute;top:8px;right:10px;cursor:pointer;color:var(--muted);font-size:18px;line-height:1}
+  #details .close{right:10px;font-size:18px} #details .mini{right:34px}
+  #details pre{background:#0b0d12;border:1px solid var(--border);border-radius:8px;padding:8px;margin:4px 0;font-size:11px;line-height:1.45;overflow:auto;max-height:340px;white-space:pre}
+  #details li.nav{cursor:pointer} #details li.nav:hover{color:var(--accent)}
+  #details .via{color:var(--muted);font-size:10px;margin-left:4px}
+  #details .fqn{font-family:ui-monospace,Menlo,monospace;font-size:11px;word-break:break-all}
   .hint{position:absolute;bottom:12px;right:12px;color:var(--muted);font-size:11px;text-align:right}
   .chip{display:inline-block;background:#222734;border:1px solid var(--border);border-radius:999px;padding:2px 8px;font-size:11px;margin:2px 2px 0 0}
 </style>
@@ -56,8 +63,9 @@
 </div>
 
 <div id="details" class="panel">
-  <span class="close" id="dclose">×</span>
-  <h2 id="dtitle"></h2>
+  <span class="btn mini" id="dmin" title="Thu gọn / mở rộng">–</span>
+  <span class="btn close" id="dclose" title="Đóng">×</span>
+  <div class="bar" id="dbar" title="Kéo để di chuyển · kéo góc dưới phải để đổi cỡ · nhấp đúp để thu gọn"><h2 id="dtitle"></h2></div>
   <div class="sub" id="dsub"></div>
   <div id="dbody"></div>
 </div>
@@ -85,11 +93,13 @@ DATA.edges.forEach(e => { deg[e.source]=(deg[e.source]||0)+1; deg[e.target]=(deg
 const elements = [];
 DATA.nodes.forEach(n => elements.push({ data: {
   id:n.id, label:n.label, layer:n.layer, ntype:n.type, file:n.file||'',
+  line:n.line||0, fqn:n.fqn||'', kind:n.kind||'', src:n.source||'',
   d:deg[n.id]||0, sz:n.size||3,
   desc:n.description||'', methods:n.methods||[], fields:n.fields||[], details:n.details||''
 }}));
 DATA.edges.forEach((e,i) => elements.push({ data: {
-  id:'e'+i, source:e.source, target:e.target, etype:e.type, label:e.label||'' }}));
+  id:'e'+i, source:e.source, target:e.target, etype:e.type, label:e.label||'',
+  via:e.via||'', conf:(typeof e.confidence==='number'?e.confidence:'') }}));
 
 const cy = cytoscape({
   container: document.getElementById('cy'),
@@ -152,26 +162,46 @@ cy.on('tap', e => { if(e.target===cy){ clearHi(); document.getElementById('detai
 function showDetails(n){
   const d=n.data();
   document.getElementById('details').style.display='block';
+  window.expandDetails && window.expandDetails();
   document.getElementById('dtitle').textContent = d.label;
-  document.getElementById('dsub').textContent = (d.file||d.ntype);
-  let h = `<span class="chip">${d.ntype}</span><span class="chip">${(LAYER[d.layer]||{}).label||d.layer}</span><span class="chip">deg ${d.d}</span>`;
-  if(d.desc) h += `<div class="k">Description</div><div>${esc(d.desc)}</div>`;
+  document.getElementById('dsub').textContent = d.file ? d.file + (d.line ? ':' + d.line : '') : d.ntype;
+  let h = `<span class="chip">${esc(d.kind||d.ntype)}</span><span class="chip">${esc((LAYER[d.layer]||{}).label||d.layer)}</span><span class="chip">deg ${d.d}</span>`;
+  if(d.fqn) h += `<div class="k">Symbol</div><div class="fqn">${esc(d.fqn)}</div>`;
+  else if(d.desc) h += `<div class="k">Description</div><div>${esc(d.desc)}</div>`;
   if(d.details) h += `<div class="k">Meta</div><code>${esc(d.details)}</code>`;
-  const outs = n.outgoers('node'), ins = n.incomers('node');
-  if(ins.length) h += `<div class="k">Used by (${ins.length})</div><ul>`+ins.slice(0,15).map(x=>`<li>${esc(x.data('label'))}</li>`).join('')+`</ul>`;
-  if(outs.length) h += `<div class="k">Depends on (${outs.length})</div><ul>`+outs.slice(0,15).map(x=>`<li>${esc(x.data('label'))}</li>`).join('')+`</ul>`;
+  // Each neighbour carries the edge that joins it: a 0.4 name guess must not read like a direct call.
+  const row = (edge, other) => {
+    const e = edge.data();
+    const how = [e.label, e.via && e.via!=='direct' && e.via!=='declaration' ? e.via : '', e.conf!=='' && e.conf<1 ? 'conf '+e.conf : '']
+      .filter(Boolean).join(' · ');
+    return `<li class="nav" data-id="${esc(other.id())}">${esc(other.data('label'))}<span class="via">${esc(how)}</span></li>`;
+  };
+  const ins = n.incomers('edge'), outs = n.outgoers('edge');
+  if(ins.length) h += `<div class="k">Used by (${ins.length})</div><ul>`+ins.slice(0,30).map(e=>row(e,e.source())).join('')+`</ul>`;
+  if(outs.length) h += `<div class="k">Depends on (${outs.length})</div><ul>`+outs.slice(0,30).map(e=>row(e,e.target())).join('')+`</ul>`;
+  if(d.src) h += `<div class="k">Source${d.line ? ' — from line '+d.line : ''}</div><pre>${esc(d.src)}</pre>`;
   if(d.methods&&d.methods.length) h += `<div class="k">Methods</div><div>`+d.methods.slice(0,20).map(m=>`<span class="chip">${esc(m)}</span>`).join('')+`</div>`;
   if(d.fields&&d.fields.length) h += `<div class="k">Fields</div><div>`+d.fields.slice(0,20).map(m=>`<span class="chip">${esc(m)}</span>`).join('')+`</div>`;
+  // This picture stops at a node cap; the index does not. Say where the full answer lives.
+  if(d.fqn) h += `<div class="k">Full callers / callees (whole index)</div><code>provenlens node "${esc(d.fqn)}"</code>`;
   document.getElementById('dbody').innerHTML = h;
 }
-function esc(s){ return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+// Delegated, because the page's CSP forbids inline handlers.
+document.getElementById('dbody').addEventListener('click', ev => {
+  const li = ev.target.closest('li.nav'); if(!li) return;
+  const t = cy.getElementById(li.dataset.id); if(!t.length) return;
+  focusNode(t); cy.animate({ center:{eles:t} }, { duration:250 });
+});
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 // ---- search ----
 document.getElementById('search').addEventListener('input', e => {
   const q = e.target.value.trim().toLowerCase();
   if(!q){ clearHi(); return; }
   clearHi(); cy.elements().addClass('faded');
-  const hits = cy.nodes().filter(n => n.data('label').toLowerCase().includes(q) || (n.data('file')||'').toLowerCase().includes(q));
+  const hits = cy.nodes().filter(n => n.data('label').toLowerCase().includes(q) || (n.data('file')||'').toLowerCase().includes(q) || (n.data('fqn')||'').toLowerCase().includes(q));
+  // One hit: open it, so typing a name is enough to read it.
+  if(hits.length===1) focusNode(hits[0]);
   hits.removeClass('faded').addClass('hi');
 });
 
@@ -186,6 +216,37 @@ document.getElementById('hubs').onclick = () => {
   top.removeClass('faded').addClass('hi');
   top.forEach(n=>n.connectedEdges().removeClass('faded').addClass('hiedge'));
 };
+// ---- details panel: drag by its title bar, resize from the corner, minimise ----
+(() => {
+  const box = document.getElementById('details'), bar = document.getElementById('dbar'), min = document.getElementById('dmin');
+  const KEY = 'cwk-map-details';
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ l:box.style.left, t:box.style.top, w:box.style.width, h:box.style.height, m:box.classList.contains('min') })); } catch {} };
+  try {
+    const st = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (st) { if (st.l) { box.style.left = st.l; box.style.right = 'auto'; } if (st.t) box.style.top = st.t;
+              if (st.w) box.style.width = st.w; if (st.h) box.style.height = st.h; if (st.m) box.classList.add('min'); }
+  } catch {}
+  const setMin = on => { box.classList.toggle('min', on); min.textContent = on ? '▢' : '–'; save(); };
+  min.addEventListener('click', () => setMin(!box.classList.contains('min')));
+  bar.addEventListener('dblclick', () => setMin(!box.classList.contains('min')));
+  let drag = null;
+  bar.addEventListener('pointerdown', e => {
+    const r = box.getBoundingClientRect();
+    drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    bar.setPointerCapture(e.pointerId);
+  });
+  bar.addEventListener('pointermove', e => {
+    if (!drag) return;
+    // Keep the title bar on screen so the panel can always be grabbed back.
+    const x = Math.min(Math.max(0, e.clientX - drag.dx), window.innerWidth - 80);
+    const y = Math.min(Math.max(0, e.clientY - drag.dy), window.innerHeight - 40);
+    box.style.left = x + 'px'; box.style.top = y + 'px'; box.style.right = 'auto';
+  });
+  bar.addEventListener('pointerup', () => { if (drag) { drag = null; save(); } });
+  new ResizeObserver(() => { if (box.style.display === 'block' && !box.classList.contains('min')) save(); }).observe(box);
+  // Opening a node while minimised should show it: a click is a request to read.
+  window.expandDetails = () => { if (box.classList.contains('min')) setMin(false); };
+})();
 document.getElementById('dclose').onclick = () => { document.getElementById('details').style.display='none'; clearHi(); };
 cy.ready(()=>cy.fit(undefined,40));
 </script>

@@ -57,5 +57,38 @@ langs=$(node -e '
 ' "$TMP/proj" 2>&1)
 if [ "$langs" = "Python" ]; then echo "  ✓ Python reported as uncovered"; else echo "  ✗ expected Python, got: $langs"; fail=1; fi
 
+echo "smoke: provenlens-full.cjs degrades without an index"
+# The explorer reads provenlens's private index; without one it must say why and let build-map
+# fall back, never throw.
+why=$(node --no-warnings -e '
+  const { buildFullIndex } = require("./skills/cwk-map/references/provenlens-full.cjs");
+  const r = buildFullIndex(process.argv[1]);
+  console.log(r.ok ? "UNEXPECTED-OK" : r.why);
+' "$TMP/proj" 2>&1)
+case "$why" in
+  *"index.db"*|*"node:sqlite"*) echo "  ✓ reports why, does not throw: $why";;
+  *) echo "  ✗ expected a graceful reason, got: $why"; fail=1;;
+esac
+
+echo "smoke: explorer-template.html has every placeholder build-map fills"
+for ph in __PROJECT__ __LAYERS__ __GRAPH_DATA__; do
+  if grep -q "$ph" skills/cwk-map/references/explorer-template.html; then echo "  ✓ $ph"; else echo "  ✗ $ph missing"; fail=1; fi
+done
+
+echo "smoke: markdown renderer keeps wrapped prose and numbered steps whole"
+# Docs are wrapped at ~100 columns. Rendering each line as its own <p> cut sentences in half, and a
+# code block inside a numbered step restarted the numbering at 1.
+got=$(node -e '
+  const { markdownToHtml } = require("./resources/html-builder.js");
+  process.stdout.write(markdownToHtml("One\ntwo.\n\n1. A\n   wraps.\n   ```sql\n   SELECT 1;\n   ```\n   after\n2. B\n"));
+')
+case "$got" in
+  *"<p>One two.</p>"*) echo "  ✓ wrapped lines join into one paragraph";;
+  *) echo "  ✗ wrapped lines split: $got"; fail=1;;
+esac
+if [ "$(printf '%s' "$got" | grep -c '<ol')" = "1" ] && printf '%s' "$got" | grep -q '<li>A wraps.<pre><code>SELECT 1;</code></pre><p>after</p></li>'; then
+  echo "  ✓ a code block stays inside its numbered step"
+else echo "  ✗ numbered list broken: $got"; fail=1; fi
+
 echo "smoke: $([ "$fail" -eq 0 ] && echo PASS || echo FAIL)"
 [ "$fail" -eq 0 ]

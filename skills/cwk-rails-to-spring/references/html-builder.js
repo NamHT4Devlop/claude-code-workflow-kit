@@ -533,6 +533,9 @@ function renderMdTable(rows) {
     }
     return h + '</tbody></table>';
 }
+// A line that opens a block of its own. Anything else continues the paragraph or list item
+// above it: Markdown wraps prose at a fixed width, and a hard line break is not a new paragraph.
+const MD_BLOCK_START = /^\s*(```|#{1,6}\s|>|[-*]\s+|\d+\.\s+|\|.*\|\s*$)|^\s*([-*_])\2\2+\s*$/;
 function markdownToHtml(md) {
     const lines = (md ?? '').replace(/\r\n/g, '\n').split('\n');
     const out = [];
@@ -542,20 +545,37 @@ function markdownToHtml(md) {
         out.push(`</${listType}>`);
         listType = null;
     } };
+    // Join the lines that continue the current paragraph or list item, advancing `i` past them.
+    const continuation = (first) => {
+        const parts = [first.trim()];
+        while (i < lines.length && lines[i].trim() !== '' && !MD_BLOCK_START.test(lines[i])) {
+            parts.push(lines[i].trim());
+            i++;
+        }
+        return parts.join(' ');
+    };
     while (i < lines.length) {
         const line = lines[i];
         // Code fence
-        const fence = line.match(/^\s*```(\w*)\s*$/);
+        const fence = line.match(/^(\s*)```(\w*)\s*$/);
         if (fence) {
-            closeList();
+            // An indented fence under a list item belongs to that item. Closing the list here
+            // restarted every numbered procedure at 1 after its first code block.
+            const inItem = listType && fence[1].length > 0 && /<\/li>$/.test(out[out.length - 1] || '');
+            if (!inItem) closeList();
+            const indent = fence[1].length;
             const buf = [];
             i++;
             while (i < lines.length && !/^\s*```\s*$/.test(lines[i])) {
-                buf.push(lines[i]);
+                buf.push(lines[i].slice(Math.min(indent, lines[i].length - lines[i].trimStart().length)));
                 i++;
             }
             i++; // skip closing fence
-            const lang = (fence[1] || '').toLowerCase();
+            if (inItem) {
+                out[out.length - 1] = out[out.length - 1].replace(/<\/li>$/, `<pre><code>${esc(buf.join('\n'))}</code></pre></li>`);
+                continue;
+            }
+            const lang = (fence[2] || '').toLowerCase();
             if (lang === 'mermaid') {
                 // Mermaid renders the div's text as a diagram. Strip any tags defensively.
                 // HTML-escape rather than regex-strip: /<[^>]*>/g only removes COMPLETE tags, so an
@@ -613,20 +633,20 @@ function markdownToHtml(md) {
                 out.push('<ul>');
                 listType = 'ul';
             }
-            out.push(`<li>${mdInline(ul[1])}</li>`);
             i++;
+            out.push(`<li>${mdInline(continuation(ul[1]))}</li>`);
             continue;
         }
         // Ordered list
-        const ol = line.match(/^\s*\d+\.\s+(.*)$/);
+        const ol = line.match(/^\s*(\d+)\.\s+(.*)$/);
         if (ol) {
             if (listType !== 'ol') {
                 closeList();
-                out.push('<ol>');
+                out.push(ol[1] === '1' ? '<ol>' : `<ol start="${Number(ol[1])}">`);
                 listType = 'ol';
             }
-            out.push(`<li>${mdInline(ol[1])}</li>`);
             i++;
+            out.push(`<li>${mdInline(continuation(ol[2]))}</li>`);
             continue;
         }
         // Blank line
@@ -635,10 +655,17 @@ function markdownToHtml(md) {
             i++;
             continue;
         }
-        // Paragraph
+        // An indented line straight under a list item (typically after a code block in it) is
+        // more of that item, not a new paragraph that would end the list.
+        if (listType && /^\s{2,}\S/.test(line) && /<\/li>$/.test(out[out.length - 1] || '')) {
+            i++;
+            out[out.length - 1] = out[out.length - 1].replace(/<\/li>$/, `<p>${mdInline(continuation(line))}</p></li>`);
+            continue;
+        }
+        // Paragraph: every wrapped line up to the next blank line or block.
         closeList();
-        out.push(`<p>${mdInline(line)}</p>`);
         i++;
+        out.push(`<p>${mdInline(continuation(line))}</p>`);
     }
     closeList();
     return out.join('\n');

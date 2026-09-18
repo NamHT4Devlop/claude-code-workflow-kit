@@ -1,10 +1,12 @@
 ---
 name: cwk-runbook
 description: >-
-  Produce an operational runbook a teammate can follow at 2am — health checks,
-  deploy and rollback, symptom→diagnosis→fix playbooks for the failures this
-  system actually has, alert-to-action mapping, data recovery (migrations, DLQ
-  replay), and escalation. Grounded in the Knowledge Base, the real deploy/CI
+  Produce an operational runbook a teammate can follow at 2am — first how the
+  business works as the code implements it (lifecycles, core flows step by step,
+  the numbers that govern behaviour, defects on-call will hit), then health
+  checks, deploy and rollback, symptom→diagnosis→fix playbooks for the failures
+  this system actually has, alert-to-action mapping, data recovery (migrations,
+  DLQ replay), and escalation. Grounded in the Knowledge Base, the real deploy/CI
   config and the error handling in the code; anything only a human knows is
   marked as a gap, never invented. Use when the user says "/runbook", "make a
   runbook", "on-call guide", "operations doc", "what do we do when X breaks",
@@ -20,6 +22,15 @@ have built this, at an hour when they are not at their best.
 
 That difference drives every rule below: **imperative, exact, and honest about what it doesn't know.**
 
+But a playbook only makes sense to someone who knows what normal looks like. So a runbook opens
+with the business **as the code implements it**: the objects and their states, the core flow step
+by step, the numbers that govern it, and the defects on-call will run into. Without that half, the
+reader follows steps they cannot judge.
+
+**How it reads matters as much as what it says.** Engineers stop trusting a page that sounds
+generated. Follow `references/writing-style.md` for both the business half and the tone; it has
+before/after examples.
+
 ## Inputs
 - **Scope** — one service/app (best), or a module. A runbook for "everything" helps nobody; if the
   repo holds several deployables, ask which one, or produce one file per service.
@@ -32,6 +43,7 @@ Read **both** halves, and cite files for everything:
 | Section | Ground it in |
 |---|---|
 | What this service is, who it serves | KB `04-business-domain`, `06-modules`, `01-project-structure` |
+| How the business works: lifecycles, core flows, governing numbers, defects | KB `05-domain-model`, `10-core-flows`, `13-business-rules`, `17-async-events`; then the code for every status value, check, error string and setting (config files, seed data, settings tables) |
 | Dependencies that can take it down | KB `14-integrations`, `17-async-events`, `08-database-schema` |
 | Deploy / rollback | `.github/workflows/`, `.gitlab-ci.yml`, `Jenkinsfile`, `Dockerfile`, k8s manifests, `helm/`, `terraform/`, `Procfile`, deploy scripts in `package.json`/`Makefile` |
 | Health & readiness | actual health endpoints in the code, k8s probes, load-balancer config |
@@ -63,41 +75,58 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
   which is what a "third party is down" playbook has to name.
 - `provenlens routes` — the routes this service really serves, with their callers; the health and
   readiness checks in "Is it healthy?" are cited from here, not from a README.
-- `provenlens export --format mermaid` centred on the entry points (or the top `hotspots`) → the
-  service card's code graph; the **reach ledger** of those hotspots says what falls over with each.
+- `provenlens hotspots` → the service card's **reach ledger**: what falls over with each hub. The
+  code graph itself is the `/cwk-map` page, which carries the whole index; paste an
+  `export --format mermaid` only when it is small enough to read.
 
 ## Procedure
 1. **Pick the scope and name the service** the way the team says it out loud, not the folder name.
-2. **Harvest the operational facts** from the table above. When two sources disagree (the README
+2. **Write the business half first** (`references/writing-style.md`, "The business half comes
+   first"). Start from the KB, then open the code for every value you state: status numbers,
+   the checks in the core flow in order, the exact error text a user sees, timeouts and limits
+   with where they are read, what is inside one transaction and what survives a rollback, what a
+   timeout or cancellation gives back. Look for settings, flags and admin screens the code never
+   reads. When the KB and the code disagree, the code wins; correct the KB entry or report it.
+3. **Harvest the operational facts** from the table above. When two sources disagree (the README
    says one deploy command, CI does another), **believe the CI config** and note the discrepancy —
    a stale README is exactly how a runbook gets someone into trouble.
-3. **Build the failure catalogue from what this system really does.** Do not paste a generic list.
+4. **Build the failure catalogue from what this system really does.** Do not paste a generic list.
    Every incident entry must trace to something concrete: an integration that can time out, a queue
    with a DLQ, a migration that isn't backward-compatible, an auth dependency, a rate limit, a
    scheduled job. If the code cannot fail that way, leave it out.
-4. **Write each playbook as steps someone can execute**, in this shape:
+5. **Write each playbook as steps someone can execute**, in this shape:
+   ````
+   ### Orders stop appearing and the queue keeps growing
+
+   Most likely the consumer is failing and messages are landing in the DLQ. <One or two
+   sentences on why, tied to the business half.>
+
    ```
-   ### Symptom: orders stop appearing, queue depth climbing
-   Likely cause · Consumer is failing and messages are landing in the DLQ.
-   Where in code · `provenlens path OrdersConsumer#handle PaymentsClient#charge` →
-                   OrdersConsumer#handle (app/consumers/orders.rb:41) → OrderService#record (…:88)
-                   → PaymentsClient#charge (…:17)      [or: ❓ not reachable in the graph]
-   1. Confirm     — <exact command / dashboard / query>            → you should see …
-   2. Contain     — <the safe first action: scale, disable a flag, pause the consumer>
-   3. Diagnose    — <where the error is logged; what to grep for>
-   4. Fix         — <the action>            ⚠ DESTRUCTIVE / needs approval: <yes|no>
-   5. Verify      — <how you know it worked, an actual check not a feeling>
-   6. If it fails — escalate to <role>, and capture <what> for the postmortem
+   OrdersConsumer#handle      app/consumers/orders.rb:41
+     → OrderService#record      app/services/order_service.rb:88
+     → PaymentsClient#charge    app/clients/payments_client.rb:17
    ```
-5. **Mark what only a human knows — do not guess it.** Owners, on-call rotation, phone numbers,
+
+   1. <Confirm: the exact command or query, and what you should see.>
+   2. <Contain: the safe first action.>
+   3. <Diagnose: where the error is logged, what to search for.>
+   4. <Fix: the action. If it cannot be undone, say so plainly and name who approves.>
+   5. <Verify: an actual check.>
+   6. <Escalate to whom, and what to capture for the postmortem.>
+   ````
+   The chain comes from `provenlens path`, or reads `❓ not reachable in the graph`. The steps
+   keep the Confirm → Contain → Diagnose → Fix → Verify → Escalate order without the labels
+   shouting; write them as sentences.
+6. **Mark what only a human knows — do not guess it.** Owners, on-call rotation, phone numbers,
    SLA/SLO targets, business escalation, maintenance windows, whether an action needs sign-off.
-   These belong in a short **"Fill this in"** block at the top of the section that needs them.
+   Put them as `❓` rows in the service card and in the open-questions table at the end.
    A fabricated escalation path is worse than an empty one: someone will follow it.
-6. **Flag every dangerous action explicitly** — anything that deletes data, replays a queue,
-   restarts production, rolls back a migration, or touches money. Mark it `⚠ DESTRUCTIVE`, say what
-   it cannot be undone from, and state who must approve. **Never run these yourself** — this skill
+7. **Flag every dangerous action explicitly** — anything that deletes data, replays a queue,
+   restarts production, rolls back a migration, or touches money. Say in plain words that it
+   cannot be undone and why, and who must approve. This is where emphasis belongs; it loses its
+   force if it is also on every other paragraph. **Never run these yourself** — this skill
    writes a document, it does not operate anything.
-7. **Verify the commands you wrote are real.** Every command must come from a file you read (cite
+8. **Verify the commands you wrote are real.** Every command must come from a file you read (cite
    it). If you inferred one, label it `UNVERIFIED — confirm before relying on this`. A runbook full
    of plausible-looking commands that don't exist is the failure mode to avoid.
 
@@ -107,59 +136,60 @@ Resolve this skill's `references/` dir first (call it `$SKILL_DIR`):
 `${CLAUDE_PLUGIN_ROOT}/skills/cwk-runbook/references` if `CLAUDE_PLUGIN_ROOT` is set, else the
 `references/` folder next to this SKILL.md, else `$HOME/.claude/skills/cwk-runbook/references`.
 ```bash
-node "$SKILL_DIR/render-html.cjs" <md> <html> "Runbook — <service>"
+node "$SKILL_DIR/render-html.cjs" <md> <html> "<service> runbook"
 ```
 
 ```
-# Runbook — <service>
+# <service> runbook
 
-## In plain words (for anyone, including non-engineers)
-What this service does, what users lose when it is down, and how urgent that is.
+<One short paragraph: the commit it describes, that chains come from the provenlens index and at
+what resolution (or ⚠️ grep-depth only), and that ❓ marks what only the team knows.>
 
-## Fill this in (owner-only — the tool cannot know these)
-| Field | Value |
-| Service owner / team | ❓ |
-| On-call channel & rotation | ❓ |
-| Severity ladder & SLA | ❓ |
-| Business escalation (who decides on customer impact) | ❓ |
+## What this service is
+What it does, who uses it, what they lose when it is down, and what it shares with other systems
+(a database, a queue) that matters in an incident.
+
+## How <the domain> works
+Read once before being paged. Subsections as the system needs them, for example:
+### <Main object> from start to finish   — status table: value · name · who moves it · what has happened by then
+### <Core flow>, step by step           — numbered, in code order, checks + exact error text + file:line
+### <Balancing value: stock, money, quota> — how each step changes it; a query to check it
+### When the user walks away           — timeouts, cancellation, expiry, what is given back
+### <Payment / integration / after-sales> — as the code does it
+### What the admin side offers but the code ignores — table
+## Business defects on-call will run into
+| Defect | What you will see | Where |
 
 ## Service card
-Purpose · criticality · runtime & where it runs · upstream/downstream dependencies · data stores ·
-queues/topics · scheduled jobs. Each with a file citation.
-**Code graph (provenlens)** — `export --format mermaid` centred on the entry points (or the top
-`hotspots`), pasted verbatim, then the **reach ledger** of those hotspots: what stops working when
-each one does. State the commit the graph was taken at, or `⚠️ grep-depth only (no provenlens index)`.
+| Runtime · deployed as · needs · shares data with · owner ❓ · on-call ❓ · SLA ❓ · approver ❓ · environments ❓ |
+Then the **reach ledger** of the top `hotspots`, in prose or a short table: what stops working
+when each one does. Point at the full code graph (`/cwk-map`, which embeds the whole index and is
+searchable by node). Paste a `provenlens export --format mermaid` only when it is small enough to
+read; a hairball helps nobody.
 
-## Before you touch anything
-Access you need · which environment is which · the read-only checks that are always safe.
+## Checking health
+The exact checks, in order, with what a good answer looks like. Routes from `provenlens routes`
+or the router file. Safe read-only commands. Where the logs are.
 
-## Is it healthy?
-The exact checks, in order, with what a good answer looks like. Health/readiness routes come
-from `provenlens routes` or the router file — cite which.
+## Deploying and rolling back
+Normal deploy · how to roll back · what a rollback does not undo (migrations, consumed messages,
+sent emails, money, stock).
 
-## Deploy · rollback
-Normal deploy · how to roll back · how long it takes · what rollback does NOT undo
-(migrations, consumed messages, sent emails) — this line matters more than the rest.
+## Incidents
+One per real failure mode, in the shape from step 5.
 
-## Incident playbooks
-One per real failure mode, in the Symptom/Confirm/Contain/Diagnose/Fix/Verify/Escalate shape, each
-with its **Where in code** chain (or `❓ not reachable in the graph`).
+## Alerting
+What exists, and the first alert worth building if none does.
 
-## Alerts → what to do
-| Alert / log signature | Means | First action | Playbook |
+## Data and recovery
+Migrations · queue replay · backups and restore · reconciliation. Say which steps cannot be undone.
 
-## Data & recovery
-Migrations (forward + backward) · DLQ / redrive · backups & restore · reconciliation jobs.
-Mark destructive steps.
+## Asking questions later
+This is a snapshot at commit <sha>. For "what happens if X fails now", run `/cwk-ask` in the
+repo: it starts from this runbook and re-checks the chains against the current index.
 
-## Ask this runbook
-A runbook is a snapshot. For "what happens if X fails *now*", ask `/cwk-ask` inside the repo: it
-reads this file, re-runs `provenlens path` / `impact` against the current index and answers with the
-live chain, citing the playbook it started from. Graphs above were taken at commit <sha>.
-
-## Known gaps
-What could not be determined from the repo, and who could answer it. Be specific — this list is
-the to-do that makes the next version of this runbook better.
+## Open questions for the team
+| Question | Who can answer |
 ```
 
 Also append one row to `cwk-sessions/runbook/_journal.md`
@@ -184,7 +214,11 @@ default is zero footprint in repos you don't own.
   in an incident, stopping the bleeding beats being right.
 - **Say when a failure mode has no known fix.** "We don't have a procedure for this" is real
   information; an invented procedure is not.
-- Keep it short enough to be read under stress: imperative sentences, no essays, tables over prose.
+- The operational half is terse: imperative steps, tables for lookups. The business half explains
+  in prose, because it is read before the incident, not during it.
+- Tone per `references/writing-style.md`: plain sentences about the system, no commentary on your
+  own text ("this matters", "read this first", "which is itself a finding"), rare emphasis, no
+  framing labels such as "In plain words", no repeated talk about the tooling.
 
 ## Common rationalizations
 
@@ -193,21 +227,34 @@ default is zero footprint in repos you don't own.
 | "I'll put a sensible default escalation path" | An invented escalation path is worse than an empty one: at 2am someone will follow it. Leave `❓`. |
 | "This command is standard, no need to cite it" | Standard for which version, which cluster, which account? A command nobody verified is the one that fails when it matters. |
 | "A generic incident list is better than nothing" | It is not. It buries the two failures this system actually has under twenty it cannot have. |
+| "The KB already explains the business, the runbook can skip it" | The KB is not open at 2am. A playbook that says "lock_stock drifted" is useless to someone who does not know what lock_stock is. |
+| "Bold and ⚠ help people skim" | Only when they are rare. On every paragraph they read as noise, and the one real warning is lost. |
+| "The KB says so, no need to open the code" | KB entries go stale and some were wrong to begin with. Every number and status you state gets checked in the source. |
 | "The README says the deploy command is X" | And CI says Y. Believe CI, and record the discrepancy — a stale README is how a runbook gets someone into trouble. |
 
 ## Red flags
 
 - A command in the document that you did not read out of a file.
 - A playbook with a Fix step but no Contain step.
-- A destructive action with no ⚠ and no named approver.
+- The business half describes the domain in general terms with no status values, error strings or
+  numbers from this codebase.
+- Sentences about the document rather than the system ("this section matters most", "it is worth
+  noting"), or ⚠ and bold on most paragraphs.
+- A destructive action that does not say it cannot be undone, or names no approver.
 - The rollback section does not say what rollback **cannot** undo.
 
 ## Verification
 
+- [ ] "How <the domain> works" comes before the operational half and covers the lifecycle with real
+      status values, the core flow step by step with the checks and error text, the governing
+      numbers with where they are read, and the defects table.
+- [ ] Every value in the business half was checked in the source, not only taken from the KB.
+- [ ] Read the finished page once against `references/writing-style.md`: no self-commentary, no
+      framing labels, emphasis only where something is dangerous.
 - [ ] Every command is cited to a file, or labelled `UNVERIFIED`.
-- [ ] The "Fill this in" `❓` block is present — owners/on-call/SLA are not invented.
+- [ ] Owners, on-call, SLA and approvers are `❓` in the service card, not invented.
 - [ ] Every playbook has Confirm → Contain → Diagnose → Fix → Verify → Escalate.
-- [ ] Destructive steps marked, with what they cannot be undone from.
+- [ ] Destructive steps say plainly what they cannot be undone from and who approves.
 - [ ] Known gaps listed with **who** can answer each.
-- [ ] Service card carries the pasted code graph + reach ledger (or the ⚠️ grep-depth line); every
-      playbook has a Where-in-code chain or `❓ not reachable in the graph`.
+- [ ] Service card carries the reach ledger and points at the code graph (or the ⚠️ grep-depth
+      line); every playbook has a call chain or `❓ not reachable in the graph`.

@@ -14,6 +14,41 @@ noted per release when it changed.
 
 ---
 
+## [3.3.0] — 2026-09-19
+
+### Added
+
+- **`/cwk-map` draws from the whole index, not a sample.** `provenlens export` seeds from the
+  busiest hubs and stops near 400 nodes whatever cap it is given; on mall that was 403 of 18,683
+  symbols, 379 of them entity fields, so `paySuccess` could not be found on the page at all. The
+  new `provenlens-full.cjs` reads the index read-only (guarded by schema version, falling back to
+  the export on anything unexpected) and ships every symbol, every edge with its call-site line,
+  every unresolved and library call, and the source of every indexed file, gzipped into the page.
+  `explorer-template.html` searches all of it and draws the neighbourhood of the chosen symbol on
+  demand: callers left, callees right, depth 1 or 2, type relations on request. The detail panel
+  lists every caller and callee with line numbers and edge confidence, the unresolved calls, the
+  blast radius four hops out and the symbol's full source with call lines highlighted; it can be
+  dragged, resized and minimised. `PROVENLENS_FULL=0` keeps the sampled picture.
+- **`/cwk-runbook` explains the business before the playbooks.** A new
+  `references/writing-style.md` sets out what the business half must contain (lifecycles with real
+  status values, the core flow step by step with the checks and error text, the numbers that
+  govern behaviour, the defects on-call will meet) and how the page should read, with before/after
+  examples. The skill's procedure, output shape, red flags and checklist follow it; "In plain
+  words" and the "Fill this in" block are gone, owners and on-call become `❓` rows in the service
+  card.
+
+### Fixed
+
+- **The sampled graph drew every node grey with an empty legend.** The provenlens adapter emitted
+  its layer table as `legend`; the viewer reads `layers`.
+- **The shared Markdown renderer cut every wrapped line into its own paragraph**, so prose written
+  at 100 columns read as broken sentences, and a code block inside a numbered step restarted the
+  numbering at 1. Wrapped lines now join, list items absorb their continuation lines and indented
+  code, and an ordered list keeps its start number. Every skill bundling `html-builder.js` and the
+  KB hub page pick this up. A smoke test pins both cases.
+
+---
+
 ## [3.2.1] — 2026-09-08
 
 ### Fixed

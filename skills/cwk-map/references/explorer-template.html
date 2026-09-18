@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Everything this page shows is text taken from the scanned repository, so it is untrusted.
+     No inline event handlers, no remote origins beyond the Cytoscape CDN (dropped entirely when
+     vendor/cytoscape.min.js is inlined), and no network egress from this page. -->
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__PROJECT__ — Code Explorer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+<style>
+  :root{ --bg:#0f1115; --panel:#171a21ee; --border:#2a2f3a; --text:#e6e9ef; --muted:#9aa3b2; --accent:#7c9cff;
+         --ok:#34c78a; --warn:#f7a34f; --bad:#e5645c; --code:#0b0d12; }
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+  #cy{position:absolute;inset:0}
+  .panel{box-sizing:border-box;position:absolute;background:var(--panel);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:12px;z-index:10}
+  button{background:#222734;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font:inherit;cursor:pointer}
+  button:hover{border-color:var(--accent)} button.on{border-color:var(--accent);color:var(--accent)}
+  code,pre,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  #top{top:12px;left:12px;right:12px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  #top h1{font-size:15px;margin:0 6px 0 0;white-space:nowrap}
+  #search{flex:1 1 260px;min-width:180px;background:#0b0d12;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:7px 10px;font:inherit}
+  #meta{flex-basis:100%;color:var(--muted);font-size:11px}
+  #side{top:112px;left:12px;width:340px;max-width:calc(100% - 24px);bottom:12px;display:flex;flex-direction:column}
+  #side .hd{padding:8px 12px;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+  #results{overflow:auto;flex:1;padding:4px 0}
+  .res{padding:6px 12px;cursor:pointer;border-bottom:1px solid #1e222b}
+  .res:hover,.res.sel{background:#1f2430}
+  .res .n{font-weight:600} .res .f{color:var(--muted);font-size:11px;word-break:break-all}
+  .res .c{float:right;color:var(--muted);font-size:11px}
+  #legend{bottom:12px;left:364px;padding:8px 10px;font-size:11px;display:flex;gap:10px;flex-wrap:wrap;max-width:calc(100% - 800px)}
+  #legend span.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:middle}
+  #details{top:112px;right:12px;width:520px;max-width:calc(100% - 24px);max-height:calc(100% - 124px);overflow:auto;resize:both;min-width:260px;min-height:44px;display:none;padding:0 14px 12px}
+  #details .bar{position:sticky;top:0;background:#171a21;cursor:move;user-select:none;margin:0 -14px 8px;padding:10px 70px 8px 14px;border-bottom:1px solid var(--border);z-index:2}
+  #details .bar h2{font-size:15px;margin:0;word-break:break-all}
+  #details .btn{position:absolute;top:8px;cursor:pointer;color:var(--muted);font-size:17px;line-height:1;padding:0 4px;z-index:3} #details .btn:hover{color:var(--text)}
+  #dclose{right:10px} #dmin{right:36px}
+  #details.min{height:auto!important;resize:none;overflow:hidden;padding-bottom:0} #details.min #dbody{display:none} #details.min .bar{margin-bottom:0;border-bottom:0}
+  .sub{color:var(--muted);font-size:11px;word-break:break-all}
+  .chip{display:inline-block;background:#222734;border:1px solid var(--border);border-radius:999px;padding:1px 8px;font-size:11px;margin:4px 3px 0 0}
+  .chip.warn{border-color:var(--warn);color:var(--warn)} .chip.bad{border-color:var(--bad);color:var(--bad)}
+  details.sec{margin-top:10px;border-top:1px solid var(--border);padding-top:6px}
+  details.sec>summary{cursor:pointer;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;list-style:none}
+  details.sec>summary::before{content:"▸ ";} details.sec[open]>summary::before{content:"▾ ";}
+  details.sec>summary b{color:var(--text)}
+  ul.l{margin:4px 0;padding:0;list-style:none} ul.l li{padding:3px 0;border-bottom:1px solid #1e222b;font-size:12px}
+  .nav{cursor:pointer;color:#cdd6ff} .nav:hover{color:var(--accent);text-decoration:underline}
+  .via{color:var(--muted);font-size:10.5px;margin-left:4px}
+  .ln{color:var(--muted);font-size:11px;min-width:44px;display:inline-block}
+  .fqn{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;word-break:break-all;margin-top:6px}
+  pre.src{background:var(--code);border:1px solid var(--border);border-radius:8px;padding:6px 0;margin:6px 0;font-size:11.5px;line-height:1.5;overflow:auto;max-height:60vh}
+  pre.src div{padding:0 10px;white-space:pre} pre.src div.call{background:#16301f} pre.src div.miss{background:#3a2a12}
+  pre.src span.no{color:#5c6577;display:inline-block;width:46px;user-select:none}
+  .note{color:var(--muted);font-size:11px;margin-top:4px}
+  #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px;z-index:50}
+  #trunc{position:absolute;bottom:64px;right:12px;color:var(--warn);font-size:11px;z-index:10;max-width:340px;text-align:right}
+  @media (max-width:900px){ #side{display:none} #legend{left:12px;max-width:calc(100% - 24px)} #details{top:auto;bottom:12px;max-height:55%} }
+</style>
+</head>
+<body>
+<div id="cy"></div>
+<div id="loading">Unpacking the index…</div>
+
+<div id="top" class="panel">
+  <h1>🕸 __PROJECT__</h1>
+  <input id="search" placeholder="Search every symbol — name, qualified name or file path…" autocomplete="off" spellcheck="false">
+  <button id="back" title="Previous symbol">← Back</button>
+  <button id="d1" class="on" title="Direct callers and callees">Depth 1</button>
+  <button id="d2" title="Two hops each way">Depth 2</button>
+  <button id="struct" title="Also draw extends / implements / implemented-by">Types</button>
+  <button id="fit">Fit</button>
+  <span id="meta"></span>
+</div>
+
+<div id="side" class="panel">
+  <div class="hd" id="sidehd">Hotspots — most called</div>
+  <div id="results"></div>
+</div>
+
+<div id="legend" class="panel"></div>
+<div id="trunc"></div>
+
+<div id="details" class="panel">
+  <span class="btn" id="dmin" title="Minimise / restore">–</span>
+  <span class="btn" id="dclose" title="Close">×</span>
+  <div class="bar" id="dbar" title="Drag to move · drag the bottom-right corner to resize · double-click to minimise"><h2 id="dtitle"></h2></div>
+  <div id="dbody"></div>
+</div>
+
+<script id="graph-data" type="application/octet-stream">__GRAPH_DATA__</script>
+<script>
+'use strict';
+const LAYERS = __LAYERS__;
+const LCOLOR = Object.fromEntries(LAYERS.map(l => [l.id, l.color]));
+const LLABEL = Object.fromEntries(LAYERS.map(l => [l.id, l.label]));
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const fmt = n => Number(n).toLocaleString('en-US');
+
+let D, K, N;                       // data, kind strings, symbol count
+let OUT, IN, UNRES, PARENT, KIDS;  // adjacency built once
+let depth = 1, showTypes = false, current = -1;
+const trail = [];
+const CALLISH = new Set(['calls', 'instantiates']);
+const TYPEISH = new Set(['extends', 'implements', 'implemented-by']);
+
+// ---------- load ----------
+(async () => {
+  try {
+    const b64 = $('graph-data').textContent.trim();
+    const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const text = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+    D = JSON.parse(text);
+  } catch (err) {
+    $('loading').textContent = 'Could not unpack the index in this browser: ' + err.message;
+    return;
+  }
+  index();
+  $('loading').remove();
+  const s = D.stats;
+  $('meta').textContent = `${fmt(s.symbols)} symbols · ${fmt(s.edges)} edges · ${fmt(s.files)} files · `
+    + (s.resolution != null ? `${s.resolution}% of in-repo calls resolved · ` : '')
+    + `${fmt(s.missed)} unresolved · ${fmt(s.library)} into libraries · provenlens index, complete (not sampled)`
+    + (D.generatedAt ? ` · built ${D.generatedAt.slice(0, 10)}` : '');
+  $('legend').innerHTML = LAYERS.filter(l => l.id !== 'domain' && l.id !== 'external')
+    .map(l => `<span><span class="dot" style="background:${l.color}"></span>${esc(l.label)}</span>`).join('')
+    + '<span style="color:var(--muted)">— dashed edge = inferred (confidence &lt; 1)</span>';
+  showHotspots();
+  const want = decodeURIComponent((location.hash.match(/sym=([^&]+)/) || [])[1] || '');
+  const start = want ? D.syms.findIndex(x => x[1] === want) : -1;
+  focus(start >= 0 ? start : (HOT[0] ?? 0), false);
+})();
+
+function index() {
+  K = D.kinds; N = D.syms.length;
+  OUT = Array.from({ length: N }, () => []); IN = Array.from({ length: N }, () => []);
+  D.edges.forEach((e, i) => { OUT[e[0]].push(i); IN[e[1]].push(i); });
+  UNRES = Array.from({ length: N }, () => []);
+  D.unresolved.forEach((u, i) => UNRES[u[0]].push(i));
+  // Declared-in, by line containment inside one file: the one rule that holds for Java, Ruby
+  // and TypeScript alike, where qualified-name conventions differ.
+  PARENT = new Int32Array(N).fill(-1); KIDS = Array.from({ length: N }, () => []);
+  const byFile = new Map();
+  D.syms.forEach((s, i) => { if (!byFile.has(s[3])) byFile.set(s[3], []); byFile.get(s[3]).push(i); });
+  for (const ids of byFile.values()) {
+    ids.sort((a, b) => D.syms[a][4] - D.syms[b][4] || D.syms[b][5] - D.syms[a][5]);
+    const stack = [];
+    for (const i of ids) {
+      const [, , , , st, en] = D.syms[i];
+      while (stack.length && D.syms[stack[stack.length - 1]][5] < st) stack.pop();
+      if (stack.length) { PARENT[i] = stack[stack.length - 1]; KIDS[PARENT[i]].push(i); }
+      stack.push(i);
+    }
+  }
+}
+
+// ---------- helpers ----------
+const S = i => D.syms[i];
+const kindOf = i => K[S(i)[2]];
+const fileOf = i => D.files[S(i)[3]] || ['', '', 0];
+function layerOf(i) {
+  const [p0, , test] = fileOf(i); const p = p0.toLowerCase();
+  if (test) return 'test';
+  if (/(^|\/)(config|settings)(\/|\.)|\.(yml|yaml|toml|ini)$/.test(p)) return 'config';
+  if (/(controller|resolver|route|handler|view|component|page|api)/.test(p)) return 'presentation';
+  if (/(repository|repositories|mapper|dao|entity|entities|model|models|migration|schema|\.xml$|\.sql$)/.test(p)) return 'data';
+  if (/(service|usecase|use-case|interactor|domain|worker|job|listener|consumer|publisher)/.test(p)) return 'business';
+  if (/(util|helper|lib|infra|infrastructure|client|adapter|middleware)/.test(p)) return 'infrastructure';
+  return 'business';
+}
+const uniq = a => new Set(a).size;
+const callersOf = i => IN[i].filter(e => CALLISH.has(K[D.edges[e][2]]));
+const calleesOf = i => OUT[i].filter(e => CALLISH.has(K[D.edges[e][2]]));
+const nav = (i, label) => `<span class="nav" data-sym="${i}">${esc(label ?? S(i)[0])}</span>`;
+const loc = i => `${fileOf(i)[0]}:${S(i)[4]}`;
+function how(e) {
+  const [, , k, conf, via] = D.edges[e];
+  const parts = [K[k]];
+  if (K[via] && K[via] !== 'direct' && K[via] !== 'declaration') parts.push(K[via]);
+  if (conf < 1) parts.push('conf ' + conf);
+  return parts.join(' · ');
+}
+
+// ---------- hotspots & search ----------
+const HOT = [];
+function showHotspots() {
+  if (!HOT.length) {
+    const scored = [];
+    for (let i = 0; i < N; i++) {
+      const k = kindOf(i);
+      if (k === 'field' || k === 'file' || fileOf(i)[2]) continue;
+      const c = uniq(callersOf(i).map(e => D.edges[e][0])); if (c) scored.push([c, i]);
+    }
+    scored.sort((a, b) => b[0] - a[0]);
+    scored.slice(0, 60).forEach(x => HOT.push(x[1]));
+  }
+  $('sidehd').textContent = `Hotspots — most called (${HOT.length})`;
+  $('results').innerHTML = HOT.map(resRow).join('');
+}
+function resRow(i) {
+  return `<div class="res" data-sym="${i}"><span class="c" title="calling symbols ↙ · called symbols ↘">${uniq(callersOf(i).map(e => D.edges[e][0]))}↙ ${uniq(calleesOf(i).map(e => D.edges[e][1]))}↘</span>`
+    + `<div class="n">${esc(S(i)[0])} <span class="via">${esc(kindOf(i))}</span></div><div class="f">${esc(loc(i))}</div></div>`;
+}
+let searchTimer = 0;
+$('search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 120); });
+$('search').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { const r = $('results').querySelector('.res'); if (r) focus(+r.dataset.sym); }
+});
+function runSearch() {
+  const q = $('search').value.trim().toLowerCase();
+  if (!q) return showHotspots();
+  const hits = [];
+  for (let i = 0; i < N; i++) {
+    const [name, fqn] = S(i); const n = name.toLowerCase();
+    let sc = n === q ? 0 : n.startsWith(q) ? 1 : n.includes(q) ? 2 : fqn.toLowerCase().includes(q) ? 3
+           : fileOf(i)[0].toLowerCase().includes(q) ? 4 : -1;
+    if (sc < 0) continue;
+    if (kindOf(i) === 'file' || kindOf(i) === 'field') sc += 0.5;
+    hits.push([sc, -callersOf(i).length, i]);
+  }
+  hits.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  $('sidehd').textContent = `${fmt(hits.length)} match${hits.length === 1 ? '' : 'es'}` + (hits.length > 300 ? ' — first 300 shown, refine to narrow' : '');
+  $('results').innerHTML = hits.slice(0, 300).map(h => resRow(h[2])).join('') || '<div class="res">No symbol matches.</div>';
+}
+
+// ---------- graph ----------
+const cy = cytoscape({
+  container: $('cy'), wheelSensitivity: 0.2, minZoom: 0.05, maxZoom: 3,
+  style: [
+    { selector: 'node', style: {
+      'background-color': 'data(color)', 'label': 'data(label)', 'color': '#e6e9ef', 'font-size': 10,
+      'text-valign': 'center', 'text-halign': 'right', 'text-margin-x': 6, 'width': 14, 'height': 14,
+      'border-width': 1, 'border-color': '#0b0d12', 'text-max-width': 220, 'text-wrap': 'ellipsis' } },
+    { selector: 'node[?center]', style: { 'width': 26, 'height': 26, 'border-width': 3, 'border-color': '#fff', 'font-size': 12, 'font-weight': 700 } },
+    { selector: 'node[side<0]', style: { 'text-halign': 'left', 'text-margin-x': -6 } },
+    { selector: 'edge', style: { 'width': 1.2, 'line-color': '#4a5263', 'target-arrow-color': '#4a5263',
+      'target-arrow-shape': 'triangle', 'arrow-scale': 0.8, 'curve-style': 'bezier', 'opacity': 0.8 } },
+    { selector: 'edge[?inferred]', style: { 'line-style': 'dashed' } },
+    { selector: 'edge[type="type"]', style: { 'line-color': '#e74c3c', 'target-arrow-color': '#e74c3c' } },
+    { selector: 'node:selected', style: { 'border-color': '#7c9cff', 'border-width': 3 } },
+  ],
+});
+cy.on('tap', 'node', e => focus(+e.target.id()));
+
+const MAX_DRAWN = 260;
+function focus(i, push = true) {
+  if (i < 0 || i >= N) return;
+  if (push && current >= 0 && current !== i) trail.push(current);
+  current = i;
+  try { window.history.replaceState(null, '', '#sym=' + encodeURIComponent(S(i)[1])); } catch {}
+  draw(i); showDetails(i);
+  document.querySelectorAll('.res.sel').forEach(r => r.classList.remove('sel'));
+  const r = document.querySelector(`.res[data-sym="${i}"]`); if (r) r.classList.add('sel');
+}
+function draw(c) {
+  const accept = e => CALLISH.has(K[D.edges[e][2]]) || (showTypes && TYPEISH.has(K[D.edges[e][2]]));
+  const side = new Map([[c, 0]]); const dist = new Map([[c, 0]]); const usedEdges = new Set();
+  let truncated = 0;
+  for (const dir of [-1, 1]) {
+    let frontier = [c];
+    for (let d = 1; d <= depth && frontier.length; d++) {
+      const next = [];
+      for (const n of frontier) {
+        for (const e of (dir < 0 ? IN[n] : OUT[n])) {
+          if (!accept(e)) continue;
+          const m = dir < 0 ? D.edges[e][0] : D.edges[e][1];
+          if (side.has(m)) { usedEdges.add(e); continue; }
+          if (side.size >= MAX_DRAWN) { truncated++; continue; }
+          side.set(m, dir * d); dist.set(m, d); usedEdges.add(e); next.push(m);
+        }
+      }
+      frontier = next;
+    }
+  }
+  // Callers to the left, callees to the right, one column per hop: reads like a call trace.
+  const cols = new Map();
+  for (const [n, s] of side) { if (!cols.has(s)) cols.set(s, []); cols.get(s).push(n); }
+  const els = [];
+  // A hop with hundreds of symbols wraps into several sub-columns growing outward, so a hub
+  // reads as a block rather than a line thousands of pixels tall.
+  const ROWS = 24, HOP = 420, SUB = 300;
+  const hopX = new Map(); let xl = 0, xr = 0;
+  for (const s of [...cols.keys()].sort((a, b) => Math.abs(a) - Math.abs(b))) {
+    const subs = Math.ceil(cols.get(s).length / ROWS);
+    if (s < 0) { xl -= HOP; hopX.set(s, xl); xl -= (subs - 1) * SUB; }
+    else if (s > 0) { xr += HOP; hopX.set(s, xr); xr += (subs - 1) * SUB; }
+    else hopX.set(0, 0);
+  }
+  for (const [s, ids] of cols) {
+    ids.sort((a, b) => S(a)[0].localeCompare(S(b)[0]));
+    const rows = Math.min(ROWS, ids.length);
+    ids.forEach((n, k) => els.push({ group: 'nodes', position: {
+        x: hopX.get(s) + Math.sign(s) * Math.floor(k / ROWS) * SUB, y: ((k % ROWS) - (rows - 1) / 2) * 30 },
+      data: { id: String(n), label: S(n)[0] + (n === c ? '' : '  ' + fileOf(n)[0].split('/').pop() + ':' + S(n)[4]),
+              color: LCOLOR[layerOf(n)] || '#7f8c8d', center: n === c, side: s } }));
+  }
+  for (const e of usedEdges) {
+    const [a, b, k, conf] = D.edges[e];
+    els.push({ group: 'edges', data: { id: 'e' + e, source: String(a), target: String(b),
+      inferred: conf < 1, type: TYPEISH.has(K[k]) ? 'type' : 'call' } });
+  }
+  cy.batch(() => { cy.elements().remove(); cy.add(els); });
+  cy.layout({ name: 'preset' }).run();
+  cy.fit(undefined, 60);
+  const callers = uniq(callersOf(c).map(e => D.edges[e][0])), callees = uniq(calleesOf(c).map(e => D.edges[e][1]));
+  $('trunc').textContent = truncated
+    ? `Drawing capped at ${MAX_DRAWN} nodes (${fmt(truncated)} more links not drawn). The panel lists all ${fmt(callers)} calling symbols and ${fmt(callees)} called ones.`
+    : '';
+}
+
+// ---------- details ----------
+function showDetails(i) {
+  const [name, fqn, , , st, en, sig] = S(i);
+  const [file, lang, test] = fileOf(i);
+  $('details').style.display = 'block'; expandDetails();
+  $('dtitle').textContent = name;
+  const ins = callersOf(i), outs = calleesOf(i), un = UNRES[i];
+  const miss = un.filter(u => !D.unresolved[u][4]), lib = un.filter(u => D.unresolved[u][4]);
+  let h = `<div class="sub">${esc(file)}:${st}${en && en !== st ? '–' + en : ''}</div>`;
+  h += `<span class="chip">${esc(K[S(i)[2]])}</span><span class="chip">${esc(LLABEL[layerOf(i)] || '')}</span><span class="chip">${esc(lang)}</span>`;
+  const nIn = uniq(ins.map(e => D.edges[e][0])), nOut = uniq(outs.map(e => D.edges[e][1]));
+  h += `<span class="chip" title="${fmt(ins.length)} call sites">${fmt(nIn)} callers · ${fmt(ins.length)} call sites</span>`
+    + `<span class="chip" title="${fmt(outs.length)} call sites">${fmt(nOut)} callees · ${fmt(outs.length)} call sites</span>`;
+  if (miss.length) h += `<span class="chip bad">${miss.length} unresolved</span>`;
+  if (test) h += `<span class="chip warn">test code</span>`;
+  h += `<div class="fqn">${esc(fqn)}</div>`;
+  if (sig) h += `<div class="fqn" style="color:var(--muted)">${esc(sig)}</div>`;
+  if (PARENT[i] >= 0) h += `<div class="note">Declared in ${nav(PARENT[i])} <span class="via">${esc(K[S(PARENT[i])[2]])}</span></div>`;
+
+  // Callers, grouped by the calling symbol, with every call-site line.
+  const byCaller = new Map();
+  for (const e of ins) { const a = D.edges[e][0]; if (!byCaller.has(a)) byCaller.set(a, []); byCaller.get(a).push(e); }
+  h += sec(`Callers`, byCaller.size, [...byCaller].sort((x, y) => loc(x[0]).localeCompare(loc(y[0]))).map(([a, es]) =>
+    `<li>${nav(a)}<span class="via">${esc(how(es[0]))}</span><div class="sub">${esc(fileOf(a)[0])}: line ${es.map(e => D.edges[e][5]).filter(Boolean).join(', ') || S(a)[4]}</div></li>`), true,
+    ins.length ? '' : 'Nothing in this repository calls it. An entry point (route, job, framework callback) or dead code — `provenlens dead` tells them apart.');
+
+  // Callees in call order.
+  const outSorted = outs.slice().sort((x, y) => D.edges[x][5] - D.edges[y][5]);
+  h += sec('Callees (in call order)', outSorted.length, outSorted.map(e => { const b = D.edges[e][1];
+    return `<li><span class="ln">L${D.edges[e][5] || '?'}</span>${nav(b)}<span class="via">${esc(how(e))}</span><div class="sub">${esc(loc(b))}</div></li>`; }), true);
+
+  if (miss.length) h += sec('Unresolved calls — could be in this repo, not linked', miss.length, miss.map(u => { const r = D.unresolved[u];
+    return `<li><span class="ln">L${r[3]}</span><span class="mono">${esc(r[2] ? r[2] + '.' : '')}${esc(r[1])}()</span><span class="via">${esc(K[r[5]])}</span></li>`; }), true,
+    '', 'These are the calls the resolution figure counts as missed. Read them in the source before trusting the callee list as complete.');
+
+  if (lib.length) {
+    const byOwner = new Map();
+    for (const u of lib) { const r = D.unresolved[u]; const o = r[6] || K[r[5]].replace(/^external:?/, '') || 'library';
+      if (!byOwner.has(o)) byOwner.set(o, []); byOwner.get(o).push(r); }
+    h += sec('Library / framework calls', lib.length, [...byOwner].sort((a, b) => b[1].length - a[1].length).map(([o, rs]) =>
+      `<li><b>${esc(o)}</b> ×${rs.length}<div class="sub">${rs.map(r => `L${r[3]} ${esc(r[1])}`).join(' · ')}</div></li>`), false);
+  }
+
+  const kids = KIDS[i];
+  if (kids.length) h += sec('Members', kids.length, kids.map(k => `<li><span class="ln">L${S(k)[4]}</span>${nav(k)} <span class="via">${esc(kindOf(k))} · ${callersOf(k).length} callers</span></li>`), kids.length <= 40);
+
+  const types = [...IN[i], ...OUT[i]].filter(e => TYPEISH.has(K[D.edges[e][2]]));
+  if (types.length) h += sec('Type relations', types.length, types.map(e => { const [a, b] = D.edges[e]; const o = a === i ? b : a;
+    return `<li>${a === i ? 'this' : nav(a)} <span class="via">${esc(K[D.edges[e][2]])}</span> ${b === i ? 'this' : nav(b)}<div class="sub">${esc(loc(o))}</div></li>`; }), false);
+
+  h += impactSection(i);
+  h += sourceSection(i);
+  h += `<details class="sec"><summary>Same answer from the terminal</summary><pre class="src"><div>provenlens node "${esc(fqn)}"</div><div>provenlens impact "${esc(fqn)}"</div></pre></details>`;
+  $('dbody').innerHTML = h;
+  $('details').scrollTop = 0;
+}
+function sec(title, count, items, open, empty = '', note = '') {
+  if (!count && !empty) return '';
+  return `<details class="sec"${open ? ' open' : ''}><summary>${esc(title)} <b>(${fmt(count)})</b></summary>`
+    + (note ? `<div class="note">${esc(note)}</div>` : '')
+    + (count ? `<ul class="l">${items.join('')}</ul>` : `<div class="note">${esc(empty)}</div>`) + `</details>`;
+}
+function impactSection(i) {
+  // Transitive callers: what a change here can reach. Same walk as `provenlens impact`, depth 4.
+  const seen = new Set([i]); let frontier = [i]; const levels = [];
+  for (let d = 1; d <= 4 && frontier.length; d++) {
+    const next = [];
+    for (const n of frontier) for (const e of IN[n]) {
+      const k = K[D.edges[e][2]]; if (!CALLISH.has(k) && k !== 'implemented-by') continue;
+      const a = D.edges[e][0]; if (seen.has(a)) continue; seen.add(a); next.push(a);
+    }
+    if (next.length) levels.push(next); frontier = next;
+  }
+  const total = levels.reduce((s, l) => s + l.length, 0);
+  if (!total) return '';
+  const tests = levels.flat().filter(n => fileOf(n)[2]).length;
+  const files = new Set(levels.flat().map(n => S(n)[3])).size;
+  return sec(`Blast radius — transitive callers, 4 hops`, total, levels.map((l, d) =>
+    `<li><b>Hop ${d + 1}</b> — ${l.length} symbols<div class="sub">${l.slice(0, 400).map(n => nav(n)).join(' · ')}${l.length > 400 ? ` · … ${l.length - 400} more` : ''}</div></li>`), false,
+    '', `${fmt(total)} symbols in ${fmt(files)} files reach this; ${fmt(tests)} of them are test code.`);
+}
+function sourceSection(i) {
+  const [, , , fIdx, st, en] = S(i);
+  const src = D.source[fIdx];
+  if (src == null) return `<details class="sec"><summary>Source</summary><div class="note">Not embedded (file too large or unreadable).</div></details>`;
+  const lines = src.split('\n');
+  const from = Math.max(1, st), to = Math.min(lines.length, en >= st ? en : st + 30);
+  const CAP = 600; const last = Math.min(to, from + CAP - 1);
+  const calls = new Set(calleesOf(i).map(e => D.edges[e][5]));
+  const misses = new Set(UNRES[i].filter(u => !D.unresolved[u][4]).map(u => D.unresolved[u][3]));
+  let body = '';
+  for (let n = from; n <= last; n++) {
+    const cls = misses.has(n) ? 'miss' : calls.has(n) ? 'call' : '';
+    body += `<div${cls ? ` class="${cls}"` : ''}><span class="no">${n}</span>${esc(lines[n - 1])}</div>`;
+  }
+  return `<details class="sec" open><summary>Source <b>(lines ${from}–${to})</b></summary>`
+    + `<div class="note">Green = a resolved call on that line · amber = an unresolved one.</div>`
+    + `<pre class="src">${body}</pre>` + (last < to ? `<div class="note">… ${to - last} more lines in ${esc(fileOf(i)[0])}</div>` : '') + `</details>`;
+}
+
+// ---------- navigation wiring (delegated: the CSP forbids inline handlers) ----------
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-sym]'); if (!t) return;
+  focus(+t.dataset.sym);
+});
+$('back').addEventListener('click', () => { if (trail.length) focus(trail.pop(), false); });
+$('fit').addEventListener('click', () => cy.fit(undefined, 60));
+const setDepth = d => { depth = d; $('d1').classList.toggle('on', d === 1); $('d2').classList.toggle('on', d === 2); if (current >= 0) draw(current); };
+$('d1').addEventListener('click', () => setDepth(1));
+$('d2').addEventListener('click', () => setDepth(2));
+$('struct').addEventListener('click', () => { showTypes = !showTypes; $('struct').classList.toggle('on', showTypes); if (current >= 0) draw(current); });
+
+// ---------- details panel: drag, resize, minimise ----------
+let expandDetails = () => {};
+(() => {
+  const box = $('details'), bar = $('dbar'), min = $('dmin'), KEY = 'cwk-explorer-details';
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ l: box.style.left, t: box.style.top, w: box.style.width, h: box.style.height })); } catch {} };
+  try {
+    const st = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (st) { if (st.l) { box.style.left = st.l; box.style.right = 'auto'; } if (st.t) box.style.top = st.t; if (st.w) box.style.width = st.w; if (st.h) box.style.height = st.h; }
+  } catch {}
+  const setMin = on => { box.classList.toggle('min', on); min.textContent = on ? '▢' : '–'; };
+  // A position saved on a wider screen must not strand the panel off this one.
+  const clamp = () => {
+    if (!box.style.left) return;
+    box.style.left = Math.min(Math.max(0, parseFloat(box.style.left)), Math.max(0, innerWidth - 120)) + 'px';
+    box.style.top = Math.min(Math.max(0, parseFloat(box.style.top) || 0), Math.max(0, innerHeight - 44)) + 'px';
+  };
+  clamp(); addEventListener('resize', clamp);
+  min.addEventListener('click', () => setMin(!box.classList.contains('min')));
+  bar.addEventListener('dblclick', () => setMin(!box.classList.contains('min')));
+  $('dclose').addEventListener('click', () => { box.style.display = 'none'; });
+  let drag = null;
+  bar.addEventListener('pointerdown', e => { const r = box.getBoundingClientRect(); drag = { dx: e.clientX - r.left, dy: e.clientY - r.top }; bar.setPointerCapture(e.pointerId); });
+  bar.addEventListener('pointermove', e => {
+    if (!drag) return;
+    box.style.left = Math.min(Math.max(0, e.clientX - drag.dx), innerWidth - 80) + 'px';
+    box.style.top = Math.min(Math.max(0, e.clientY - drag.dy), innerHeight - 40) + 'px';
+    box.style.right = 'auto';
+  });
+  bar.addEventListener('pointerup', () => { if (drag) { drag = null; save(); } });
+  new ResizeObserver(() => { if (box.style.display === 'block' && !box.classList.contains('min')) save(); }).observe(box);
+  expandDetails = () => { if (box.classList.contains('min')) setMin(false); };
+})();
+</script>
+</body>
+</html>
