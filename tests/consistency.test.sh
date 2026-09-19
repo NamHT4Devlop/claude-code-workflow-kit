@@ -98,6 +98,22 @@ check_count docs/manual-setup-guide.html '# [0-9]+ command'                  "$n
 # A skill that edits code, or whose conclusions someone acts on, carries the three trailer sections
 # (see docs/skill-anatomy.md). Without a check they get written once and then omitted from the next
 # skill, and the standard quietly stops being one.
+echo "consistency: review skills run the shared review protocol"
+# /cwk-review and /cwk-pr turn a diff into findings through references/review-protocol.md, and the
+# reviewer agents report in its format. Without these checks one of them drifts back to its own flow.
+bad=0
+for sk in cwk-review cwk-pr; do
+  for ref in review-protocol.md review-traps.md; do
+    [ -f "skills/$sk/references/$ref" ] || { echo "  ✗ $sk lacks references/$ref (run scripts/sync-bundles.sh)"; bad=1; }
+    grep -qF "$ref" "skills/$sk/SKILL.md" || { echo "  ✗ $sk bundles $ref but never points at it"; bad=1; }
+  done
+done
+for ag in agents/cwk-*-reviewer.md; do
+  grep -q "^## How to report (all reviewer agents)" "$ag" || { echo "  ✗ $ag has no shared finding format"; bad=1; }
+  grep -q "^Quote:" "$ag" || { echo "  ✗ $ag's finding format has no Quote field"; bad=1; }
+done
+[ "$bad" -eq 0 ] && echo "  ✓ review skills bundle and cite the protocol; every reviewer agent reports in its format" || fail=1
+
 echo "consistency: high-stakes skills carry rationalizations / red flags / verification"
 HIGH_STAKES="cwk-build cwk-fix-bug cwk-migrate cwk-simplify cwk-perf cwk-observe
   cwk-rails-to-spring cwk-review cwk-drift cwk-runbook"

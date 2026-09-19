@@ -246,8 +246,10 @@ Infrastructure Error  →  wrap into  →  Domain Exception  →  map into  → 
 
 > **"Untested" is checkable (§0).** `git diff --name-only | provenlens affected --fail-if-untested`
 > lists the tests that already reach the change, and exits **2** when production code changed and
-> none do. Treat that exit as a `[CRITICAL]`, not a note. The same output is the regression set:
-> one case per consumer it names.
+> none do. Before treating that exit as a `[CRITICAL]`, look for tests that reach the code by URL,
+> route or message rather than by a call (MockMvc, request/system specs, HTTP clients, queue
+> fixtures): the call graph does not see them. Untested after that check is a `[CRITICAL]`, not a
+> note. The same output is the regression set: one case per consumer it names.
 
 ### 6.1 Test Pyramid
 ```

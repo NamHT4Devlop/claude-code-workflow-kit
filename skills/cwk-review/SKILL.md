@@ -5,18 +5,28 @@ description: >-
   universal checklist (architecture, security, error handling, performance,
   observability, testing, data integrity, API design, code quality) AND business
   consistency against the project's Knowledge Base (business rules intact, no
-  logic removed, valid state transitions, API contract preserved). Use when the
-  user asks to "review", "/review", "check this file", or audit a change.
+  logic removed, valid state transitions, API contract preserved). Every changed file
+  is accounted for, every finding quotes the code it is about and carries its evidence,
+  and a fact-check pass removes only what the diff disproves. Use when the user asks
+  to "review", "/review", "check this file", or audit a change.
 ---
 
 # Spec Review — two-phase code review
 
-A native port of Auto Spec extension's `/review`. Produce an **actionable** review: every issue
-must show the exact bad code and the complete fixed code — never "add X here".
+Produce an **actionable** review: every finding quotes the exact code it is about, says what
+establishes it and what goes wrong, and gives the complete fix — never "add X here". Favour
+precision over recall: a false finding teaches the author to skim, so report what is likely real,
+and never skip the files where security and data bugs live.
+
+**How:** follow `references/review-protocol.md` (account for every file → group related files →
+plan a large change → review with evidence before claims → another round if needed → fact-check
+biased towards keeping → present), with the language traps in `references/review-traps.md`.
+The two phases below say *what* the review must cover; the protocol says how to get there.
 
 ## Inputs
-- **Find impacted consumers with Grep/Read.** Read the target, then **grep for its callers/callees**
-  to surface impacted consumers and test gaps for Phase 2 (flag any changed symbol with no covering test).
+- **Find impacted consumers.** Read the target, then find its callers and callees with provenlens when
+  an index exists, and grep for what the index cannot see (URL-driven tests, SQL, templates), to
+  surface impacted consumers and test gaps for Phase 2 (flag any changed symbol with no covering test).
 - **Target** — resolve in this order (detect the default branch with
   `git symbolic-ref --short refs/remotes/origin/HEAD` → strip `origin/`; fall back to `main`, then `master`):
   1. **A PR** — the arg is `#123`, a bare number `123`, a GitHub PR URL, or "pr 123"/"review PR 123".
@@ -34,7 +44,10 @@ must show the exact bad code and the complete fixed code — never "add X here".
      (or the URL) and review the change against the PR's **base branch**. (Same engine as
      `/cwk-pr review <n>`; to post the review back as PR comments, use `/cwk-pr`.)
   2. **File(s)/path(s)** the user named (or the active file): review exactly those.
-  3. **Nothing given** — pick the most useful diff automatically:
+  3. **A commit or range** (`abc123`, `main..feature`, "the last 3 commits") — review exactly that
+     change; see "Reviewing a past commit or a range" in `references/review-protocol.md` for how to
+     use the index and KB without syncing them to the working tree.
+  4. **Nothing given** — pick the most useful diff automatically:
      - working tree has **uncommitted** changes (`git status --porcelain` non-empty) → review the
        working-tree diff (`git diff` + staged `git diff --cached`);
      - else on a **feature branch** (current ≠ default) → review the branch vs default:
@@ -46,8 +59,8 @@ must show the exact bad code and the complete fixed code — never "add X here".
   use the bundled `references/review-skills-universal.md`. Mention which source you used and
   that running `/cwk-scan` adds project-specific rules.
 - **Grounding**: load relevant `knowledge-base/` docs (business rules, domain model,
-  conventions, architecture patterns) and `git` context (how the file changed vs the
-  default branch) for Phase 2.
+  conventions, architecture patterns) and `git` context (how the file changed against the target's
+  base: the default branch for a branch, the parent for a commit) for Phase 2.
 
 ### provenlens (optional)
 `.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
@@ -71,11 +84,11 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
   edge is a lead, not a verdict.
 
 ## Phase 1 — Code quality
-Go through **every section** of the review checklist as a gate. For each section, list
-issues (citing file · function · ~line) or mark `✅ Clean` — do not skip sections. Cover at
-minimum: Architecture & Design, Security, Error Handling & Resilience, Performance,
-Observability, Testing, Data Integrity, API Design, Code Quality. Keep the AI/LLM section
-only if the project has AI components.
+Apply the review checklist and `references/review-traps.md` to every file marked `review` in
+Step 0 of the protocol. Consider every checklist area (Architecture & Design, Security, Error
+Handling & Resilience, Performance, Observability, Testing, Data Integrity, API Design, Code
+Quality; AI/LLM only when the project has AI components), but report findings, not sections:
+areas with nothing to report are named once on a single line in the coverage block.
 
 ## Phase 2 — Business consistency
 Cross-reference the Knowledge Base:
@@ -89,16 +102,27 @@ Cross-reference the Knowledge Base:
 - (For a change) are all the relevant acceptance criteria satisfied?
 
 ## Output format (required)
-```
-## 📋 SECTION COVERAGE
-| Section | Status | Issues |
-|---------|--------|--------|
-(one row per checklist section; ✅/⚠️/❌/N/A + count)
+````
+## 🎯 VERDICT: APPROVED / APPROVED WITH FOLLOW-UPS / NEEDS REVISION
+The one or two findings that decide it.
+
+## 🐛 FINDINGS   (CRITICAL first; each in the protocol's Step 3 format)
+### #N [CRITICAL/MAJOR/MINOR/NIT] category — one-sentence claim
+Where:      path:line
+Quote:      ```<lang>
+            …the exact changed line(s), copied from the diff…
+            ```
+Evidence:   caller / test / rule id / missing guard — or "local: visible in the quote"
+Impact:     what goes wrong, for whom, when
+Confidence: confirmed | likely | needs-check (what would settle it)
+Fix:        ```<lang>
+            …complete corrected code for the lines it replaces…
+            ```
 
 ## 🏢 BUSINESS CONSISTENCY
 | Check | Result | Notes |
 |-------|--------|-------|
-| Business rules intact | ✅/❌ | |
+| Business rules intact (cite BR ids) | ✅/❌ | |
 | No logic removed | ✅/❌ | |
 | State machine valid | ✅/❌/N/A | |
 | API contract preserved | ✅/❌/N/A | |
@@ -107,22 +131,18 @@ Cross-reference the Knowledge Base:
 | Symbol | Direct callers | Transitive reach | Accounted for? | Where — or why not |
 (one row per changed symbol; `⚠️ grep-depth only` when there is no index)
 
-## 🐛 ISSUES   (each issue has all 4 parts)
-### Issue #N — [CRITICAL/MAJOR/MINOR] · `function()` · line ~XX
-> **Problem:** why it's wrong + business/technical impact
-**❌ Bad code (current):**
-```<lang>
-…exact problematic code…
-```
-**✅ Fixed code (complete, no placeholders):**
-```<lang>
-…complete corrected code…
-```
+## 🔍 EVIDENCE
+One line: provenlens index (revision, resolution) or `⚠️ grep-depth only`, and the revision reviewed.
 
-## ✅ STRENGTHS (≥3 specific points)
-## 🎯 VERDICT: APPROVED / NEEDS_REVISION
-## 📊 QUALITY SCORE: X/10 — short reason
-```
+## 📋 COVERAGE
+| File | Status | Notes |      ← every changed file: done / partial / failed / skip: <reason>
+Checklist areas with no findings: <one line>
+
+## 🙈 NOTICED, NOT WORTH FIXING HERE
+## ✅ STRENGTHS (specific, only if there are real ones)
+## 🗺️ PLAN AND CODE GRAPH (when the protocol's Step 2 ran; the code graph per the evidence protocol)
+````
+Save to `cwk-sessions/reviews/<target>-<date>.md` when asked to keep it.
 
 ## Severity → merge rules
 `[CRITICAL]` blocks merge (must fix + re-review). `[MAJOR]` with high risk blocks; with low
@@ -154,10 +174,15 @@ Otherwise leave the review as a report. You may save it to `cwk-sessions/reviews
 | "Phase 2 is redundant, the code is clean" | Phase 1 asks whether the code is good. Phase 2 asks whether it still does what the **business** requires — clean code can quietly delete a rule. |
 | "The diff is small, a quick skim will do" | Blast radius is not proportional to diff size. A three-line change to a shared helper is the dangerous one. |
 | "I'll flag everything I noticed" | A review that reports everything reports nothing. Rank by consequence and say what is **not** worth fixing. |
+| "The framework probably handles that" | That is a claim about a library. Read it or mark it unverified; on security, data and concurrency, keep the finding with `needs-check` rather than drop it. |
+| "The sub-agent found it, so it's in" | A sub-agent's finding is a lead. Re-read every CRITICAL and MAJOR one in the source before it goes in the review. |
+| "This file is too big, I'll skip it" | Review it hunk by hunk and mark it `partial` if you run out. Silent skipping is how a review says "looks good" about code nobody read. |
 
 ## Red flags
 
-- A finding with no `file:line`.
+- A finding with no `file:line`, or whose quoted code is not in that file's diff.
+- A changed file missing from the coverage table.
+- A finding about security, data or behaviour change removed because it "seemed unlikely".
 - Only the changed lines were read — not the callers of what changed.
 - The business-consistency phase produced zero findings **and** zero explicit "rules intact" statements.
 - Severity assigned by feel, with no statement of what breaks.
@@ -168,3 +193,7 @@ Otherwise leave the review as a report. You may save it to `cwk-sessions/reviews
 - [ ] Every finding cites evidence and names the consequence.
 - [ ] Blast radius considered: the callers of every changed symbol.
 - [ ] Severity assigned, and the "not worth fixing" list is explicit.
+- [ ] Every changed file has a final status; nothing marked `review` was left unread.
+- [ ] Every finding has a quote, evidence and a confidence; the fact-check pass ran and removed only
+      what the diff disproves.
+- [ ] Every CRITICAL/MAJOR finding from a sub-agent was re-read in the source.

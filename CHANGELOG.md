@@ -14,6 +14,49 @@ noted per release when it changed.
 
 ---
 
+## [3.6.0] — 2026-09-20
+
+### Added
+
+- **`review-protocol.md`: one pipeline from a diff to findings**, shared by `/cwk-review`, `/cwk-pr`
+  and the reviewer agents. It adapts the review flow of alibaba/open-code-review (Apache-2.0):
+  every changed file gets a status and the review ends with each one `done`, `partial` or
+  `failed`; related files are reviewed as a group for broken contracts; a large change gets a
+  plan of risks and the lookups that would confirm them; claims that are not visible in the
+  changed lines are established first; a second round runs only if the first found something;
+  and a fact-check pass keeps findings by default, removing one only when the diff shows it is
+  not there or says the opposite, and never removing a security, data, concurrency or
+  behaviour-change finding. Unlike that tool it reviews tests, reviews a large file hunk by hunk
+  instead of skipping it, and uses the call graph for reach.
+- **`review-traps.md`: traps by language** (any language, Java/Spring, Ruby/Rails, TypeScript and
+  JavaScript, SQL and schema), each with the evidence needed before reporting it and when not to.
+  Most are defects verified on the benchmark repositories, with where each was seen.
+- **Finding format with a quote and a confidence.** Every finding quotes the changed line it is
+  about (the quote anchors it; a quote that is not in that file's diff means the finding is wrong
+  or misfiled), states its evidence and impact, and says `confirmed`, `likely` or `needs-check`.
+  The four reviewer agents report in the same format.
+- **`/cwk-pr` re-reviews incrementally and does not repeat itself.** The saved review records the
+  PR head it reviewed; the next review covers only the commits since, and says which earlier
+  findings were fixed. Existing PR comments are read first so no finding repeats one on the same
+  lines. Inline comments are for CRITICAL, MAJOR and MINOR; NITs and coverage go in the summary.
+
+### Changed
+
+- `/cwk-review` output leads with the verdict and the findings, and replaces the one-row-per-checklist
+  section table with a per-file coverage table and one line naming the areas with no findings.
+- Reviewing a past commit or range: the diff is that range, files are read at the reviewed
+  revision, and the index and KB are used without syncing them to the working tree.
+- The universal checklist's "no test reaches the change" is CRITICAL only after looking for tests
+  that call by URL, route or message, which the call graph does not see.
+
+Trialled on spring-petclinic commit `e0db9b1`, whose bugs were later fixed upstream in two
+commits: the review found the Postgres index that breaks the second start and the unnamed MySQL
+constraint that turns a duplicate name into a 500, with no false positives, and missed the
+column-length 500. A trap for that case (a catch that handles one constraint and rethrows the
+rest) was added from the miss.
+
+---
+
 ## [3.5.1] — 2026-09-20
 
 ### Fixed

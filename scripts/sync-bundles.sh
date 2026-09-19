@@ -18,6 +18,7 @@ map_review="cwk-build cwk-review cwk-scan cwk-rescan cwk-security-audit cwk-pr"
 map_kb="cwk-scan cwk-rescan"
 map_html="cwk-ask cwk-document cwk-plan cwk-qa cwk-system-map cwk-pr cwk-security-audit cwk-plan-review cwk-retro cwk-qa-integration cwk-design-review cwk-pdf cwk-user-story cwk-rails-to-spring cwk-drift cwk-issues cwk-runbook"  # html-builder.js + render-html.cjs
 map_mermaid="cwk-scan cwk-rescan cwk-runbook cwk-document"  # check-mermaid.cjs: parse every diagram before reporting done
+map_reviewflow="cwk-review cwk-pr"  # review-protocol.md + review-traps.md: how a diff becomes findings
 map_evidence="cwk-ask cwk-document cwk-user-story cwk-plan cwk-runbook cwk-fix-bug cwk-build cwk-review cwk-qa"  # the reach-ledger + code-graph protocol (docs/provenlens.md)
 
 emit() { # <canonical-file> <skill-list>
@@ -56,6 +57,8 @@ emit html-builder.js           $map_html
 emit render-html.cjs           $map_html
 emit provenlens-evidence.md   $map_evidence
 emit check-mermaid.cjs        $map_mermaid
+emit review-protocol.md       $map_reviewflow
+emit review-traps.md          $map_reviewflow
 
 if [ "$CHECK" = "--check" ]; then
   sweep review-skills-universal.md $map_review
@@ -64,6 +67,8 @@ if [ "$CHECK" = "--check" ]; then
   sweep render-html.cjs           $map_html
   sweep provenlens-evidence.md   $map_evidence
   sweep check-mermaid.cjs        $map_mermaid
+  sweep review-protocol.md       $map_reviewflow
+  sweep review-traps.md          $map_reviewflow
   [ "$DRIFT" = 0 ] && { echo "✔ bundles in sync with resources/"; exit 0; } || { echo "✗ drift — run scripts/sync-bundles.sh to fix"; exit 1; }
 fi
 # render-html.cjs needs +x
