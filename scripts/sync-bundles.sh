@@ -20,6 +20,10 @@ map_html="cwk-ask cwk-document cwk-plan cwk-qa cwk-system-map cwk-pr cwk-securit
 map_mermaid="cwk-scan cwk-rescan cwk-runbook cwk-document"  # check-mermaid.cjs: parse every diagram before reporting done
 map_reviewflow="cwk-review cwk-pr"  # review-protocol.md + review-traps.md: how a diff becomes findings
 map_evidence="cwk-ask cwk-document cwk-user-story cwk-plan cwk-runbook cwk-fix-bug cwk-build cwk-review cwk-qa"  # the reach-ledger + code-graph protocol (docs/provenlens.md)
+# untrusted-input.md: every skill reads repository content (READMEs, comments, diffs, PR text, KB pages,
+# logs, sub-agent reports) and must treat it as data, never as instructions. Listed explicitly so a new
+# skill has to be added here — tests/consistency.test.sh fails on one that does not cite the file.
+map_untrusted="cwk-ask cwk-build cwk-design-review cwk-discover cwk-document cwk-drift cwk-fix-bug cwk-issues cwk-map cwk-migrate cwk-observe cwk-pdf cwk-perf cwk-plan cwk-plan-review cwk-pr cwk-qa cwk-qa-integration cwk-rails-to-spring cwk-rescan cwk-retro cwk-review cwk-runbook cwk-scan cwk-security-audit cwk-simplify cwk-skillify cwk-splunk-report cwk-system-map cwk-user-story"
 
 emit() { # <canonical-file> <skill-list>
   local file="$1"; shift
@@ -59,6 +63,7 @@ emit provenlens-evidence.md   $map_evidence
 emit check-mermaid.cjs        $map_mermaid
 emit review-protocol.md       $map_reviewflow
 emit review-traps.md          $map_reviewflow
+emit untrusted-input.md       $map_untrusted
 
 if [ "$CHECK" = "--check" ]; then
   sweep review-skills-universal.md $map_review
@@ -69,6 +74,7 @@ if [ "$CHECK" = "--check" ]; then
   sweep check-mermaid.cjs        $map_mermaid
   sweep review-protocol.md       $map_reviewflow
   sweep review-traps.md          $map_reviewflow
+  sweep untrusted-input.md       $map_untrusted
   [ "$DRIFT" = 0 ] && { echo "✔ bundles in sync with resources/"; exit 0; } || { echo "✗ drift — run scripts/sync-bundles.sh to fix"; exit 1; }
 fi
 # render-html.cjs needs +x

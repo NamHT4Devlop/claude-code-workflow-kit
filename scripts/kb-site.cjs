@@ -22,6 +22,40 @@
 const fs = require('fs');
 const path = require('path');
 
+// ---- vendored library lookup ----------------------------------------------------------------
+// IDENTICAL copy in build-map.cjs, kb-site.cjs, check-mermaid.cjs and render-html.cjs (each file is
+// standalone) — change all four together. The bundle is only ever taken from the kit's own vendor/ (the nearest
+// ancestor of this file's real path holding both .claude-plugin/plugin.json and vendor/SHA256SUMS),
+// never from a scanned repository's vendor/, and its SHA-256 must match the pinned entry before it is
+// used — check-mermaid require()s the bundle and the others inline it into every generated page,
+// so an unverified one would run as arbitrary code here or in every reader's browser.
+const crypto = require('crypto');
+function kitRoot() {
+  let d;
+  try { d = fs.realpathSync(__dirname); } catch { return ''; }
+  for (;;) {
+    if (fs.existsSync(path.join(d, '.claude-plugin', 'plugin.json')) && fs.existsSync(path.join(d, 'vendor', 'SHA256SUMS'))) return d;
+    const up = path.dirname(d);
+    if (up === d) return '';
+    d = up;
+  }
+}
+/** → { file, why }: `file` is the verified vendor/<lib>.min.js, else '' with `why` = 'absent' (no kit
+ *  root or not fetched: silent fallback) or a message naming the file (hash mismatch / no pinned entry). */
+function vendoredLib(lib) {
+  const root = kitRoot();
+  if (!root) return { file: '', why: 'absent' };
+  const file = path.join(root, 'vendor', `${lib}.min.js`);
+  if (!fs.existsSync(file)) return { file: '', why: 'absent' };
+  const sums = fs.readFileSync(path.join(root, 'vendor', 'SHA256SUMS'), 'utf8');
+  const want = (sums.match(new RegExp(`^([0-9a-fA-F]{64})\\s+\\*?${lib}\\.min\\.js\\s*$`, 'm')) || [])[1];
+  if (!want) return { file: '', why: `${file}: no entry in vendor/SHA256SUMS — see vendor/README.md` };
+  const got = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  if (got !== want.toLowerCase()) return { file: '', why: `${file}: SHA-256 ${got} does not match vendor/SHA256SUMS (${want.toLowerCase()}) — see vendor/README.md` };
+  return { file, why: '' };
+}
+// ---- end vendored library lookup ------------------------------------------------------------
+
 // The markdown renderer is shared with render-html.cjs so a doc looks the same in both.
 const { markdownToHtml } = require(path.join(__dirname, '..', 'resources', 'html-builder.js'));
 
@@ -155,7 +189,7 @@ const dataJson = JSON.stringify(projects.map(p => ({
 
 const nonce = 'n' + Math.random().toString(36).slice(2) + Date.now().toString(36);
 let html = page(dataJson, nonce, path.basename(root));
-html = inlineMermaid(html, __dirname, nonce);
+html = inlineMermaid(html, nonce);
 
 // Never overwrite a file this script did not write. A repo's own index.html is its landing page
 // (a static site's whole front door), and the single-repo default used to land exactly there.
@@ -173,19 +207,18 @@ const runbookCount = projects.reduce((n, p) => n + (p.runbookCount || 0), 0);
 console.error(`${projects.length} project(s), ${docCount} document(s)${runbookCount ? ` (incl. ${runbookCount} runbook page(s))` : ''}${projects.some(p => p.stale) ? ' · ⚠ some KBs are over 30 days old' : ''}`);
 console.log(out);
 
-/** Inline vendor/mermaid.min.js when present so the page makes no network calls. */
-function inlineMermaid(h, dir, nce) {
-  let vendorDir = '';
-  for (let d = dir, i = 0; i < 6; i++) {
-    const cand = path.join(d, 'vendor');
-    if (fs.existsSync(cand)) { vendorDir = cand; break; }
-    const up = path.dirname(d);
-    if (up === d) break;
-    d = up;
+/** Inline the kit's verified vendor/mermaid.min.js when present so the page makes no network calls. */
+function inlineMermaid(h, nce) {
+  const v = vendoredLib('mermaid');
+  if (!v.file && v.why === 'absent') return h;   // not fetched → leave the page working, just without diagrams
+  if (!v.file) {
+    // Present but not the pinned bundle: never inline it. Load the same version from the CDN instead.
+    console.error(`⚠ not inlining ${v.why}; the page loads mermaid from the CDN instead`);
+    return h
+      .replace(`script-src 'nonce-${nce}'`, `script-src 'nonce-${nce}' https://cdnjs.cloudflare.com`)
+      .replace('<!--MERMAID-->', () => `<script nonce="${nce}" src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.8/mermaid.min.js"></script>`);
   }
-  const f = vendorDir && path.join(vendorDir, 'mermaid.min.js');
-  if (!f || !fs.existsSync(f)) return h;   // no vendor → leave the page working, just without diagrams
-  const code = fs.readFileSync(f, 'utf8').replace(/<\/script/gi, '<\\/script');
+  const code = fs.readFileSync(v.file, 'utf8').replace(/<\/script/gi, '<\\/script');
   const tag = `<script nonce="${nce}">\n/* vendored mermaid — offline, no external fetch */\n${code}\n</script>`;
   // MUST use a replacer function: minified code is full of `$&` / `$'` / `` $` ``, and a string
   // replacement would expand those as capture-group patterns — `$'` alone splices the whole rest of

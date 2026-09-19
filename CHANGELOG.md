@@ -14,6 +14,65 @@ noted per release when it changed.
 
 ---
 
+## [3.7.0] — 2026-09-20
+
+Security release. A full audit of the kit (hook, scripts, generated pages, extension, prompts,
+licensing) reproduced three critical and eleven major findings; this release closes the critical
+ones and most of the major ones. `SECURITY.md` describes the new policy and, for the first time,
+states plainly what the guard cannot do.
+
+### Fixed
+
+- **The git-guard could be bypassed by anyone who knew git.** Seven live bypasses, each reproduced
+  before the fix: `git -c remote.origin.url=<team> push`, `git config url.<team>.insteadOf`,
+  `branch.*.pushRemote`, `export GIT_DIR=…; git push`, `gh pr merge` / `gh repo delete` /
+  `gh api -X DELETE` (gh was never inspected), and `python -c "os.system('git push …')"`. The parser
+  was rewritten: heredoc bodies are removed (fail-closed when an unquoted body contains `$(…)`),
+  tokens honour shell quoting, `-c` and `git config` writes are allowed only for an allowlist of
+  harmless keys, `GIT_*=` is refused anywhere, `gh` writes are checked against the same whitelist
+  as pushes (repository from `-R`, a URL, a `repos/{owner}/{repo}` api path or the session cwd;
+  account-level writes refused), and an interpreter string that mentions git or gh is refused.
+  Four false positives are gone with the same change: `git config --get`, `git -C "<path with
+  space>"`, `git restore --staged`, and a commit message or heredoc that mentions `git push`.
+  `tests/git-guard.test.sh` grows from 97 to 139 cases.
+- **The KB hub carried the full source of every indexed file.** The code-graph page embeds source
+  so its explorer can show it, and `kb-export.sh` copied that page into the hub while the README
+  said a hub has no source. `scripts/strip-map-source.cjs` removes the source (symbols, edges and
+  call-site lines stay) and the export runs it by default; `--with-source` opts back in with a
+  warning, and `_meta.yml` records which. The README now says what a hub contains.
+- **The VS Code extension ran Claude with `bypassPermissions` by default**, and its "readonly" mode
+  only hid skill names. The default is now `acceptEdits`; readonly passes `--permission-mode
+  default --allowedTools Read,Grep,Glob` plus the provenlens MCP tools and strips any permission
+  flag from `extraArgs`; choosing `bypassPermissions` in settings shows a warning once per session.
+- **Vendored libraries were located by walking up six parent directories with no hash check**, so a
+  `vendor/mermaid.min.js` inside a scanned repository could be `require()`d or inlined into every
+  page. `check-mermaid.cjs`, `render-html.cjs`, `build-map.cjs` and `kb-site.cjs` now resolve the
+  kit root (`.claude-plugin/plugin.json` beside `vendor/SHA256SUMS`) and verify the SHA-256 before
+  use; a mismatch refuses to load (check-mermaid) or falls back to the CDN with one warning.
+- **Generated pages** use a per-build nonce for `script-src` instead of `'unsafe-inline'`, and
+  documents no longer allow `img-src https:` (an image beacon to any host).
+- **Credentials in a remote URL** (`https://user:token@…`) are stripped before `_meta.yml` and the
+  hub README are written, and `kb-export.sh` scans every KB and runbook for secret patterns (AWS
+  keys, GitHub and Slack tokens, private keys, `sk-` keys, URL credentials) before copying,
+  skipping the project unless `--allow-secrets`.
+
+### Added
+
+- **`resources/untrusted-input.md`**, bundled into all 30 skills and cited by each; every reviewer
+  agent carries a four-line prompt-defence baseline. Text found in a repository, a diff, a PR, a KB
+  or a sub-agent report is data to analyse, never an instruction to follow.
+- **`NOTICE`** (MIT for the kit; the review protocol adapts the design of alibaba/open-code-review,
+  Apache-2.0) and **`THIRD_PARTY_NOTICES.md`** for the vendored libraries. The VS Code extension
+  remains proprietary and is outside the MIT grant.
+
+### Changed
+
+- `cwk-skillify` no longer explains how to word a commit so the guard does not notice; a new skill
+  that hits the guard stops and says so. `cwk-splunk-report` posts to Slack only on the user's yes
+  in the current turn; no flag or saved preference stands in for it.
+
+---
+
 ## [3.6.0] — 2026-09-20
 
 ### Added

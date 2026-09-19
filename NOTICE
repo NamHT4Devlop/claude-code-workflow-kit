@@ -1,0 +1,25 @@
+Claude Code Workflow Kit (cwk)
+Copyright (c) 2026 NamHT Labs
+
+This kit is licensed under the MIT License — see LICENSE.
+
+Adapted designs
+---------------
+resources/review-protocol.md (bundled into skills as references/review-protocol.md) adapts the
+review pipeline design of alibaba/open-code-review, licensed under the Apache License 2.0:
+    https://github.com/alibaba/open-code-review
+Ideas and structure only — no code was copied.
+
+The Rationalizations / Red flags / Verification trailer described in docs/skill-anatomy.md is
+adapted from addyosmani/agent-skills (https://github.com/addyosmani/agent-skills) — ideas only.
+
+Vendored libraries
+------------------
+vendor/ contains pinned third-party JavaScript bundles that are inlined into generated HTML so
+reports render offline. Their versions and licences are listed in vendor/README.md and in
+THIRD_PARTY_NOTICES.md; their hashes are pinned in vendor/SHA256SUMS.
+
+vscode-extension/
+-----------------
+The VS Code extension in vscode-extension/ is NOT covered by the MIT licence above. It carries its
+own LICENSE (proprietary, "UNLICENSED" in package.json) and is provided for the author's personal use.

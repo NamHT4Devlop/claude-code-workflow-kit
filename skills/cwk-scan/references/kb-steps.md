@@ -244,6 +244,10 @@ catalogs are put side by side.
   guess a number.
   Get `repo`/`branch`/`commit` from git (`git remote get-url origin`, `git branch --show-current`,
   `git rev-parse --short HEAD`); if the folder is not a git repo, say so rather than inventing values.
+  **Strip credentials from `repo` before writing it.** An origin of the form
+  `https://user:password@host/…` or `https://token@host/…` is recorded as `https://host/…` — drop
+  everything between `://` and `@`. A KB is exported to hubs and pasted into pages; a token in
+  `_meta.yml` travels with it. (`ssh://git@host/…` and `git@host:…` carry no secret and stay as is.)
   `project` defaults to the repo folder name — ask the user if that name is meaningless (`src`, `app`).
   Also put a one-line stamp at the top of `00-*`/`01-*`: `> KB for **<project>** · branch `<branch>` ·
   commit `<commit>` · generated <date>` so a printed or pasted page still says where it came from.

@@ -122,12 +122,32 @@ touch the **remote** or **destroy local work**, enforced by the Claude Code harn
 model's goodwill — and PreToolUse runs *before* the permission-mode check, so a `deny` still holds
 under `--permission-mode bypassPermissions`.
 
-It splits chained commands into segments and resolves each segment's real subcommand, so a rule word
-inside an unrelated argument does not false-positive. A push's target is resolved from an explicit
-URL, `git -C <dir>`, a `cd`/`pushd` in a **preceding** segment, or the session's working directory —
-and from nowhere else. `tests/git-guard.test.sh` pins every rule below plus each bypass that was
-found and closed, **97 cases**, including the bare-`push`-resolved-from-cwd path against real
-fixture repositories.
+It removes heredoc bodies first (a commit message is prose, not a command; a body under an unquoted
+delimiter that contains `$(…)` is kept, because the shell would run it), tokenises the rest with
+shell quoting honoured, splits into segments on unquoted `; && || | &` and newlines, and resolves
+each segment's real subcommand, so a rule word inside an argument or a quoted string does not
+false-positive. A push's target is resolved from an explicit URL, `--repo=`, `git -C <dir>`, a
+`cd`/`pushd` in a **preceding** segment, or the session's working directory — and from nowhere
+else. `tests/git-guard.test.sh` pins every rule below plus each bypass that was found and closed,
+**139 cases**, including the bare-`push`-resolved-from-cwd path against real fixture repositories.
+
+**Third audit (v3.7.0).** A security audit reproduced seven live bypasses and four false positives;
+all are closed and pinned by tests:
+
+| Bypass | What it did |
+|---|---|
+| `git -c remote.origin.url=<team> push` | `-c` was only checked for `alias.*`; any other key, including the push target, went through |
+| `git config url.<team>.insteadOf <personal>`, `branch.*.pushRemote` | `config` was only checked for keys containing `remote.`; git has several other ways to redirect a push |
+| `export GIT_DIR=…; git push` | `GIT_*` was only checked as a prefix in the push's own segment |
+| `gh pr merge`, `gh repo delete`, `gh api -X DELETE` | `gh` was never inspected, so every GitHub write was open |
+| `python -c "os.system('git push …')"`, `sh -c "git push …"` | code handed to an interpreter was not read |
+
+Now: `-c` and `git config` writes are allowed only for an **allowlist** of harmless keys
+(`user.name`, `color.*`, `commit.gpgsign`, …; see `CONFIG_KEY_ALLOW_RE`), reads (`--get`, `--list`)
+are always allowed; `GIT_*=` is refused wherever it appears; `gh` writes are checked against the same
+whitelist as pushes, resolving the repository from `-R`, a URL, a `repos/{owner}/{repo}` api path or
+the session cwd, and account-level changes (`auth logout`, `alias set`, `api user/…` writes) are
+refused outright; an interpreter string that mentions git or gh is refused.
 
 **Second audit (v2.4.0).** A multi-agent review found and reproduced five live bypasses, all closed:
 
@@ -139,22 +159,27 @@ fixture repositories.
 | shell grouping | `{ … }` and similar prefixes dropped git out of "command position", skipping the unknown-subcommand/alias check |
 | binary aliasing | assigning git to a shell variable and calling it through that variable matched no rule at all |
 
-Treat it as **best-effort defense-in-depth, not a hard boundary**: it parses shell text, so a
-sufficiently creative construction may still slip past. One known and accepted limitation is that it
-does not honour quoting, so a **commit message** containing a rule word is denied as if it were the
-flag — failing closed is the intended direction, and a second shell parser that disagreed with the
-first would be worse.
+Treat it as **best-effort defence in depth, not a security boundary**. What it cannot do, stated
+plainly: it reads the text of one Bash command, so it cannot see inside a script file it is asked to
+run (`bash deploy.sh`), a git alias or credential helper defined elsewhere, or a tool other than
+Bash — and nothing in the hook stops the Edit or Write tool from changing the hook file or
+`settings.json`. An organisation that needs the policy enforced installs the hook and its
+`settings.json` entries **read-only from managed settings**, and keeps the whitelist there.
 
 - **Allowed** (read / sync-in): `fetch`, `pull`, `status`, `log`, `diff`, `show`, `blame`,
-  `branch` (list), `add`, `commit`, `stash`, `merge`, `checkout <branch>` — **plus `push` ONLY
-  to a whitelisted personal remote** (default `github.com/NamHT4Devlop/*`; edit `ALLOW_OWNER_RE`
-  in `hooks/git-guard.sh`). The guard resolves the actual target — an explicit URL, a `--repo=` value,
+  `branch` (list), `add`, `commit`, `stash`, `merge`, `checkout <branch>`, `restore --staged`,
+  `config --get/--list`, `gh` reads (`pr view/diff`, `api` GET) — **plus `push` and `gh` writes
+  ONLY against a whitelisted personal repository** (default `github.com/NamHT4Devlop/*`; edit
+  `ALLOW_OWNER_RE` and `ALLOW_GH_REPO_RE` in `hooks/git-guard.sh`). The guard resolves the actual target — an explicit URL, a `--repo=` value,
   the directory named by the segment's own `-C` option, a `cd`/`pushd` in a **preceding** segment, or
   the remote configured in the session's working directory — and allows the push only if its owner is
   whitelisted.
-- **Blocked**: `push` to **any non-whitelisted remote** (team/org repos), `remote add/set-url/remove/rename/set-head/set-branches/prune`, `send-email`,
-  `svn dcommit`, `p4 submit`, `config remote.*`, `config alias.*`; and destructive local: `reset --hard`,
-  `clean -f`, `checkout -- / . / -f / --force`, `restore`, `branch -D`, `commit --amend`,
+- **Blocked**: `push` to **any non-whitelisted remote** (team/org repos) and `gh` writes there;
+  `remote add/set-url/remove/rename/set-head/set-branches/prune`, `send-email`, `svn dcommit`,
+  `p4 submit`; `-c`/`config` on any key outside the allowlist, `config --unset/--edit/…`; `GIT_*=`
+  anywhere; git or gh inside an interpreter string; `gh auth logout`, `gh alias set`, `gh extension
+  install`, account-level `gh api` writes; and destructive local: `reset --hard`, `clean -f`,
+  `checkout -- / . / -f / --force`, `restore` of the working tree, `branch -D`, `commit --amend`,
   `rebase`, `filter-branch/filter-repo`, `reflog expire`, `gc --prune`, `update-ref -d`.
 
 Wire it into `~/.claude/settings.json` (the installer symlinks the script to

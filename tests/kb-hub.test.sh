@@ -39,6 +39,80 @@ check "index lists the project"  "$(grep -c 'projects/alpha' "$TMP/hub/README.md
 check "runbook carried into the hub" "$(cat "$TMP/hub/projects/alpha/runbook/alpha-2026-09-08.md" 2>/dev/null | head -1)" "# Runbook — alpha"
 # /cwk-map writes one file per run; the NEWEST is the one describing the current tree.
 check "newest code graph carried"    "$(grep -c 'NEWEST graph' "$TMP/hub/projects/alpha/code-graph.html" 2>/dev/null)" 1
+# That fixture is not a full-index page (no graph-data block), so it is copied as it is and the
+# export still records what the hub got.
+check "meta records the code graph"  "$(grep -c '^code_graph: stripped' "$TMP/hub/projects/alpha/_meta.yml" 2>/dev/null)" 1
+
+echo "strip-map-source: a hub's code graph carries the graph, never the source text"
+# A full-index /cwk-map page embeds the TEXT of every indexed file (gzip+base64 inside
+# <script id="graph-data">) so the explorer can show a symbol's body offline. A hub is pushed and
+# emailed, so kb-export.sh must remove that text by default and keep it only under --with-source.
+if command -v node >/dev/null 2>&1; then
+  STRIPPER="$PWD/scripts/strip-map-source.cjs"
+  # Pack exactly the way provenlens-full.cjs pack() does: gzip level 9, then base64.
+  node -e '
+    const zlib = require("zlib"), fs = require("fs");
+    const data = {files:[["a.js","javascript",0]],kinds:["function"],syms:[["f","f",0,0,1,3,""]],edges:[],unresolved:[],source:{"0":"SECRET_TOKEN_XYZ()"},stats:{}};
+    const b64 = zlib.gzipSync(Buffer.from(JSON.stringify(data), "utf8"), { level: 9 }).toString("base64");
+    fs.writeFileSync(process.argv[1], `<!DOCTYPE html><html><body><script nonce="n" id="graph-data" type="application/octet-stream">${b64}</script><script>x()</script></body></html>\n`);
+  ' "$TMP/full.html"
+  # unpack <page> — prints the JSON inside the graph-data block, or "" when there is none
+  unpack() { node -e '
+    const zlib = require("zlib"), fs = require("fs");
+    const h = fs.readFileSync(process.argv[1], "utf8");
+    const m = /<script\b[^>]*\bid="graph-data"[^>]*>/.exec(h); if (!m) { process.stdout.write(""); process.exit(0); }
+    const b = h.slice(m.index + m[0].length, h.indexOf("</script>", m.index)).trim();
+    process.stdout.write(zlib.gunzipSync(Buffer.from(b, "base64")).toString("utf8"));
+  ' "$1" 2>/dev/null; }
+  check "fixture really carries the token (packed)" "$(unpack "$TMP/full.html" | grep -c SECRET_TOKEN_XYZ)" 1
+  node "$STRIPPER" "$TMP/full.html" "$TMP/full-stripped.html" >/dev/null 2>&1
+  check "stripper exit 0"                   "$?" 0
+  check "token gone after unpacking"        "$(unpack "$TMP/full-stripped.html" | grep -c SECRET_TOKEN_XYZ)" 0
+  check "token not in the page as text"     "$(grep -c SECRET_TOKEN_XYZ "$TMP/full-stripped.html")" 0
+  check "graph-data block still there"      "$(grep -c 'id="graph-data"' "$TMP/full-stripped.html")" 1
+  check "symbols kept"                      "$(unpack "$TMP/full-stripped.html" | grep -c '"syms":\[\["f","f",0,0,1,3,""\]\]')" 1
+  check "files kept"                        "$(unpack "$TMP/full-stripped.html" | grep -c '"files":\[\["a.js","javascript",0\]\]')" 1
+  check "source emptied, not deleted"       "$(unpack "$TMP/full-stripped.html" | grep -c '"source":{}')" 1
+  check "page says the source is stripped"  "$(unpack "$TMP/full-stripped.html" | grep -c '"sourceStripped":true')" 1
+  check "rest of the page untouched"        "$(grep -c '<script>x()</script>' "$TMP/full-stripped.html")" 1
+  check "no temp file left behind"          "$(ls "$TMP"/.full-stripped.html.* 2>/dev/null | wc -l | tr -d ' ')" 0
+  # Not a full-index page: no block at all, and the older sampled viewer's plain-JSON block. Exit 2,
+  # nothing written — the caller decides to copy it raw (the sampled viewer embeds no source).
+  printf '<html><body>no graph here</body></html>\n' > "$TMP/plain.html"
+  node "$STRIPPER" "$TMP/plain.html" "$TMP/plain-out.html" >/dev/null 2>&1
+  check "no graph-data block → exit 2"      "$?" 2
+  check "and nothing written"               "$([ -e "$TMP/plain-out.html" ] && echo yes || echo no)" no
+  printf '<html><body><script id="graph-data" type="application/json">{"nodes":[],"edges":[]}</script></body></html>\n' > "$TMP/sampled.html"
+  node "$STRIPPER" "$TMP/sampled.html" "$TMP/sampled-out.html" >/dev/null 2>&1
+  check "plain-JSON (sampled) block → exit 2" "$?" 2
+  check "and nothing written"               "$([ -e "$TMP/sampled-out.html" ] && echo yes || echo no)" no
+
+  # Through kb-export.sh: default strips, --with-source keeps and warns, _meta.yml says which.
+  mkdir -p "$TMP/gamma/knowledge-base" "$TMP/gamma/cwk-sessions/maps"
+  printf '# gamma\n' > "$TMP/gamma/knowledge-base/01-x.md"
+  cp "$TMP/full.html" "$TMP/gamma/cwk-sessions/maps/gamma-2026-09-20.html"
+  out=$("$EXPORT" "$TMP/hub5" "$TMP/gamma" 2>&1)
+  check "default export succeeds"           "$?" 0
+  check "hub graph has no token"            "$(unpack "$TMP/hub5/projects/gamma/code-graph.html" | grep -c SECRET_TOKEN_XYZ)" 0
+  check "hub graph still a graph"           "$(unpack "$TMP/hub5/projects/gamma/code-graph.html" | grep -c '"sourceStripped":true')" 1
+  check "meta: code_graph stripped"         "$(grep -c '^code_graph: stripped' "$TMP/hub5/projects/gamma/_meta.yml")" 1
+  check "output says source stripped"       "$(echo "$out" | grep -c 'source stripped')" 1
+  check "no --with-source warning"          "$(echo "$out" | grep -c 'with-source')" 0
+  out=$("$EXPORT" --with-source "$TMP/hub6" "$TMP/gamma" 2>&1)
+  check "--with-source export succeeds"     "$?" 0
+  check "hub graph carries the token"       "$(unpack "$TMP/hub6/projects/gamma/code-graph.html" | grep -c SECRET_TOKEN_XYZ)" 1
+  check "meta: code_graph with-source"      "$(grep -c '^code_graph: with-source' "$TMP/hub6/projects/gamma/_meta.yml")" 1
+  check "warned that the hub has source"    "$(echo "$out" | grep -c 'SOURCE TEXT')" 1
+  # A scan-written _meta.yml is copied and gets the same stamp.
+  printf 'project: gamma\nbranch: main\n' > "$TMP/gamma/knowledge-base/_meta.yml"
+  "$EXPORT" "$TMP/hub5" "$TMP/gamma" >/dev/null 2>&1
+  check "scan-written meta stamped too"     "$(grep -c '^code_graph: stripped' "$TMP/hub5/projects/gamma/_meta.yml")" 1
+  mkdir -p "$TMP/delta/knowledge-base"; printf '# delta\n' > "$TMP/delta/knowledge-base/01-x.md"
+  "$EXPORT" "$TMP/hub5" "$TMP/delta" >/dev/null 2>&1
+  check "a repo with no map says none"      "$(grep -c '^code_graph: none' "$TMP/hub5/projects/delta/_meta.yml" 2>/dev/null)" 1
+else
+  echo "  – skipped (node not installed)"
+fi
 
 echo "kb-export: a repo with no KB is skipped, not failed"
 mkdir -p "$TMP/empty-repo"
@@ -159,6 +233,43 @@ printf '# B\n' > "$TMP/clientB/api/knowledge-base/01-x.md"
 "$EXPORT" "$TMP/hub2" "$TMP/clientA/api" >/dev/null 2>&1
 "$EXPORT" "$TMP/hub2" "$TMP/clientB/api" >/dev/null 2>&1
 check "client A's KB was not replaced" "$(cat "$TMP/hub2/projects/api/knowledge-base/01-x.md")" "# A"
+
+echo "kb-export: credentials in the origin URL never reach the hub"
+# A remote of the form https://user:token@host/… is what a CI checkout or a hurried `git clone` leaves
+# behind. _meta.yml, README.md and index.html all carry the repo field — the token must be in none.
+mkdir -p "$TMP/cred/knowledge-base"
+printf '# cred doc\n' > "$TMP/cred/knowledge-base/01-x.md"
+( cd "$TMP/cred" && git init -q && git remote add origin 'https://u:tok@example.com/x.git' ) 2>/dev/null
+"$EXPORT" "$TMP/hub3" "$TMP/cred" >/dev/null 2>&1
+check "export succeeded"                 "$?" 0
+check "repo field kept, host intact"     "$(grep -c '^repo: https://example.com/x.git' "$TMP/hub3/projects/cred/_meta.yml" 2>/dev/null)" 1
+check "token nowhere in the hub"         "$(grep -rl 'tok@' "$TMP/hub3" 2>/dev/null | wc -l | tr -d ' ')" 0
+# The KB's own _meta.yml (written by a scan) is redacted the same way when it is copied.
+printf 'project: cred\nrepo: https://u:tok@example.com/x.git\nbranch: main\n' > "$TMP/cred/knowledge-base/_meta.yml"
+"$EXPORT" "$TMP/hub3" "$TMP/cred" >/dev/null 2>&1
+check "scan-written meta redacted too"   "$(grep -rl 'tok@' "$TMP/hub3" 2>/dev/null | wc -l | tr -d ' ')" 0
+check "ssh form left as is"              "$(printf 'x' | sed -E 's#(https?://)[^/@]+@#\1#' >/dev/null; echo 'ssh://git@example.com/x.git' | sed -E 's#(https?://)[^/@]+@#\1#')" "ssh://git@example.com/x.git"
+
+echo "kb-export: a KB page carrying a secret is not exported"
+mkdir -p "$TMP/leaky/knowledge-base"
+printf '# ok doc\n' > "$TMP/leaky/knowledge-base/01-x.md"
+printf '# config\n\ntoken: ghp_abcdefghijklmnopqrstuvwxyz0123456789\n' > "$TMP/leaky/knowledge-base/14-integrations.md"
+out=$("$EXPORT" "$TMP/hub4" "$TMP/leaky" 2>&1); rc=$?
+check "exit non-zero"                    "$([ "$rc" -ne 0 ] && echo yes || echo no)" yes
+check "project not written"              "$([ -e "$TMP/hub4/projects/leaky" ] && echo yes || echo no)" no
+check "hit names file:line"              "$(echo "$out" | grep -c '14-integrations.md:3:')" 1
+check "hit is masked to 6 chars"         "$(echo "$out" | grep -c 'ghp_ab…')" 1
+check "full token never printed"         "$(echo "$out" | grep -c 'ghp_abcdefghij')" 0
+# Every pattern the scan promises: one fixture each, all must block.
+for s in 'AKIAABCDEFGHIJKLMNOP' 'gho_abcdefghijklmnopqrstuvwxyz' '-----BEGIN RSA PRIVATE KEY-----' 'xoxb-1234' 'sk-abcdefghijklmnopqrstuvwxyz' 'https://user:pass@example.com/repo.git'; do
+  mkdir -p "$TMP/pat/knowledge-base"; printf '# doc\n\n%s\n' "$s" > "$TMP/pat/knowledge-base/01-x.md"
+  "$EXPORT" "$TMP/hub-pat" "$TMP/pat" >/dev/null 2>&1
+  check "blocks ${s:0:6}…"               "$([ $? -ne 0 ] && [ ! -e "$TMP/hub-pat/projects/pat" ] && echo yes || echo no)" yes
+done
+# A clean KB is unaffected, and --allow-secrets is the explicit override.
+"$EXPORT" --allow-secrets "$TMP/hub4" "$TMP/leaky" >/dev/null 2>&1
+check "--allow-secrets exports, exit 0"  "$?" 0
+check "project written on override"     "$([ -f "$TMP/hub4/projects/leaky/knowledge-base/01-x.md" ] && echo yes || echo no)" yes
 
 echo "kb-hub: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

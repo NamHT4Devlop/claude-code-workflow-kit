@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <!-- The graph data comes from a scanned repository (paths, comments, route strings) and is untrusted.
-     No inline event handlers, no remote origins beyond the Cytoscape CDN (dropped entirely when
+     No inline event handlers, no inline script without the per-build nonce (build-map.cjs fills
+     __NONCE__), no remote origins beyond the Cytoscape CDN (dropped entirely when
      vendor/cytoscape.min.js is inlined), and no network egress from this page. -->
 <meta http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+      content="default-src 'none'; script-src 'nonce-__NONCE__' https://cdnjs.cloudflare.com; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>__PROJECT__ — Code Graph</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+<script nonce="__NONCE__" src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
 <style>
   :root{ --bg:#0f1115; --panel:#171a21cc; --border:#2a2f3a; --text:#e6e9ef; --muted:#9aa3b2; --accent:#7c9cff; }
   *{box-sizing:border-box} html,body{margin:0;height:100%}
@@ -72,8 +73,8 @@
 
 <div class="hint">drag to pan · scroll to zoom · click node = neighbors · dbl-click = focus</div>
 
-<script id="graph-data" type="application/json">__GRAPH_DATA__</script>
-<script>
+<script nonce="__NONCE__" id="graph-data" type="application/json">__GRAPH_DATA__</script>
+<script nonce="__NONCE__">
 const DATA = JSON.parse(document.getElementById('graph-data').textContent);
 const LAYER = {};
 (DATA.layers||[]).forEach(l => LAYER[l.id] = l);

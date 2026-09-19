@@ -16,6 +16,16 @@ const EDITS_CODE = new Set([
   'cwk-build', 'cwk-fix-bug', 'cwk-migrate', 'cwk-simplify', 'cwk-perf', 'cwk-observe',
   'cwk-rails-to-spring',
 ]);
+// The only tools a read-only panel lets the CLI use. Everything else — Bash, Edit, Write, WebFetch,
+// WebSearch — is refused by `--permission-mode default`, because a headless run cannot answer an
+// approval prompt. WebFetch is deliberately absent: a company repository is not something to let a
+// prompt-injected page phone home from. Provenlens is offline and read-only, so it stays.
+const READONLY_TOOLS = [
+  'Read', 'Grep', 'Glob',
+  'mcp__provenlens__provenlens_explore', 'mcp__provenlens__provenlens_impact',
+  'mcp__provenlens__provenlens_affected', 'mcp__provenlens__provenlens_status',
+  'mcp__provenlens__provenlens_why',
+];
 // The models the UI offers. Anything the webview sends is checked against this before it reaches a
 // command line — an unvalidated value would be the only unquoted token in a shell-executed string.
 const MODELS = new Set(['', 'haiku', 'sonnet', 'opus']);
@@ -80,10 +90,48 @@ class SpecKitViewProvider implements vscode.WebviewViewProvider {
   private post(m: unknown) { for (const w of this.webviews) w.postMessage(m); }
   private cfg() {
     const c = vscode.workspace.getConfiguration('cwkUi');
-    return { claudePath: c.get<string>('claudePath', 'claude'), extraArgs: c.get<string[]>('extraArgs', ['--permission-mode', 'bypassPermissions']), usdToVnd: c.get<number>('usdToVnd', 26000), model: c.get<string>('model', 'sonnet'),
+    // acceptEdits, not bypassPermissions: the skills may write inside the workspace, and anything
+    // else (arbitrary Bash, files outside it, the network) is refused rather than silently allowed.
+    // A user may still set bypassPermissions — permissionArgs() warns them once about what it opens.
+    return { claudePath: c.get<string>('claudePath', 'claude'), extraArgs: c.get<string[]>('extraArgs', ['--permission-mode', 'acceptEdits']), usdToVnd: c.get<number>('usdToVnd', 26000), model: c.get<string>('model', 'sonnet'),
       mode: c.get<string>('mode', 'full'), language: c.get<string>('language', 'en') };
   }
   private cwd(): string | undefined { return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath; }
+
+  // The permission flags for one CLI launch. In read-only mode the user's extraArgs cannot widen
+  // the door: any permission flag they carry is dropped and the CLI gets `--permission-mode
+  // default` plus READONLY_TOOLS, so a prompt injection in a scanned repository reaches neither
+  // Bash, nor the filesystem, nor the network — the skill filter in refusedByReadonly() only
+  // decides which prompts are sent; this decides what a prompt can DO. In full mode extraArgs
+  // pass through, and bypassPermissions (however spelled) is announced once per session.
+  private static readonly PERM_FLAGS = new Set(['--permission-mode', '--allowedTools', '--allowed-tools', '--disallowedTools', '--disallowed-tools']);
+  private static isBypass(args: string[]): boolean {
+    return args.some((a, i) => a === '--dangerously-skip-permissions'
+      || a === '--permission-mode=bypassPermissions'
+      || (a === 'bypassPermissions' && args[i - 1] === '--permission-mode'));
+  }
+  private bypassWarned = false;
+  private permissionArgs(extraArgs: string[]): string[] {
+    if (this.cfg().mode === 'readonly') {
+      const kept: string[] = [];
+      for (let i = 0; i < extraArgs.length; i++) {
+        const a = extraArgs[i];
+        if (SpecKitViewProvider.PERM_FLAGS.has(a)) { i++; continue; }                     // flag + its value
+        if (a === '--dangerously-skip-permissions' || /^--(permission-mode|allowedTools|allowed-tools|disallowedTools|disallowed-tools)=/.test(a)) continue;
+        kept.push(a);
+      }
+      return [...kept, '--permission-mode', 'default', '--allowedTools', READONLY_TOOLS.join(',')];
+    }
+    if (!this.bypassWarned && SpecKitViewProvider.isBypass(extraArgs)) {
+      this.bypassWarned = true;
+      vscode.window.showWarningMessage(
+        'Workflow Kit UI: cwkUi.extraArgs sets bypassPermissions, so every run may execute ANY shell command, '
+        + 'read or write files outside this workspace (including .env and keys) and reach the network — with no '
+        + 'approval prompt, and a prompt injection in a scanned repository can drive it. Anthropic recommends this mode '
+        + 'only in an isolated environment. The default is --permission-mode acceptEdits.');
+    }
+    return extraArgs;
+  }
 
   private checkClaude() {
     const { claudePath } = this.cfg();
@@ -179,8 +227,9 @@ class SpecKitViewProvider implements vscode.WebviewViewProvider {
 
   // ---- runs ----
   // Read-only mode is enforced here and NOWHERE ELSE is allowed to skip it. Three paths reach the
-  // CLI — start(), followup() and interactive() — and each must ask this question, because the CLI
-  // runs with --permission-mode bypassPermissions by default: whatever the prompt asks for happens.
+  // CLI — start(), followup() and interactive() — and each must ask this question. This is the
+  // first of two gates: it decides which prompts are sent at all; permissionArgs() then decides
+  // what any prompt that does go out may do (read-only tools, nothing else).
   private refusedByReadonly(command: string): string | undefined {
     if (this.cfg().mode !== 'readonly') return undefined;
     if (EDITS_CODE.has(command)) return `"${command}" changes code and this panel is in read-only mode`;
@@ -212,8 +261,8 @@ class SpecKitViewProvider implements vscode.WebviewViewProvider {
 
   private followup(runId: string, text: string, sessionId?: string, model?: string) {
     if (!text.trim()) return;
-    // A follow-up is an unconstrained prompt resumed into the same bypassPermissions session, so it
-    // is the widest door in this panel. In read-only mode it stays shut: without this, "now edit
+    // A follow-up is an unconstrained prompt resumed into the same session with the same permission
+    // mode, so it is the widest door in this panel. In read-only mode it stays shut: without this, "now edit
     // src/foo.ts" typed after an innocent /cwk-ask run edits the source, and the read-only .vsix
     // handed to a PM would be a promise the host does not keep.
     if (this.cfg().mode === 'readonly') {
@@ -239,7 +288,7 @@ class SpecKitViewProvider implements vscode.WebviewViewProvider {
     let st = this.state.get(runId);
     if (!st) { st = { runId, command: '', title: runId, log: '', result: '', status: 'running', sessionId: null, report: null, when: Date.now(), model: cfgModel }; this.state.set(runId, st); this.evict(); }
     const model = (st.model !== undefined && st.model !== null) ? st.model : cfgModel;
-    const cliArgs = [...baseArgs, '--output-format', 'stream-json', '--verbose', ...(model ? ['--model', model] : []), ...extraArgs];
+    const cliArgs = [...baseArgs, '--output-format', 'stream-json', '--verbose', ...(model ? ['--model', model] : []), ...this.permissionArgs(extraArgs)];
     st.status = 'running'; st.log += header;
     this.post({ type: 'running', runId, model });
     this.post({ type: 'log', runId, text: header });
@@ -368,7 +417,11 @@ class SpecKitViewProvider implements vscode.WebviewViewProvider {
     const q = (s: string) => `'` + s.replace(/'/g, `'\\''`) + `'`;
     // `model` is the one token spliced into a line that a SHELL executes (sendText below), so it is
     // allowlisted above AND quoted here — the other two tokens were already quoted.
-    const line = `${q(claudePath)}${model ? ' --model ' + q(model) : ''} ${q(prompt)}`;
+    // The terminal is interactive, so the CLI prompts for anything not pre-approved; in read-only
+    // mode it still gets the same read-only allowlist as a headless run, so the tools that are
+    // allowed run without a prompt and every other one asks the person at the keyboard.
+    const perm = this.cfg().mode === 'readonly' ? ` --permission-mode default --allowedTools ${q(READONLY_TOOLS.join(','))}` : '';
+    const line = `${q(claudePath)}${model ? ' --model ' + q(model) : ''}${perm} ${q(prompt)}`;
     const term = vscode.window.createTerminal({ cwd, name: `Claude ⚡ ${String(m.title || command)}` });
     term.show(true);
     term.sendText(line, true);

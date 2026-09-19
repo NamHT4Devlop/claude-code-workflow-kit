@@ -101,5 +101,62 @@ if node scripts/check-mermaid.cjs "$TMP/mm/good.md" >/dev/null 2>&1; then echo "
 out=$(node scripts/check-mermaid.cjs "$TMP/mm/bad.md" 2>&1); code=$?
 if [ "$code" -eq 1 ] && printf '%s' "$out" | grep -q 'bad.md:1'; then echo "  ✓ a broken diagram fails with its file:line"; else echo "  ✗ expected exit 1 and bad.md:1, got $code: $out"; fail=1; fi
 
+echo "smoke: build-map CSP runs only nonced scripts, never 'unsafe-inline' or an inline handler"
+# Everything in the graph is text from the scanned repository. A per-build nonce means no string
+# that repository contributes can ever become a script, whatever escaping slip comes later.
+for t in viewer-template.html explorer-template.html; do
+  if grep -q "script-src 'nonce-__NONCE__'" "skills/cwk-map/references/$t" && ! grep -q "<script>" "skills/cwk-map/references/$t"; then
+    echo "  ✓ $t: nonce placeholder in CSP and on every <script>"
+  else echo "  ✗ $t: script-src without nonce, or a bare <script>"; fail=1; fi
+done
+nonce=$(grep -o "'nonce-[^']*'" "$TMP/map.html" | head -1 | sed "s/'nonce-//;s/'$//")
+tags=$(grep -o '<script\b' "$TMP/map.html" | wc -l | tr -d ' ')
+nonced=$(grep -o "<script nonce=\"$nonce\"" "$TMP/map.html" | wc -l | tr -d ' ')
+if [ -n "$nonce" ] && [ "$tags" -gt 0 ] && [ "$tags" = "$nonced" ] && ! grep -o "script-src[^;]*" "$TMP/map.html" | grep -q "unsafe-inline" && ! grep -q '__NONCE__' "$TMP/map.html"; then
+  echo "  ✓ built map: $nonced/$tags <script> tags carry the nonce, script-src has no 'unsafe-inline'"
+else echo "  ✗ built map: nonce='$nonce' tags=$tags nonced=$nonced"; fail=1; fi
+# Attribute position only (leading whitespace): the inlined Cytoscape source contains `position="…"`.
+if ! grep -qE '[[:space:]]on[a-z]+="' "$TMP/map.html"; then echo "  ✓ built map: no inline event handler"; else echo "  ✗ built map has an inline event handler"; fail=1; fi
+
+echo "smoke: a vendored bundle is only used from the kit root and only when its hash matches"
+# A skill copied next to a scanned repository must never pick up THAT repository's vendor/, and a
+# bundle that differs from vendor/SHA256SUMS must never be require()d (check-mermaid) or inlined
+# into a page (build-map). Fixture: a fake kit root with a one-byte-different copy of each bundle.
+if [ -f vendor/mermaid.min.js ] && [ -f vendor/cytoscape.min.js ]; then
+  FK="$TMP/fakekit"; mkdir -p "$FK/.claude-plugin" "$FK/vendor" "$FK/resources" "$FK/skills/cwk-map"
+  echo '{"name":"fake"}' > "$FK/.claude-plugin/plugin.json"; cp vendor/SHA256SUMS "$FK/vendor/"
+  for lib in mermaid cytoscape; do
+    cp "vendor/$lib.min.js" "$FK/vendor/$lib.min.js"
+    printf '\000' | dd of="$FK/vendor/$lib.min.js" bs=1 seek=100 conv=notrunc 2>/dev/null
+  done
+  cp resources/check-mermaid.cjs "$FK/resources/"; cp -R skills/cwk-map/references "$FK/skills/cwk-map/references"
+  out=$(node "$FK/resources/check-mermaid.cjs" "$TMP/mm/good.md" 2>&1); code=$?
+  # The message carries the REAL path (realpathSync), which on macOS is /private/var/… for a /var/… tmp dir.
+  if [ "$code" -eq 2 ] && printf '%s' "$out" | grep -q "refusing to load .*/fakekit/vendor/mermaid.min.js" && ! printf '%s' "$out" | grep -q 'diagram(s) parse'; then
+    echo "  ✓ check-mermaid exits 2 and names the tampered bundle without loading it"
+  else echo "  ✗ check-mermaid: expected exit 2 + refusal, got $code: $out"; fail=1; fi
+  err=$(PROVENLENS=0 node "$FK/skills/cwk-map/references/build-map.cjs" "$TMP/proj" "$FK/map.html" all 2>&1 >/dev/null)
+  if [ "$(printf '%s\n' "$err" | grep -c '⚠ not inlining')" = "1" ] && printf '%s' "$err" | grep -q "/fakekit/vendor/cytoscape.min.js" \
+     && grep -q 'src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape' "$FK/map.html" && ! grep -q 'vendored cytoscape' "$FK/map.html"; then
+    echo "  ✓ build-map warns once, names the file, and falls back to the CDN <script src>"
+  else echo "  ✗ build-map with a tampered bundle: $err"; fail=1; fi
+  cp resources/render-html.cjs resources/html-builder.js "$FK/resources/"
+  err=$(node "$FK/resources/render-html.cjs" "$TMP/mm/good.md" "$FK/doc.html" 2>&1 >/dev/null)
+  if [ "$(printf '%s\n' "$err" | grep -c '⚠ not inlining')" = "1" ] && printf '%s' "$err" | grep -q "/fakekit/vendor/mermaid.min.js" \
+     && grep -q 'src="https://cdnjs.cloudflare.com/ajax/libs/mermaid' "$FK/doc.html" && ! grep -q 'vendored mermaid' "$FK/doc.html"; then
+    echo "  ✓ render-html warns once, names the file, and keeps the CDN <script src>"
+  else echo "  ✗ render-html with a tampered bundle: $err"; fail=1; fi
+  node resources/render-html.cjs "$TMP/mm/good.md" "$TMP/doc.html" >/dev/null 2>&1
+  if grep -q 'vendored mermaid' "$TMP/doc.html" && ! grep -q 'src="https://cdnjs' "$TMP/doc.html"; then
+    echo "  ✓ render-html inlines the kit's verified mermaid bundle"
+  else echo "  ✗ render-html did not inline the verified bundle"; fail=1; fi
+  # The real kit's bundle passes the same check and is inlined.
+  if grep -q 'vendored cytoscape' "$TMP/map.html" && ! grep -q 'src="https://cdnjs' "$TMP/map.html"; then
+    echo "  ✓ the kit's own verified bundle is still inlined"
+  else echo "  ✗ the kit's verified bundle was not inlined"; fail=1; fi
+else
+  echo "  – skipped (vendor/ not fetched)"
+fi
+
 echo "smoke: $([ "$fail" -eq 0 ] && echo PASS || echo FAIL)"
 [ "$fail" -eq 0 ]

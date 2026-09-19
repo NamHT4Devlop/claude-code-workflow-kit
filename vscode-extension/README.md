@@ -64,8 +64,10 @@ webview (cards + form)  --run{command,args}-->  extension host
                                                    └─ detect the saved cwk-sessions report → "Open report"
 ```
 - **Only whitelisted commands run** — the host rejects anything not in `ALLOWED` (see `src/extension.ts`).
-- The **git-guard hook** still applies (PreToolUse runs before the permission check). Note that the
-  default `bypassPermissions` mode skips Claude Code's own approval prompts - see `cwkUi.extraArgs`.
+- Runs use `--permission-mode acceptEdits` by default (writes inside the workspace only; no
+  arbitrary Bash, no network) — see `cwkUi.extraArgs`. In `readonly` mode the CLI gets
+  `--permission-mode default` plus a read-only tool allowlist, whatever `extraArgs` says.
+- The **git-guard hook** still applies in every mode (PreToolUse runs before the permission check).
 
 ## Cost & tokens
 Each run shows a **cost chip** — the tokens used (`input→output`, plus **`… cached`** = KB context
@@ -98,21 +100,29 @@ fails the build if a card is reworded and leaves its translation stranded.
 - `cwkUi.claudePath` — path to the `claude` CLI (default `claude`). **Machine-scoped**: a repo's
   `.vscode/settings.json` cannot change which binary this extension launches.
 - `cwkUi.extraArgs` — extra args for `claude -p` (**machine-scoped**, same reason). Default
-  `--permission-mode bypassPermissions` so skills can run the tools they need headlessly (`node` for
-  the map/PDF, `npm`/`npx`/`jest` for build & tests, `gh`, `curl`) — otherwise those commands surface
-  as **"error"**, because a headless run can't answer an approval prompt.
-  **Know the trade-off:** that mode also permits *any* Bash command, writes outside the workspace,
-  reading files such as `.env`, and network calls — Anthropic recommends it only in an isolated
-  environment. The git-guard hook still blocks dangerous/remote git in this mode (PreToolUse runs
+  **`--permission-mode acceptEdits`**: skills may read and write inside the workspace (the KB,
+  reports, and code edits by the editing skills); anything a headless run would need a prompt for —
+  arbitrary Bash (`node` for the map/PDF, `npm`/`npx`/`jest` for build & tests, `gh`, `curl`), files
+  outside the workspace, the network — is refused and surfaces as **"error"** here. Use
+  **⚡ Interactive** (a real terminal, where *you* answer the prompts) for those steps.
+  **`bypassPermissions` is opt-in, not the default.** Setting `["--permission-mode","bypassPermissions"]`
+  makes every step run headlessly, but it also permits *any* Bash command, reading/writing files
+  such as `.env` outside the workspace, and network calls with no prompt — and a **prompt injection
+  in a scanned repository** (a README, a comment, a test fixture) can drive all of it. Anthropic
+  recommends that mode only in an isolated environment; the panel shows a warning once per session
+  when it is set. The git-guard hook still blocks dangerous/remote git in every mode (PreToolUse runs
   before the permission check — verified by `tests/git-guard.test.sh`), but it is **defense-in-depth,
-  not a sandbox**. Prefer approval prompts? Set `--permission-mode acceptEdits` — then map/build/test
-  commands fail with "error" here; use **⚡ Interactive** (a real terminal) for those.
+  not a sandbox**.
 - `cwkUi.mode` — `full` (default) or `readonly`. In **readonly** the host refuses **every path
   that could reach an edit**, not just the cards: the seven code-editing skills, the free-chat
   "Ask anything" card (a raw prompt can ask for anything), and **follow-ups** (a follow-up resumes
   the same session with the same permissions, so "now edit src/foo.ts" typed after an innocent run
-  used to land). Hiding the cards is a convenience; the host check is the control. Package a separate
-  `.vsix` with this default flipped and hand that one out.
+  used to land). And the CLI itself is fenced: every run is launched with **`--permission-mode
+  default --allowedTools Read,Grep,Glob,mcp__provenlens__…`** — `extraArgs` cannot widen it (its
+  permission flags are dropped) — so even a skill that *is* allowed cannot be talked into running a
+  shell command, writing a file or fetching a URL. Hiding the cards is a convenience; the host check
+  and the allowlist are the control. Package a separate `.vsix` with this default flipped and hand
+  that one out.
 - `cwkUi.usdToVnd` — VND rate to show next to the USD cost (0 = off; e.g. `25400`).
 - `cwkUi.language` — `en` (default) or `vi` for the panel's own labels. Does not affect Claude's answers.
 - `cwkUi.model` — model for the UI's runs (default **`sonnet`** — ~5x cheaper than Opus for

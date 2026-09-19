@@ -559,9 +559,11 @@ step whose output exists.
 > **Permissions.** A headless `claude -p` cannot answer an approval prompt, so on the CLI default it
 > refuses to write and the scan produces nothing. The script passes `--permission-mode acceptEdits`,
 > which lets the skills write the KB and the runbook; steps that shell out (HTML render, git,
-> `/cwk-map`) still degrade. `--permission-mode bypassPermissions` makes every step run and is what
-> the VS Code panel uses — it also permits any Bash command and network access, so use it only in a
-> workspace you trust. The git-guard hook applies in both modes, as defence in depth, not a sandbox.
+> `/cwk-map`) still degrade. `--permission-mode bypassPermissions` makes every step run — it also
+> permits any Bash command and network access, so use it only in a workspace you trust. The VS Code
+> panel defaults to `acceptEdits` too (and to a read-only tool allowlist in its `readonly` mode);
+> `bypassPermissions` there is opt-in and warned about. The git-guard hook applies in every mode, as
+> defence in depth, not a sandbox.
 
 **2. Collect them into one hub repo, namespaced by project:**
 
@@ -600,7 +602,12 @@ node scripts/check-mermaid.cjs ~/work/taskflow/knowledge-base   # every diagram 
 
 Each project also carries a **⛓ Code graph** link: the `/cwk-map` page, with its own per-node search
 over the resolved call graph. It is linked rather than inlined, so this page keeps its "email it and
-it opens" property while the graph stays one click away.
+it opens" property while the graph stays one click away. The hub's copy carries **symbols, edges and
+call-site lines only**: the source text a full-index page embeds is stripped on export
+(`scripts/strip-map-source.cjs`, run by `kb-export.sh` unless you pass `--with-source`, which warns),
+so a hub can be pushed and emailed without carrying the code. The repository's own
+`cwk-sessions/maps/*.html` keeps the source. `_meta.yml` records which one you got
+(`code_graph: stripped | with-source`).
 
 A KB older than 30 days gets an amber badge and a banner naming the commit it actually describes —
 the point being that a stale KB should not be able to pass itself off as current.
@@ -614,8 +621,10 @@ someone who is not a developer:
 | `/cwk-system-map` | The cross-service dependency graph + end-to-end flows. Everything it consumes (`11-api-docs`, `14-integrations`, `17-async-events`) is in the hub, so an architect or a new joiner can produce the map **without cloning a single repo**. |
 | `/cwk-ask "which services validate tenant id?"` | An answer **across projects**, attributing every claim to a project and leading with the contrast between them — usually the interesting part. |
 
-Both are required to state the two limits out loud: a hub has **no source code**, so nothing can be
-confirmed against real files, and every project is a **snapshot** at the commit in its `_meta.yml`.
+Both are required to state the two limits out loud: a hub has **no source text to read** (its code
+graph carries symbols, edges and call-site lines, and the source is stripped on export unless
+`--with-source` was passed), so nothing can be confirmed against real files, and every project is a
+**snapshot** at the commit in its `_meta.yml`.
 A confident answer drawn from a KB exported four months ago is the failure mode here, so the dates
 are printed, not buried.
 
@@ -670,7 +679,7 @@ The suite is weighted toward the parts that can do damage, not the parts that ar
 
 | Suite | Cases | Why it exists |
 |---|---:|---|
-| `git-guard.test.sh` | 97 | Every deny rule, every bypass ever found (each reproduced before it was fixed), and the bare-`push`-resolved-from-cwd path against real fixture repos |
+| `git-guard.test.sh` | 139 | Every deny rule, every bypass ever found (each reproduced live before it was fixed: config redirects, `GIT_*`, `gh` writes, interpreter strings), every false positive ever reported, and the bare-`push`-resolved-from-cwd path against real fixture repos |
 | `kb-hub.test.sh` | 32 | Export/import move real Knowledge Bases between repos; also pins the page generator's escaping and CSP |
 | `schedule.test.sh` | 20 | Edits your **crontab** — behind a stubbed `crontab`, so the real one is never touched |
 | `webview-markdown.test.cjs` | 18 | The panel renders model output as HTML; pins escaping and that only `http(s)` links become links |
@@ -704,12 +713,19 @@ See **[SECURITY.md](SECURITY.md)** for the full audit. In short:
 - **Change discipline** is built into `cwk-build`/`cwk-review`: scope-locked, minimal diff,
   no drive-by refactors, verify-and-rollback (don't leave the build broken), confirm before
   destructive/outward actions, never touch secrets.
-- **Git guardrail (hard-enforced):** a PreToolUse hook (`hooks/git-guard.sh`) + `permissions.deny`
-  allow read/sync-in git (fetch, pull, status, log, diff, show, blame, add, commit, …) **plus
-  `push` only to a whitelisted personal remote** (`ALLOW_OWNER_RE`, default `NamHT4Devlop/*`).
-  It **blocks** push to any other (team/org) remote, all remote-config mutation, and destructive
-  local git (`reset --hard`, `clean -f`, `checkout --`, `rebase`, `branch -D`, …) — even in chained
-  commands. See [SECURITY.md](SECURITY.md#git-guardrail-hard-blocked-readsync-in-only).
+- **Git guardrail (defence in depth):** a PreToolUse hook (`hooks/git-guard.sh`) + `permissions.deny`
+  allow read/sync-in git (fetch, pull, status, log, diff, show, blame, add, commit, `config --get`, …)
+  **plus `push` and `gh` writes only against a whitelisted personal repository** (`ALLOW_OWNER_RE`,
+  default `NamHT4Devlop/*`). It **blocks** push to any other (team/org) remote, `gh` writes there
+  (`pr merge/comment/review`, `issue create`, `repo delete`, `api` writes), config that can retarget
+  git (`-c remote.*`, `url.*.insteadOf`, `branch.*.pushRemote`, `alias.*`, `core.sshCommand`, …),
+  `GIT_*` overrides anywhere in the command, git or gh hidden in `sh -c`/`python -c` strings, and
+  destructive local git (`reset --hard`, `clean -f`, `checkout --`, `rebase`, `branch -D`, …) — with
+  shell quoting honoured and heredoc bodies ignored, so a commit message that mentions `git push`
+  is not a push. It is a guardrail for the agent's Bash tool, not a security boundary: it cannot see
+  inside a script it is asked to run, and nothing stops a tool other than Bash from editing the hook
+  itself. A company that needs it enforced installs it read-only from managed settings. See
+  [SECURITY.md](SECURITY.md#git-guardrail-hard-blocked-readsync-in-only).
 - The real data-egress is the AI agent reading code (inherent to any AI assistant), fine under a
   company **Team/Enterprise** Claude plan. `knowledge-base/` and `cwk-sessions/`
   are gitignored machine-wide.

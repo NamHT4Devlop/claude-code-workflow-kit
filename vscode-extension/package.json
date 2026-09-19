@@ -54,9 +54,9 @@
           },
           "default": [
             "--permission-mode",
-            "bypassPermissions"
+            "acceptEdits"
           ],
-          "description": "Extra args passed to `claude -p`. Default `bypassPermissions` lets skills run the tools they need headlessly (node for the map/PDF, npm/npx/jest for build & tests, gh, curl) — otherwise those Bash commands fail, because a headless run cannot answer an approval prompt. TRADE-OFF: this mode also permits any Bash command, writes outside the workspace, reading files such as .env, and network calls; Anthropic recommends it only in an isolated environment. The git-guard PreToolUse hook still blocks dangerous/remote git in this mode (hooks run before the permission check - verified), but it is defense-in-depth, not a sandbox. Prefer prompts? Set [\"--permission-mode\",\"acceptEdits\"] - then map/build/test commands fail in this panel; use the Interactive button (a real terminal) for those instead.",
+          "description": "Extra args passed to `claude -p`. Default `--permission-mode acceptEdits`: skills may read and write inside the workspace (the KB, reports, code edits by the editing skills), and anything else a headless run would need a prompt for — arbitrary Bash (node for the map/PDF, npm/npx/jest, gh, curl), files outside the workspace, the network — is refused, so those steps surface as \"error\" here; use the Interactive button (a real terminal, where you answer the prompts) for them. Setting [\"--permission-mode\",\"bypassPermissions\"] makes every step run headlessly, but it also permits ANY shell command, reading/writing files such as .env outside the workspace, and network calls with no prompt — and a prompt injection in a scanned repository can drive all of it. Anthropic recommends that mode only in an isolated environment; the panel warns once per session when it is set. The git-guard PreToolUse hook still blocks dangerous/remote git in every mode (hooks run before the permission check - verified), but it is defense-in-depth, not a sandbox. In readonly mode this setting cannot widen permissions: its permission flags are dropped and the CLI runs with `--permission-mode default` and a read-only tool allowlist.",
           "scope": "machine"
         },
         "cwkUi.usdToVnd": {
@@ -83,11 +83,11 @@
           ],
           "enumDescriptions": [
             "Every skill, including the seven that change code.",
-            "Only skills that never touch your source — for PM/SM. The code-editing cards are hidden and the host refuses them even if requested."
+            "Only skills that never touch your source — for PM/SM. The code-editing cards are hidden, the host refuses them even if requested, and every run is launched with `--permission-mode default` and a read-only tool allowlist (Read, Grep, Glob, provenlens), so no prompt can run a shell command, write a file or reach the network."
           ],
           "default": "full",
           "scope": "machine",
-          "description": "Which skills this panel offers. 'readonly' hides the seven code-editing skills (build, fix-bug, migrate, simplify, perf, observe, rails-to-spring) and blocks them in the extension host — use it for the .vsix you hand to non-developers."
+          "description": "Which skills this panel offers, and what a run may do. 'readonly' hides the seven code-editing skills (build, fix-bug, migrate, simplify, perf, observe, rails-to-spring), blocks them plus free chat and follow-ups in the extension host, AND runs the CLI with `--permission-mode default --allowedTools Read,Grep,Glob,mcp__provenlens__*` — cwkUi.extraArgs cannot widen that. Use it for the .vsix you hand to non-developers."
         },
         "cwkUi.language": {
           "type": "string",

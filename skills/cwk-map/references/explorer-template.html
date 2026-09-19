@@ -3,13 +3,14 @@
 <head>
 <meta charset="utf-8">
 <!-- Everything this page shows is text taken from the scanned repository, so it is untrusted.
-     No inline event handlers, no remote origins beyond the Cytoscape CDN (dropped entirely when
+     No inline event handlers, no inline script without the per-build nonce (build-map.cjs fills
+     __NONCE__), no remote origins beyond the Cytoscape CDN (dropped entirely when
      vendor/cytoscape.min.js is inlined), and no network egress from this page. -->
 <meta http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+      content="default-src 'none'; script-src 'nonce-__NONCE__' https://cdnjs.cloudflare.com; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__PROJECT__ — Code Explorer</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+<script nonce="__NONCE__" src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
 <style>
   :root{ --bg:#0f1115; --panel:#171a21ee; --border:#2a2f3a; --text:#e6e9ef; --muted:#9aa3b2; --accent:#7c9cff;
          --ok:#34c78a; --warn:#f7a34f; --bad:#e5645c; --code:#0b0d12; }
@@ -89,8 +90,8 @@
   <div id="dbody"></div>
 </div>
 
-<script id="graph-data" type="application/octet-stream">__GRAPH_DATA__</script>
-<script>
+<script nonce="__NONCE__" id="graph-data" type="application/octet-stream">__GRAPH_DATA__</script>
+<script nonce="__NONCE__">
 'use strict';
 const LAYERS = __LAYERS__;
 const LCOLOR = Object.fromEntries(LAYERS.map(l => [l.id, l.color]));
@@ -123,6 +124,7 @@ const TYPEISH = new Set(['extends', 'implements', 'implemented-by']);
   $('meta').textContent = `${fmt(s.symbols)} symbols · ${fmt(s.edges)} edges · ${fmt(s.files)} files · `
     + (s.resolution != null ? `${s.resolution}% of in-repo calls resolved · ` : '')
     + `${fmt(s.missed)} unresolved · ${fmt(s.library)} into libraries · provenlens index, complete (not sampled)`
+    + (s.sourceStripped ? ' · source stripped' : '')
     + (D.generatedAt ? ` · built ${D.generatedAt.slice(0, 10)}` : '');
   $('legend').innerHTML = LAYERS.filter(l => l.id !== 'domain' && l.id !== 'external')
     .map(l => `<span><span class="dot" style="background:${l.color}"></span>${esc(l.label)}</span>`).join('')
@@ -393,7 +395,9 @@ function impactSection(i) {
 }
 function sourceSection(i) {
   const [, , , fIdx, st, en] = S(i);
-  const src = D.source[fIdx];
+  const src = (D.source || {})[fIdx];
+  // A hub copy (scripts/kb-export.sh) has its source removed on purpose — say that, not "unreadable".
+  if (src == null && D.stats.sourceStripped) return `<details class="sec"><summary>Source</summary><div class="note">Source not embedded in this copy — open the repository's own code graph (cwk-sessions/maps/).</div></details>`;
   if (src == null) return `<details class="sec"><summary>Source</summary><div class="note">Not embedded (file too large or unreadable).</div></details>`;
   const lines = src.split('\n');
   const from = Math.max(1, st), to = Math.min(lines.length, en >= st ? en : st + 30);

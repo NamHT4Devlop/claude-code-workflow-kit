@@ -676,8 +676,8 @@ function buildDocumentHtml(topic, markdown) {
     const hasMermaid = /class="mermaid"/.test(body);
     const nonce = randomNonce();
     const csp = hasMermaid
-        ? `default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data: file: https:; font-src data: https:; script-src 'nonce-${nonce}' https://cdnjs.cloudflare.com;`
-        : `default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data: file: https:;`;
+        ? `default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data: file:; font-src data: https:; script-src 'nonce-${nonce}' https://cdnjs.cloudflare.com;`
+        : `default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data: file:;`;
     const mermaidTags = hasMermaid
         ? `<script nonce="${nonce}" src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.8/mermaid.min.js"></script>
 <script nonce="${nonce}">try{
@@ -812,7 +812,7 @@ function buildKnowledgeGraphHtml(graph) {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: file: https: https:; style-src 'unsafe-inline'; font-src data:; connect-src 'none'; script-src 'nonce-${nonce}' https://cdnjs.cloudflare.com;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: file:; style-src 'unsafe-inline'; font-src data:; connect-src 'none'; script-src 'nonce-${nonce}' https://cdnjs.cloudflare.com;">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🔭 Knowledge Graph — ${safeProjectName}</title>
 <script nonce="${nonce}" src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>

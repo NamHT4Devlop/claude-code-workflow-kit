@@ -146,6 +146,62 @@ allowc "git push origin main" "$FIX/personal"
 denyc  "git push && cd $FIX/personal"             "$FIX/team"   # trailing cd must not launder it
 denyc  "git push origin main && cd $FIX/personal" "$FIX/team"
 allowc "cd $FIX/personal && git push"             "$FIX/team"   # a LEADING cd legitimately does
+
+# ── third audit (2026-09-20): every DENY below was reproduced as a live bypass, every ALLOW as a
+# live false positive, before the parser was rewritten (quote-aware tokens, heredoc stripping,
+# config allowlist, GIT_* anywhere, gh writes, interpreter strings). jq builds the JSON so the
+# commands can hold any quoting.
+echo "git-guard: third audit — config redirects, GIT_* anywhere, gh writes, interpreter strings, false positives"
+runj()   { jq -cn --arg c "$1" --arg d "$2" '{tool_input:{command:$c},cwd:$d}' | bash "$GUARD"; }
+denyj()  { if runj "$1" "$2" | grep -q '"permissionDecision":"deny"'; then pass=$((pass+1)); else echo "  ✗ expected BLOCK (cwd=$(basename "$2")): $1"; fail=$((fail+1)); fi; }
+allowj() { local o; o=$(runj "$1" "$2"); if [ -z "$o" ]; then pass=$((pass+1)); else echo "  ✗ expected ALLOW (cwd=$(basename "$2")): $1"; fail=$((fail+1)); fi; }
+P=$FIX/personal; T=$FIX/team
+# config that retargets a push, on the command line or persisted
+denyj 'git -c remote.origin.url=git@github.com:someorg/team.git push origin main' "$P"
+denyj 'git -c url.git@github.com:someorg/team.git.insteadOf=git@github.com:NamHT4Devlop/x.git push origin main' "$P"
+denyj 'git config url.git@github.com:someorg/team.git.insteadOf git@github.com:NamHT4Devlop/x.git' "$P"
+denyj 'git config branch.main.pushRemote team' "$P"
+denyj 'git config --global core.sshCommand "ssh -i /tmp/k"' "$P"
+denyj 'git config alias.pp "!sh -c \"git push team\""' "$P"
+denyj 'git config --unset remote.origin.url' "$P"
+denyj 'git config include.path /tmp/evil.gitconfig' "$P"
+# GIT_* wherever it appears
+denyj 'export GIT_DIR=/tmp/other/.git; git push origin main' "$P"
+denyj 'GIT_WORK_TREE=/tmp/x git status' "$P"
+# gh writes are repo-scoped like pushes; account-level changes never
+denyj 'gh pr merge 12 --squash' "$T"
+denyj 'gh pr comment 12 --body lgtm' "$T"
+denyj 'gh pr review 12 --approve' "$T"
+denyj 'gh repo delete someorg/team --yes' "$P"
+denyj 'gh pr merge https://github.com/someorg/team/pull/12' "$P"
+denyj 'gh api -X DELETE repos/someorg/team' "$P"
+denyj 'gh api repos/someorg/team/issues -f title=x' "$P"
+denyj 'gh api user/keys -f key=x' "$P"
+denyj 'gh auth logout' "$P"
+denyj 'gh alias set pp "!git push team"' "$P"
+# git or gh hidden in code handed to an interpreter
+denyj 'python3 -c "import os; os.system(\"git push origin main\")"' "$P"
+denyj 'sh -c "cd /tmp/x && git push team main"' "$P"
+denyj 'node -e "require(\"child_process\").execSync(\"gh pr merge 1\")"' "$P"
+denyj 'git push --repo=git@github.com:someorg/team.git main' "$P"
+denyj $'cat > notes.txt <<EOF\n$(git push git@github.com:someorg/team.git main)\nEOF' "$P"   # unquoted heredoc expands $(…)
+# false positives that used to block legitimate work
+allowj 'git config --get remote.origin.url' "$P"
+allowj 'git config --list --show-origin' "$P"
+allowj 'git config user.email me@example.com' "$P"
+allowj 'git -c user.name=x -c commit.gpgsign=false commit -m "fix: git push helper"' "$P"
+allowj 'grep -rn "git command" docs/' "$P"
+allowj 'git -C "/tmp/has space/repo" status' "$P"
+allowj 'git restore --staged README.md' "$P"
+allowj 'gh pr merge 12 --squash' "$P"
+allowj 'gh pr view 12 --json title' "$P"
+allowj 'gh pr diff 12' "$T"
+allowj 'gh api repos/someorg/team/pulls/12/comments' "$T"
+allowj 'gh issue create -R NamHT4Devlop/x --title t --body b' "$P"
+allowj $'git commit -q -F - <<\'EOF\'\nfix: the git command the guard blocks\n\nA line that says git push origin team.\nEOF' "$P"
+allowj $'cat > notes.txt <<EOF\nremember: git push is blocked here\nEOF' "$P"
+allowj 'echo "git push" > notes.txt' "$P"
+allowj 'git log --grep rebase --oneline' "$P"
 rm -rf "$FIX"
 
 

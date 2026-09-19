@@ -47,6 +47,32 @@ else
   fail=1
 fi
 
+# The panel used to default to bypassPermissions, which let a prompt injection in a scanned repo run
+# Bash, write files and reach the network with no prompt. The default is now acceptEdits and readonly
+# mode fences the CLI with a read-only tool allowlist; pin both so a "make the map work" edit cannot
+# quietly restore the old default.
+echo "consistency: the extension never defaults to bypassPermissions"
+bad=0
+sed -n "/extraArgs: c.get<string\[\]>('extraArgs'/p" vscode-extension/src/extension.ts | grep -q . || { echo "  ✗ extension.ts: the extraArgs default moved — update this check"; bad=1; }
+sed -n "/extraArgs: c.get<string\[\]>('extraArgs'/p" vscode-extension/src/extension.ts | grep -q bypassPermissions && { echo "  ✗ extension.ts defaults extraArgs to bypassPermissions"; bad=1; }
+sed -n '/"cwkUi.extraArgs"/,/"scope"/p' vscode-extension/package.json | grep -q '"default"' || { echo "  ✗ package.json: cwkUi.extraArgs has no default — update this check"; bad=1; }
+# the description may (and does) NAME bypassPermissions to warn about it — only the default array counts
+sed -n '/"cwkUi.extraArgs"/,/"description"/p' vscode-extension/package.json | grep -v '"description"' | grep -q bypassPermissions && { echo "  ✗ package.json defaults cwkUi.extraArgs to bypassPermissions"; bad=1; }
+grep -q "'--permission-mode', 'acceptEdits'" vscode-extension/src/extension.ts || { echo "  ✗ extension.ts default is not acceptEdits"; bad=1; }
+# readonly mode: the read-only allowlist exists, is passed with --permission-mode default, and is what
+# spawnClaude actually sends (an allowlist nobody applies is a comment).
+grep -q "^const READONLY_TOOLS = \[" vscode-extension/src/extension.ts || { echo "  ✗ extension.ts has no READONLY_TOOLS allowlist"; bad=1; }
+for t in Read Grep Glob mcp__provenlens__provenlens_explore mcp__provenlens__provenlens_why; do
+  sed -n '/^const READONLY_TOOLS = \[/,/^\];/p' vscode-extension/src/extension.ts | grep -q "'$t'" || { echo "  ✗ READONLY_TOOLS lacks $t"; bad=1; }
+done
+for t in Bash Edit Write WebFetch WebSearch; do
+  sed -n '/^const READONLY_TOOLS = \[/,/^\];/p' vscode-extension/src/extension.ts | grep -q "'$t'" && { echo "  ✗ READONLY_TOOLS grants $t — that is not read-only"; bad=1; }
+done
+grep -q "'--permission-mode', 'default', '--allowedTools', READONLY_TOOLS.join(',')" vscode-extension/src/extension.ts || { echo "  ✗ readonly mode does not pass --permission-mode default + --allowedTools"; bad=1; }
+grep -q "\.\.\.this\.permissionArgs(extraArgs)\]" vscode-extension/src/extension.ts || { echo "  ✗ spawnClaude does not route extraArgs through permissionArgs()"; bad=1; }
+{ grep -q "showWarningMessage" vscode-extension/src/extension.ts && grep -q "isBypass(extraArgs)" vscode-extension/src/extension.ts; } || { echo "  ✗ no warning when the user opts into bypassPermissions"; bad=1; }
+[ "$bad" -eq 0 ] && echo "  ✓ default is acceptEdits; readonly fences the CLI with a read-only allowlist; bypass is opt-in + warned" || fail=1
+
 echo "consistency: help.md mentions every command"
 bad=0
 for f in commands/*.md; do
@@ -204,6 +230,25 @@ for sk in $PROVENLENS_EVIDENCE; do
   grep -qiE "reach.ledger" "$f" || { echo "  ✗ $sk has no reach ledger in its output — the anti-miss table is the point"; bad=1; }
 done
 [ "$bad" -eq 0 ] && echo "  ✓ provenlens block in $n_with skills + evidence protocol in $(echo $PROVENLENS_EVIDENCE | wc -w | tr -d ' '), opted out of $(echo $PROVENLENS_OPT_OUT | wc -w | tr -d ' '), agents wired read-only" || fail=1
+
+# Every skill reads repository content (READMEs, comments, diffs, PR text, KB pages, logs, sub-agent
+# reports) and several can run Bash, write files or post outward. The shared rule that all of it is
+# data, never instructions, lives in resources/untrusted-input.md; a skill that does not bundle and
+# cite it, or an agent without the baseline, is one prompt injection away from acting on planted text.
+echo "consistency: untrusted input is data in every skill and agent"
+bad=0
+for d in skills/cwk-*/; do
+  sk=$(basename "$d"); f="$d/SKILL.md"
+  [ -f "$d/references/untrusted-input.md" ] || { echo "  ✗ $sk lacks references/untrusted-input.md (add it to map_untrusted in scripts/sync-bundles.sh, then run it)"; bad=1; }
+  grep -qF "untrusted-input.md" "$f" || { echo "  ✗ $sk never points at references/untrusted-input.md"; bad=1; }
+done
+for ag in agents/*.md; do
+  grep -q "^## Prompt defence baseline" "$ag" || { echo "  ✗ $ag has no '## Prompt defence baseline' section"; bad=1; }
+done
+# the two escape hatches the audit found must not come back
+grep -qi "auto-send" skills/cwk-splunk-report/SKILL.md && { echo "  ✗ cwk-splunk-report has an auto-send escape hatch again"; bad=1; }
+grep -qi "trips the git-guard" skills/cwk-skillify/SKILL.md && { echo "  ✗ cwk-skillify explains how to get around the git-guard again"; bad=1; }
+[ "$bad" -eq 0 ] && echo "  ✓ every skill cites untrusted-input.md; every agent carries the prompt defence baseline" || fail=1
 
 echo "consistency: version + changelog"
 bad=0

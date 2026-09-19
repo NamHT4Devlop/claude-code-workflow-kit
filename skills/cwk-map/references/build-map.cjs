@@ -18,6 +18,44 @@
 const fs = require('fs');
 const path = require('path');
 
+// ---- vendored library lookup ----------------------------------------------------------------
+// IDENTICAL copy in build-map.cjs, kb-site.cjs, check-mermaid.cjs and render-html.cjs (each file is
+// standalone) — change all four together. The bundle is only ever taken from the kit's own vendor/ (the nearest
+// ancestor of this file's real path holding both .claude-plugin/plugin.json and vendor/SHA256SUMS),
+// never from a scanned repository's vendor/, and its SHA-256 must match the pinned entry before it is
+// used — check-mermaid require()s the bundle and the others inline it into every generated page,
+// so an unverified one would run as arbitrary code here or in every reader's browser.
+const crypto = require('crypto');
+function kitRoot() {
+  let d;
+  try { d = fs.realpathSync(__dirname); } catch { return ''; }
+  for (;;) {
+    if (fs.existsSync(path.join(d, '.claude-plugin', 'plugin.json')) && fs.existsSync(path.join(d, 'vendor', 'SHA256SUMS'))) return d;
+    const up = path.dirname(d);
+    if (up === d) return '';
+    d = up;
+  }
+}
+/** → { file, why }: `file` is the verified vendor/<lib>.min.js, else '' with `why` = 'absent' (no kit
+ *  root or not fetched: silent fallback) or a message naming the file (hash mismatch / no pinned entry). */
+function vendoredLib(lib) {
+  const root = kitRoot();
+  if (!root) return { file: '', why: 'absent' };
+  const file = path.join(root, 'vendor', `${lib}.min.js`);
+  if (!fs.existsSync(file)) return { file: '', why: 'absent' };
+  const sums = fs.readFileSync(path.join(root, 'vendor', 'SHA256SUMS'), 'utf8');
+  const want = (sums.match(new RegExp(`^([0-9a-fA-F]{64})\\s+\\*?${lib}\\.min\\.js\\s*$`, 'm')) || [])[1];
+  if (!want) return { file: '', why: `${file}: no entry in vendor/SHA256SUMS — see vendor/README.md` };
+  const got = crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  if (got !== want.toLowerCase()) return { file: '', why: `${file}: SHA-256 ${got} does not match vendor/SHA256SUMS (${want.toLowerCase()}) — see vendor/README.md` };
+  return { file, why: '' };
+}
+// ---- end vendored library lookup ------------------------------------------------------------
+
+// Per-build CSP nonce: only <script> tags carrying it may run, so nothing the scanned repository
+// contributes (paths, comments, route strings) can ever become a script.
+const nonce = crypto.randomBytes(16).toString('base64');
+
 const root = path.resolve(process.argv[2] || '.');
 let out = process.argv[3] || '';
 let mode = process.argv[4] || 'all';
@@ -46,11 +84,13 @@ if (mode === 'all' && process.env.PROVENLENS !== '0' && process.env.PROVENLENS_F
     const layers = Object.entries(LAYER_CONFIG).map(([id, cfg]) => ({ id, label: cfg.label, color: cfg.color }));
     const tpl = fs.readFileSync(path.join(__dirname, 'explorer-template.html'), 'utf8');
     // base64 is inert in markup; the layer table is ours. Function replacers, as below.
+    // __NONCE__ first, so a literal "__NONCE__" inside the untrusted data is never touched.
     let html = tpl
+      .replace(/__NONCE__/g, () => nonce)
       .replace(/__PROJECT__/g, () => escapeHtml(projectName))
       .replace('__LAYERS__', () => JSON.stringify(layers))
       .replace('__GRAPH_DATA__', () => pack(full.data));
-    html = inlineVendored(html, __dirname);
+    html = inlineVendored(html);
     const target = out || defaultOut(projectName);
     fs.writeFileSync(target, html, 'utf8');
     console.error(`✔ explorer · ${st.symbols} symbols · ${(Buffer.byteLength(html) / 1e6).toFixed(1)} MB · provenlens (full index)`);
@@ -121,9 +161,10 @@ const graphJson = JSON.stringify(data)
   .replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
   .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 let html = tpl
+  .replace(/__NONCE__/g, () => nonce) // first: a literal "__NONCE__" inside the untrusted data must stay
   .replace(/__PROJECT__/g, () => escapeHtml(projectName))
   .replace('__GRAPH_DATA__', () => graphJson);
-html = inlineVendored(html, __dirname); // offline: inline Cytoscape from vendor/ if present
+html = inlineVendored(html); // offline: inline Cytoscape from the kit's verified vendor/ if present
 
 // Default output: <root>/cwk-sessions/maps/<name>-<YYYY-MM-DD>.html  (gitignored)
 if (!out) out = defaultOut(projectName);
@@ -141,26 +182,18 @@ function defaultOut(projectName) {
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-/** Inline cdnjs <script src=…> from vendor/<lib>.min.js (offline) when available; else keep CDN. */
-function inlineVendored(html, dir) {
-  // Walk up for vendor/ rather than assuming a depth — this file is run both from the repo and from
-  // the copy symlinked into ~/.claude/skills/.
-  let vendorDir = '';
-  for (let d = dir, i = 0; i < 6; i++) {
-    const cand = path.join(d, 'vendor');
-    if (fs.existsSync(cand)) { vendorDir = cand; break; }
-    const up = path.dirname(d);
-    if (up === d) break;
-    d = up;
-  }
-  if (!vendorDir) return html;
+/** Inline cdnjs <script src=…> from the kit's verified vendor/<lib>.min.js (offline); else keep CDN. */
+function inlineVendored(html) {
   let out = html.replace(
     /<script\b([^>]*)\bsrc="https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\/([^/]+)\/[^"]+\.min\.js"([^>]*)><\/script>/gi,
     (m, pre, lib, post) => {
-      const f = path.join(vendorDir, lib + '.min.js');
-      if (!fs.existsSync(f)) return m;
+      const v = vendoredLib(lib);
+      if (!v.file) {
+        if (v.why !== 'absent') console.error(`⚠ not inlining ${v.why}; the page loads ${lib} from the CDN instead`);
+        return m;
+      }
       const nonce = ((pre + post).match(/nonce="([^"]+)"/) || [])[1];
-      const code = fs.readFileSync(f, 'utf8').replace(/<\/script/gi, '<\\/script');
+      const code = fs.readFileSync(v.file, 'utf8').replace(/<\/script/gi, '<\\/script');
       return `<script${nonce ? ` nonce="${nonce}"` : ''}>\n/* vendored ${lib} — offline, no external fetch */\n${code}\n</script>`;
     },
   );
