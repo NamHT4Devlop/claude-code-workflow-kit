@@ -27,6 +27,9 @@ This KB is the grounding for every other Workflow Kit command.
   changes) — OK?"* If they want a different branch, ask them to `git checkout <branch>` first (never
   switch on their behalf if that could discard uncommitted work). Not a git repo → just scan the
   folder and say so.
+- **When nobody can answer** (a headless run, a sub-agent, a pipeline), every question in this skill
+  takes its recommended default: scan the checked-out branch as it is, use `standard` depth, do a
+  source-only scan. Record each default you took at the top of `_coverage-report.md`.
 - **Pick a depth (this is the cost dial — say which you used).** A full scan of a large repo is the
   most expensive thing in the kit, so match the effort to the need. If the user names one, obey it;
   otherwise choose from the repo size and say so in one line.
@@ -83,7 +86,8 @@ This KB is the grounding for every other Workflow Kit command.
 through DI, interfaces, mixins and framework string-bindings (MyBatis · Camel · SQS · Kafka · HTTP routes · Spring events · GraphQL · gRPC · Flyway) and
 scores every edge. Confirm it with `provenlens status`, and run `provenlens sync` first if the working
 tree has moved since it was built — **a stale index is worse than none, because it looks
-authoritative**. If coverage reads low, `provenlens doctor` says whether that is a resolver limit or
+authoritative**. Run `provenlens doctor` once and record what it flags as blocking (see `_coverage-report.md` in
+`references/kb-steps.md`); when coverage reads low it is also what says whether that is a resolver limit or
 just an uninstalled dependency; those look identical in the number and are nothing alike in the fix.
 No index, no `provenlens` command, or a language it does not cover (**Java · Ruby · TS/JS** only) →
 fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` in the output. A grep hit
@@ -106,7 +110,9 @@ function/class names; never write generic filler — if no evidence, write `(not
 codebase)`; analyze at business depth; prioritize **tests > services > controllers > models**.
 
 The five **deep** docs deserve the most effort — analyze them from three angles and
-synthesize (use parallel `Task` sub-agents when the repo is large):
+synthesize (use parallel `Task` sub-agents when the repo is large, meaning more than about 150
+source files or more than one deployable; below that, one agent reading everything is faster and
+makes fewer cross-document mistakes):
 - `04-business-domain.md`, `05-domain-model.md`, `10-core-flows.md`,
   `13-business-rules.md`, `16-architecture-patterns.md`.
 
@@ -132,13 +138,16 @@ not done.
 
 ## Auxiliary outputs (also required)
 1. **`review-skills.md`** — start from the bundled universal checklist
-   (`references/review-skills-universal.md` in this skill) and append a **Section 14 —
-   Project-Specific Rules**: project naming conventions, mandatory patterns, banned anti-patterns, and the
+   (`references/review-skills-universal.md` in this skill), drop its Section 8 (AI engineering) unless
+   the project calls an LLM, and fill its **Section 14 — Project-Specific Rules** placeholder
+   (replace the placeholder, do not add a second Section 14): project naming conventions, mandatory patterns, banned anti-patterns, and the
    business rules every new feature must respect — **each with a real code citation**.
    This file is injected into every code review, so make it accurate.
 2. **`modules/<module>.md` + `modules/_index.md`** — deep per-module docs: exhaustive (numbered)
    business flows, business rules with severity, entities, API/entry points, and dependencies.
-   **Write them whenever the repo has more than ~3 modules, and always for a business-heavy repo** —
+   **Write them whenever the repo has more than ~3 modules, and always for a business-heavy repo.** A
+   module here is a business area that owns its own entities or flows (orders, partners, billing),
+   not a technical package: shared base classes and plumbing get a line in `06`, not a document —
    "larger project" is not a judgement call you should be making by feel. These files are where a
    system with many core flows actually gets documented: the global `10-core-flows.md` keeps the
    cross-cutting flows, and each module's own flows live here rather than being dropped to fit. Process modules with a concurrency limit; for very
@@ -176,6 +185,8 @@ security conclusions in both directions.
    `Corrected <date>: <what it said before>`. Do not delete the history; a reader who remembers the
    old claim needs to see it was withdrawn. List the corrections under "Corrections" in
    `_coverage-report.md`.
+   A correction inside a Mermaid diagram changes the node itself; the `Corrected` note goes in the
+   text directly under the diagram, since a note inside a label would break or clutter it.
 4. **Keep ids stable.** A corrected rule keeps its `BR-xx`/`CF-xx`; a rule that no longer exists is
    marked `[REMOVED <date>]`, never renumbered.
 
@@ -183,9 +194,14 @@ security conclusions in both directions.
 Parse every diagram: `node "$SKILL_DIR/check-mermaid.cjs" knowledge-base` (`$SKILL_DIR` is this skill's
 `references/` folder: `${CLAUDE_PLUGIN_ROOT}/skills/cwk-scan/references` if `CLAUDE_PLUGIN_ROOT` is
 set, else the `references/` folder next to this file, else `$HOME/.claude/skills/cwk-scan/references`). It exits non-zero and prints `file:line` for each diagram
-that does not parse; fix those before reporting. Then check the flow docs: every `CF-xx` in `10-core-flows.md` has a `flowchart` with
-decision diamonds and a step table with `file:line`; `05` has a state diagram per lifecycle entity;
-`04` has the journey and domain-map diagrams.
+that does not parse; fix those before reporting. The script needs the kit's `vendor/mermaid.min.js`,
+which it finds by walking up from its own real path; a skill copied without the kit reports that
+(exit 2) rather than passing silently, and the check then has to be done in the rendered page. Then check the flow docs: every `CF-xx` in `10-core-flows.md` has a `flowchart` with
+decision diamonds and a step table with `file:line` (a flow moved to `modules/<m>.md` under the
+§10 split carries them there, and its one-line index entry in `10` points at it); `05` has a state
+diagram per lifecycle entity as §05 defines it, or says there are none; `04` has the journey and
+domain-map diagrams; `07` has the architecture `flowchart`; `08` has an `erDiagram` whenever the
+system stores relational data.
 Report: number of section docs, module docs, and coverage %. Point the user to the most
 valuable files (04, 05, 10, 13, review-skills) and suggest running `/cwk-build` next.
 Be efficient with reads on huge repos — sample representative files per layer rather than

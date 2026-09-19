@@ -35,8 +35,10 @@
 >      say which layer does what.
 >    - **A library default is a claim like any other.** "The queue is not durable", "the JWT library
 >      checks the algorithm", "this association deletes its children": each depends on library
->      behaviour. Read the library's source for the version in the lockfile, or mark the statement
->      `(library default, not verified)`. Never infer it from the method name.
+>      behaviour. >      Read the library's source for the version the build pins when that source is on disk
+>      (`node_modules/`, `vendor/bundle`, a `-sources.jar` in `~/.m2`, `site-packages/`); otherwise
+>      mark the statement `(library default, not verified)`. Never infer it from the method name,
+>      and never download a dependency just to check.
 >    - **Another document or agent is a lead, not evidence.** A finding copied from the KB, the
 >      runbook or a sub-agent's report is re-read in the source before it is written again, and
 >      the `file:line` cited is one you opened.
@@ -86,7 +88,10 @@ Answer as a Business Analyst reading the ENTIRE codebase.
 ## 05 — `05-domain-model.md` — Domain Model & Entity Lifecycle ★DEEP
 Check ALL sources: JPA `@Entity`, Prisma schema, TypeORM, Django models, ActiveRecord, MyBatis mapper XML (resultMap/resultType), SQL `CREATE TABLE`, Proto messages.
 1. **Entity Catalog**  2. **State Machines**  3. **Entity Relationships** (ORM + MyBatis XML joins)  4. **Aggregate Boundaries**  5. **Data Lifecycle**.
-- **One `stateDiagram-v2` per entity that has a lifecycle**, with every stored status value, every
+- **One `stateDiagram-v2` per entity that has a lifecycle** (a stored status, state, stage or enum
+  column, or a flag such as published/deleted/approved that code changes over time; an entity that is
+  only created, edited and deleted has none, and 05 says so in one line rather than drawing
+  new → persisted), with every stored status value, every
   transition labelled `who/what / guard` (the check the code makes, or `no guard`; Mermaid allows only one `:` per transition line, so never put a second one in the label), and the
   states the schema defines but no code writes marked as such. A transition with no guard is a
   finding and is repeated in `13-business-rules.md` §7.
@@ -237,7 +242,7 @@ catalogs are put side by side.
   (`provenlens status`), or `none`. It is the honesty column: a reader comparing two KBs needs to
   know that one was built on a resolved graph and the other on grep. Omit the key rather than
   guess a number.
-  Get `repo`/`branch`/`commit` from git (`git config --get remote.origin.url`, `git branch --show-current`,
+  Get `repo`/`branch`/`commit` from git (`git remote get-url origin`, `git branch --show-current`,
   `git rev-parse --short HEAD`); if the folder is not a git repo, say so rather than inventing values.
   `project` defaults to the repo folder name — ask the user if that name is meaningless (`src`, `app`).
   Also put a one-line stamp at the top of `00-*`/`01-*`: `> KB for **<project>** · branch `<branch>` ·

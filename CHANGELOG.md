@@ -14,6 +14,34 @@ noted per release when it changed.
 
 ---
 
+## [3.5.1] — 2026-09-20
+
+### Fixed
+
+Found by running `/cwk-scan` end to end on a repository it had never seen (spring-petclinic) and
+asking the run to quote every instruction it could not follow as written.
+
+- **The spec told the scan to read the origin URL through `git config`, which the kit's own git
+  guard refuses** (it blocks every `config remote.*` form, reads included). It now uses
+  `git remote get-url origin`.
+- **The finish check contradicted the §10 split.** It required every `CF-xx` in `10-core-flows.md` to
+  carry a diagram, while §10 moves module-local flows to `modules/<m>.md`. A moved flow now carries
+  them in the module document. The check also covers the `07` architecture flowchart and the `08`
+  `erDiagram`; the run produced a schema document with no ER diagram and passed.
+- **Undefined terms** now have definitions: "large repo" (about 150 source files or more than one
+  deployable), "module" (a business area with its own entities or flows, not a technical package),
+  and "entity with a lifecycle" (a stored status or a flag code changes; otherwise 05 says there are
+  none instead of drawing new → persisted).
+- **Questions with nobody to answer them** (headless runs, sub-agents) take the recommended default,
+  recorded at the top of the coverage report. `provenlens doctor` runs once on every scan, as the
+  coverage report already expected.
+- **`review-skills.md`** fills the universal checklist's Section 14 placeholder instead of appending a
+  second one, and drops Section 8 unless the project calls an LLM.
+- **Golden rule 9** reads a library's source only when it is already on disk, and never downloads a
+  dependency to check; a correction inside a Mermaid diagram puts its note under the diagram.
+
+---
+
 ## [3.5.0] — 2026-09-20
 
 ### Added
