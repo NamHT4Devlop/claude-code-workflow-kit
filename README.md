@@ -595,6 +595,7 @@ all), and survives being emailed or dropped on a share drive. Build or rebuild i
 ```bash
 node scripts/kb-site.cjs ~/kb-hub              # → ~/kb-hub/index.html
 node scripts/kb-site.cjs ~/work/taskflow       # single repo → ~/work/taskflow/knowledge-base/index.html
+node scripts/check-mermaid.cjs ~/work/taskflow/knowledge-base   # every diagram parses, or file:line of each that does not
 ```
 
 Each project also carries a **⛓ Code graph** link: the `/cwk-map` page, with its own per-node search

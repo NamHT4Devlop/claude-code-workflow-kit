@@ -107,6 +107,8 @@ migration, etc.). This is what lets a non-technical reader follow the technical 
      "<repo>/cwk-sessions/documents/<slug>-<date>.html" "<topic>"
    # then: open / xdg-open / start  the printed path
    ```
+   Before rendering, parse the diagrams: `node "$SKILL_DIR/check-mermaid.cjs" <file.md>` exits
+   non-zero and prints `file:line` for any block that does not parse; fix those first.
    Requires Node — if absent, keep chat + `.md` and note HTML was skipped. Give the user the path.
 
 If `knowledge-base/` is missing, document from source directly but recommend `/cwk-scan`

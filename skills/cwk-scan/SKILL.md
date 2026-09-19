@@ -115,6 +115,12 @@ Angles to split across sub-agents (then merge, deduplicate, keep every cited ite
 - **Test/Validation analyzer** — tests reveal intended business scenarios; validators reveal enforced constraints. Treat tests as specifications.
 - **Model/Schema analyzer** — entities, state machines, DB constraints, relationships, migration history (business evolution).
 
+**Sub-agents write their file the moment it is done.** A scan of a real repository runs long enough
+to be cut off by a rate limit or a closed session. Give each sub-agent a list of files it owns, tell
+it to save each one as soon as it is complete, and never have two agents own the same file. After an
+interruption, look at what is on disk and resume only what is missing; do not restart finished work.
+Tell sub-agents not to spawn their own sub-agents: an interrupted grandchild leaves nothing behind.
+
 **`10-core-flows.md` is where a scan is judged.** A flow section that is a summary table with no
 diagram has not been traced. Each `CF-xx` carries the eight parts in `references/kb-steps.md` §10:
 a `flowchart TD` with a decision diamond for every check the code makes and the exact error on the
@@ -154,12 +160,32 @@ not done.
 `/cwk-review`. Make Section 6 ("Architecture Invariants — DO NOT BREAK") a numbered,
 enforceable checklist with `[CRITICAL]`/`[MAJOR]` severities.
 
+## Verify before finishing (required)
+Writing the documents is half the scan. The other half is checking them against each other and
+against the code, because a later document routinely finds an earlier one wrong: in the benchmark
+scans this pass corrected about forty statements across four repositories, including wrong
+security conclusions in both directions.
+
+1. **Cross-check.** For each document, list the claims another document also makes (a status value,
+   a check, a table's columns, a queue's durability, who may call an endpoint). Where two documents
+   disagree, open the code and settle it. Watch especially for the three mistakes in golden rule 9.
+2. **Re-verify the findings that matter.** Every CRITICAL/MAJOR defect and every access-control
+   finding is re-read in the source by you, not taken from a sub-agent's report, before the scan
+   ends. Keep `read in source, not reproduced` where it applies.
+3. **Correct in place.** Fix the wrong statement where it stands and add
+   `Corrected <date>: <what it said before>`. Do not delete the history; a reader who remembers the
+   old claim needs to see it was withdrawn. List the corrections under "Corrections" in
+   `_coverage-report.md`.
+4. **Keep ids stable.** A corrected rule keeps its `BR-xx`/`CF-xx`; a rule that no longer exists is
+   marked `[REMOVED <date>]`, never renumbered.
+
 ## Finish
-Check the flow docs before reporting: every `CF-xx` in `10-core-flows.md` has a `flowchart` with
+Parse every diagram: `node "$SKILL_DIR/check-mermaid.cjs" knowledge-base` (`$SKILL_DIR` is this skill's
+`references/` folder: `${CLAUDE_PLUGIN_ROOT}/skills/cwk-scan/references` if `CLAUDE_PLUGIN_ROOT` is
+set, else the `references/` folder next to this file, else `$HOME/.claude/skills/cwk-scan/references`). It exits non-zero and prints `file:line` for each diagram
+that does not parse; fix those before reporting. Then check the flow docs: every `CF-xx` in `10-core-flows.md` has a `flowchart` with
 decision diamonds and a step table with `file:line`; `05` has a state diagram per lifecycle entity;
-`04` has the journey and domain-map diagrams. Then open `knowledge-base/index.html` (built with
-`scripts/kb-site.cjs <repo>`) and confirm every diagram renders rather than showing a Mermaid
-syntax error.
+`04` has the journey and domain-map diagrams.
 Report: number of section docs, module docs, and coverage %. Point the user to the most
 valuable files (04, 05, 10, 13, review-skills) and suggest running `/cwk-build` next.
 Be efficient with reads on huge repos — sample representative files per layer rather than

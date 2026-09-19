@@ -14,6 +14,37 @@ noted per release when it changed.
 
 ---
 
+## [3.5.0] — 2026-09-20
+
+### Added
+
+- **`check-mermaid.cjs` parses every diagram in a set of Markdown files** and exits non-zero with
+  `file:line` for each one that fails. It runs the vendored `mermaid.min.js`, the same build the KB
+  pages inline, on a do-nothing DOM, so the verdict matches the reader's browser with no new
+  dependency. A `<` inside label text used to send DOMPurify into an endless loop on that DOM; label
+  and message text is swapped for look-alike characters before parsing, which the grammar never
+  sees. Bundled into `cwk-scan`, `cwk-rescan`, `cwk-runbook` and `cwk-document`, each of which now
+  runs it before reporting done; `scripts/check-mermaid.cjs` is the entry point for everything
+  else. On the four benchmark Knowledge Bases it agrees with the browser: 485 of 485.
+
+### Changed
+
+- **`/cwk-scan` verifies before it finishes.** A required pass cross-checks claims that more than one
+  document makes, re-reads every CRITICAL/MAJOR and access-control finding in the source, corrects
+  wrong statements in place with `Corrected <date>: …`, and lists them in the coverage report. On
+  the benchmark repositories this pass corrected about forty statements, including security
+  conclusions that were wrong in both directions. `/cwk-rescan` cross-checks what it touched.
+- **Golden rules 9 and 10** name the three inference mistakes those corrections came from (reading
+  the inner function instead of the layer the user passes through, trusting a library default
+  without reading the library, copying another document's finding without opening the code) and
+  ask for `read in source, not reproduced` on consequences that were inferred. `/cwk-runbook`
+  carries the same rules.
+- **Sub-agents save each file the moment it is done**, own disjoint files and do not spawn their own
+  sub-agents, so a scan cut off by a rate limit resumes from what is on disk. Two interruptions in
+  the benchmark runs lost a whole `modules/` folder before this rule existed.
+
+---
+
 ## [3.4.0] — 2026-09-19
 
 ### Changed

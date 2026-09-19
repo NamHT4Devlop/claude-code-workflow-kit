@@ -90,5 +90,16 @@ if [ "$(printf '%s' "$got" | grep -c '<ol')" = "1" ] && printf '%s' "$got" | gre
   echo "  ✓ a code block stays inside its numbered step"
 else echo "  ✗ numbered list broken: $got"; fail=1; fi
 
+echo "smoke: check-mermaid.cjs tells a good diagram from a broken one"
+# The KB is judged by its diagrams; this is the check the scan runs before it reports done. A
+# `<` inside a label used to hang it (DOMPurify on a fake DOM), and two colons on a state
+# transition is the mistake the spec itself once made.
+mkdir -p "$TMP/mm"
+printf '```mermaid\nflowchart TD\n  A{"a <= b"} --> B["ok"]\n```\n\n1. step\n   ```mermaid\n   sequenceDiagram\n     A->>B: x < y\n   ```\n' > "$TMP/mm/good.md"
+printf '```mermaid\nstateDiagram-v2\n  [*] --> A : who : guard\n```\n' > "$TMP/mm/bad.md"
+if node scripts/check-mermaid.cjs "$TMP/mm/good.md" >/dev/null 2>&1; then echo "  ✓ valid diagrams pass, including < in a label and a block inside a list"; else echo "  ✗ valid diagrams were rejected"; fail=1; fi
+out=$(node scripts/check-mermaid.cjs "$TMP/mm/bad.md" 2>&1); code=$?
+if [ "$code" -eq 1 ] && printf '%s' "$out" | grep -q 'bad.md:1'; then echo "  ✓ a broken diagram fails with its file:line"; else echo "  ✗ expected exit 1 and bad.md:1, got $code: $out"; fail=1; fi
+
 echo "smoke: $([ "$fail" -eq 0 ] && echo PASS || echo FAIL)"
 [ "$fail" -eq 0 ]

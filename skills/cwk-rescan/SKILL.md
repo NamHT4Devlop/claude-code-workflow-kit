@@ -65,9 +65,20 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
 5. **Update `review-skills.md` Section 14** if the change introduced or revealed a new
    project-specific rule, banned pattern, or convention.
 6. Follow all the golden rules from `references/kb-steps.md` (cite real names; no filler;
-   business depth; tests > services > controllers > models).
+   business depth; tests > services > controllers > models), including rule 9: check the caller
+   and not only the function, verify library defaults, and re-read anything taken from another
+   document.
+7. **Cross-check what you touched.** For every statement you changed, search the rest of the KB
+   and the runbook for the same claim and bring them in line, or the KB will contradict itself.
+   A statement the change made wrong gets `Corrected <date>: <what it said before>` rather than a
+   silent rewrite.
 
 ## Finish
+Parse every diagram you added or edited: `node "$SKILL_DIR/check-mermaid.cjs" knowledge-base`
+(`$SKILL_DIR`: `${CLAUDE_PLUGIN_ROOT}/skills/cwk-rescan/references` if set, else the `references/`
+folder next to this file, else `$HOME/.claude/skills/cwk-rescan/references`). Fix every `file:line`
+it prints before reporting.
+
 **Always refresh `knowledge-base/_meta.yml`** — at minimum `commit`, `branch` and `generated`. A KB
 whose meta still points at a three-month-old commit will be trusted as current by the next person;
 that is the whole reason the file exists. If it doesn't exist yet (a KB from before `_meta.yml`),

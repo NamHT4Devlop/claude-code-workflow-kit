@@ -27,6 +27,24 @@
 >    **The graph is an input, never the output.** Do not paste `hotspots` into a KB page: a
 >    fan-in number is not a business meaning, and the meaning is the whole point of these docs.
 
+> 9. **Three inference mistakes to rule out before writing a claim.** Each of these produced a
+>    confidently wrong statement in real scans, and each was caught only later, by another document.
+>    - **The inner function is not the rule.** Before writing "X only checks Y", find what calls X:
+>      a wrapper, the page, a middleware or a policy often adds the checks that X lacks (or the
+>      caller skips X entirely). State the rule at the layer the user actually passes through, and
+>      say which layer does what.
+>    - **A library default is a claim like any other.** "The queue is not durable", "the JWT library
+>      checks the algorithm", "this association deletes its children": each depends on library
+>      behaviour. Read the library's source for the version in the lockfile, or mark the statement
+>      `(library default, not verified)`. Never infer it from the method name.
+>    - **Another document or agent is a lead, not evidence.** A finding copied from the KB, the
+>      runbook or a sub-agent's report is re-read in the source before it is written again, and
+>      the `file:line` cited is one you opened.
+> 10. **What was read versus what was run.** Almost every claim in a KB comes from reading. When a
+>    consequence was inferred rather than observed ("a partner can open any bank's screens"), say
+>    `read in source, not reproduced` next to it. It costs one clause and tells the reader what
+>    to confirm before acting.
+
 Sections **04, 05, 10, 13, 16** are the highest-value "deep analysis" docs — spend
 the most effort there and, when possible, analyze them with parallel sub-agents
 (service layer / tests+validators / models+schema) then synthesize.

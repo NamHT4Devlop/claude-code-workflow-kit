@@ -202,6 +202,14 @@ Confluence (paste-ready), `RUNBOOK.md` in the service repo, or the KB hub if one
 default is zero footprint in repos you don't own.
 
 ## Rules
+- **Three inference mistakes produced wrong runbook entries in real use; rule them out.** A
+  function that "only checks X" may sit behind a page or wrapper that checks more, so read the
+  caller. A library default ("the queue is not durable", "the association deletes children") is
+  read in the library's source or marked as unverified. A fact taken from the KB or a sub-agent is
+  re-read in the code before it goes into a playbook, because a playbook built on a wrong cause
+  sends the on-call engineer to the wrong place.
+- **When the runbook and the KB disagree, the code decides, and both are corrected** with
+  `Corrected <date>: <what it said before>`.
 - **Never invent a command, endpoint, dashboard, alert name, owner or phone number.** Cite the file,
   or mark it `UNVERIFIED`, or leave a `❓`. This is the whole difference between a runbook and a
   liability.
@@ -252,6 +260,9 @@ default is zero footprint in repos you don't own.
 - [ ] Read the finished page once against `references/writing-style.md`: no self-commentary, no
       framing labels, emphasis only where something is dangerous.
 - [ ] Every command is cited to a file, or labelled `UNVERIFIED`.
+- [ ] Each playbook's "likely cause" was re-read in the code, including any library default it relies
+      on, and does not contradict the KB.
+- [ ] Any Mermaid block parses: `node "$SKILL_DIR/check-mermaid.cjs" <runbook.md>` exits 0.
 - [ ] Owners, on-call, SLA and approvers are `❓` in the service card, not invented.
 - [ ] Every playbook has Confirm → Contain → Diagnose → Fix → Verify → Escalate.
 - [ ] Destructive steps say plainly what they cannot be undone from and who approves.
