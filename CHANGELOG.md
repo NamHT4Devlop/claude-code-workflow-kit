@@ -14,6 +14,19 @@ noted per release when it changed.
 
 ---
 
+## [3.10.3] — 2026-09-20
+
+### Fixed
+- **A YAML frontmatter header hid a diagram from every size rule.** `check-mermaid.cjs` read line
+  one to decide the diagram's type; a block opening with `---` / `title: …` / `---` — which Mermaid
+  supports — typed as `---`, matched no rule, and was never size-checked again. It now skips the
+  header and any `%%` directive before reading the type.
+- **The `LR` rule no longer fires on a chart that stacks.** A `flowchart LR` whose subgraphs carry
+  `direction TB` lays its members out in columns: one measured 1,024px where the rule predicted a
+  wide strip. Charts containing `direction TB`/`TD` are exempt.
+
+---
+
 ## [3.10.2] — 2026-09-20
 
 ### Fixed

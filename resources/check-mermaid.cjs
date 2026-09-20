@@ -146,7 +146,7 @@ function blocks(file) {
 // are left alone.
 function neutralise(src) {
   const swap = (t) => t.replace(/</g, '\u2039').replace(/>/g, '\u203a');
-  const seq = /^\s*sequenceDiagram\b/.test(src);
+  const seq = /^\s*sequenceDiagram\b/.test(typeLine(src));
   return src.split('\n').map((line) => {
     let out = line.replace(/"[^"\n]*"/g, swap);
     // Sequence messages are unquoted: `A->>B: text`. Everything after the first colon is text.
@@ -159,14 +159,34 @@ function neutralise(src) {
 
 // Size is not a parse error, but a 40-node LR flowchart renders as a strip nobody reads. Count
 // nodes and states with a simple scan and warn (exit code unchanged) so the author can split it.
+/**
+ * The line that declares the diagram type. A block may open with a YAML frontmatter header
+ * (`---` / `title: …` / `---`), which Mermaid supports and which pushes the declaration down;
+ * reading line one then returns `---`, every size rule silently stops matching, and the diagram
+ * is never checked again. Skip the header, and skip `%%` directives while we are here.
+ */
+function typeLine(src) {
+  const lines = src.trim().split('\n');
+  let i = 0;
+  if ((lines[0] || '').trim() === '---') {
+    i = 1;
+    while (i < lines.length && lines[i].trim() !== '---') i++;
+    i++;
+  }
+  while (i < lines.length && (lines[i].trim() === '' || lines[i].trim().startsWith('%%'))) i++;
+  return lines[i] || '';
+}
 function sizeWarning(src) {
-  const head = (src.trim().split('\n')[0] || '').trim();
+  const head = (typeLine(src) || '').trim();
   const type = head.split(/\s+/)[0];
   if (/^(flowchart|graph)$/.test(type)) {
     const ids = new Set();
     for (const m of src.matchAll(/(^|[\s>|])([A-Za-z_][A-Za-z0-9_]*)\s*(\[|\(\(|\(|\{|>\[|\[\[|\[\()/g)) ids.add(m[2]);
     for (const m of src.matchAll(/(^|[\s|])([A-Za-z_][A-Za-z0-9_]*)\s*(-->|-\.->|==>|--[^>]*-->)/g)) ids.add(m[2]);
-    const n = ids.size, lr = /\b(LR|RL)\b/.test(head);
+    // An `LR` chart whose subgraphs carry `direction TB` stacks its members in columns instead of
+    // spreading them: one measured 1,024px where this rule predicted a wide strip. Do not warn on it.
+    const stacked = /^\s*direction\s+(TB|TD)\b/m.test(src);
+    const n = ids.size, lr = /\b(LR|RL)\b/.test(head) && !stacked;
     if (n > 40) return `flowchart with ${n} nodes — split it (about 25 per diagram reads well)`;
     if (n > 25) return `flowchart with ${n} nodes — consider splitting (about 25 per diagram reads well)`;
     if (lr && n > 10) return `flowchart LR with ${n} nodes renders as a wide strip — use TD or split`;
