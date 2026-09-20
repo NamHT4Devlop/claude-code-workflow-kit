@@ -14,6 +14,22 @@ noted per release when it changed.
 
 ---
 
+## [3.10.5] — 2026-09-20
+
+### Added
+- **What narrows a diagram, in the order worth trying**, measured on real pages and written into
+  `measure-diagrams.cjs` and golden rule 7b: `direction` on a subgraph first (2,896px → 1,015px
+  with nothing else changed), then flipping the chart direction — `LR` is wrong for a long chain
+  but right for a shallow fan-out, where `TD` puts three or four long labels side by side
+  (2,008px → 1,489px) — and only then splitting, by branch rather than by size.
+- **What does not work**, so nobody spends an hour on it again: `wrappingWidth` is ignored by the
+  vendored Mermaid build with or without `htmlLabels: false`, and composite states in a
+  `stateDiagram-v2` usually render *wider* than the original. When a diagram's width is its label
+  text — render it once with the labels stripped and compare — no restructuring helps. One measured
+  state machine took 94% of its width from transition labels.
+
+---
+
 ## [3.10.4] — 2026-09-20
 
 ### Fixed

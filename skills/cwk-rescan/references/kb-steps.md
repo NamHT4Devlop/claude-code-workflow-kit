@@ -20,7 +20,11 @@
 > 7b. **A diagram is drawn to be read, not to be complete.** Keep a `flowchart` to about 25 nodes
 >    and split above that (part A / part B, or one diagram per branch); use `LR` only for chains
 >    of at most 10 nodes, `TD` otherwise, because a wide diagram becomes a strip the reader has
->    to scroll; keep node labels to about eight words (the detail goes in the step table);
+>    to scroll — with one measured exception: a SHALLOW FAN-OUT (one decision reaching three or four
+>    long labels) is narrower in `LR`, because `TD` puts those labels side by side. Two such charts
+>    measured 2,008px and 2,007px in `TD` and 1,489px and 1,615px in `LR`, with nothing else changed.
+>    An `LR` chart whose subgraphs carry `direction TB` also stacks rather than spreads.
+>    Keep node labels to about eight words (the detail goes in the step table);
 >    keep a `stateDiagram-v2` to about 15 states and a `sequenceDiagram` to about 8 participants.
 >    An `erDiagram` is the one that gets away from you: mermaid places entities side by side, so
 >    eleven render 1,326px wide and twenty-one render 3,222px — past any screen. Keep it to about

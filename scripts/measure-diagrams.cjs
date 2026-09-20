@@ -19,6 +19,18 @@
  *   under 1100px  fits as drawn
  *   1100–2000px   fits once the page stops shrinking it (the KB viewer opens these at full size)
  *   over 3000px   split it: no screen shows this at a readable scale
+ *
+ * What narrows a diagram, in the order worth trying — each measured on real pages:
+ *   1. `direction` on a subgraph. Members that do not link to each other stack into a column
+ *      instead of spreading: 2,896px → 1,015px, and 2,503px → 1,526px, nothing else changed.
+ *   2. Flipping the chart direction. `LR` is wrong for a long chain but right for a SHALLOW
+ *      FAN-OUT, where `TD` puts three or four long labels side by side: 2,008px → 1,489px.
+ *   3. Splitting, by branch rather than by size — parallel columns are what make width.
+ * What does NOT work: `%%{init: {"flowchart": {"wrappingWidth": …}}}%%` is ignored by the vendored
+ * build, with or without `htmlLabels: false`, and composite states in a `stateDiagram-v2` usually
+ * render WIDER than the original. When a diagram's width is its label text — render it once with
+ * the labels stripped and compare — no restructuring will help, and the honest answer is to leave
+ * it: one measured state machine took 94% of its width from transition labels.
  */
 const fs = require('fs');
 const path = require('path');
