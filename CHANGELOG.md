@@ -25,6 +25,12 @@ noted per release when it changed.
   shows the SQL and the endpoints that reach it.
 - **Search matches route, queue and topic strings.** `/admin/login` now finds
   `UmsAdminController#login`, which no symbol name could have matched.
+- **The binding is now part of the evidence protocol, not just the map.** `provenlens-evidence.md`
+  (bundled into 9 skills) makes a bound file an anchor symbol in the reach ledger; the security
+  reviewer is told that `${}` is injection only when the caller supplies the value and must quote
+  both ends; the impact detector is told to feed non-code files to `affected`; the performance
+  reviewer is told an N+1 hides in a `<collection select=>`; the business-consistency reviewer is
+  told a rule can live in a `WHERE` clause and vanish with no Java diff.
 - **`11-api-docs.md` carries a `Data touched` column** where the repo has bound SQL: the mapper
   statement and the tables behind each endpoint, so the page answers "which endpoint can change
   this row".

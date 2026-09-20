@@ -59,6 +59,20 @@ somewhere in the document (a flow step, an AC, a test, a playbook) or listed und
 `direct` carries its confidence in the cell (`0.6 interface->impl`), and a conclusion resting on
 an edge below `direct` says so.
 
+### 2b. Bound files are anchors too
+
+A framework binding is not a call, so a symbol list built by reading source misses it. The index
+resolves eleven of them — MyBatis (`@Mapper` method ↔ `<select id>`), HTTP routes, Kafka, SQS, Camel,
+Spring events, GraphQL, gRPC, Flyway. Three consequences for the ledger:
+
+- **A mapper XML, a route or a queue name is an anchor.** `provenlens affected <path/to/Mapper.xml>`
+  names the service and controller methods the statement reaches; those rows belong in the ledger
+  like any other. "It is only XML" is how a data-losing SQL change passes review.
+- **An endpoint is addressable by its URL**, not only by its handler name: `provenlens routes` lists
+  them, and the code-graph page's search matches the route string.
+- **Read both ends of a binding.** The SQL says what runs, the Java method says what is passed into
+  it. A finding about either that quotes only one end is half an answer.
+
 ## 3. Code graph — the picture, pasted, not drawn
 
 ```bash

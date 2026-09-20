@@ -28,7 +28,10 @@ Be conservative — flag anything uncertain as a risk. Cite real paths/names. Re
 **Blast radius, when provenlens is available.** `provenlens_impact` returns every caller that
 transitively reaches a symbol, resolved through DI, interfaces and mixins — use it for §2
 (Downstream Consumers) instead of inferring from imports, and `provenlens_affected` on the changed
-files for §6 (Side Effects). Quote the confidence when an edge is below `direct`. If the tools
+files for §6 (Side Effects). **Feed it the non-code files too** — a MyBatis mapper XML, a route or a
+queue name is bound to real methods, so `provenlens_affected` on the XML names the endpoints that
+change behaviour; an impact analysis that lists only `.java` files under-reports.
+Quote the confidence when an edge is below `direct`. If the tools
 are unavailable, trace with Grep/Glob and open the report with
 `⚠️ grep-depth only (no provenlens index)` — an impact analysis that hides its own depth is the
 one that gets trusted wrongly.

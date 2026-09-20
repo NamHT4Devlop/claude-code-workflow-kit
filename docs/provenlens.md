@@ -91,6 +91,8 @@ resolve and the agent falls back to `Read/Grep/Glob`. That is the intended degra
 | Who calls / what does it call? | `provenlens callers` · `provenlens callees` | — |
 | How much of this rests on a declaration, not a call? | `provenlens why <symbol>` | ✅ |
 | Which HTTP routes does this serve, and who calls them? | `provenlens routes` | — |
+| I changed a mapper XML — which endpoints does it reach? | `provenlens affected <Mapper.xml>` | ✅ |
+| Which SQL statement does this mapper method run? | `provenlens explore "<method>"` — the binding edge | ✅ |
 | How does A end up reaching B? | `provenlens path <from> <to>` | — |
 | What is safe to delete? | `provenlens dead` | — |
 | What depends on itself? | `provenlens cycles` | — |

@@ -21,6 +21,13 @@ Review the target code exclusively for SECURITY:
 
 Report each issue in the format below. If a category is clean, say so. Return Markdown.
 
+**The sink can be in a file with no code in it.** SQL in a MyBatis mapper XML is the classic case:
+`${}` interpolates the value straight into the statement while `#{}` binds it, so `${}` is injection
+**only when** the value comes from a request — and that is visible only at the other end of the
+binding. `provenlens_explore` on the mapper method gives both ends, `provenlens_impact` on it gives
+the controllers. Quote the statement's `file:line` **and** the caller that supplies the parameter;
+one without the other is half a finding. The same holds for route strings, queue names and templates.
+
 **Reachability, when provenlens is available.** `provenlens_impact` on a sink is the taint list —
 every path that reaches it — and `provenlens_explore` gives the entry points with real signatures.
 A sink no entry point reaches is a lower severity, and now you can show which. **Absence of a

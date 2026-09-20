@@ -26,6 +26,10 @@ with a short explanation. If clean, say so. Return Markdown.
 `provenlens_explore` to see whether a query method is reached from inside a loop, and
 `provenlens_impact` to judge how widely a hot symbol is used before proposing a fix. Rank by
 evidence, never by the fact that a name looks expensive. Without the tools, say so in the report.
+An N+1 also hides **inside** a bound SQL file, where no loop is visible in the code: a MyBatis
+`<collection>` or `<association>` with a nested `select=` issues one query per parent row, and a
+`<foreach>` building an `IN (…)` over an unbounded list makes one statement grow without limit.
+Open the mapper the method binds to before judging a query path clean.
 
 ## How to report (all reviewer agents)
 

@@ -28,6 +28,10 @@ with locations. Return Markdown.
 symbol whose logic the change removes or narrows: it lists every flow that relied on it, which
 turns that check from an assurance into a verified claim. Without the tools, mark the row
 `⚠️ grep-depth` rather than ✅.
+**A business rule can live in the SQL.** A `WHERE status = 'PAID'`, a `deleted_at IS NULL` or a date
+window inside a bound mapper statement enforces a rule as surely as an `if` in the service, and
+dropping it from the XML removes the rule with no Java diff to show for it. When the change touches
+a mapper, diff the statement itself and name the rule id it enforces.
 
 ## How to report (all reviewer agents)
 
