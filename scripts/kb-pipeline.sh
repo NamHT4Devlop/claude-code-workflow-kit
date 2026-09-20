@@ -128,6 +128,11 @@ for row in "${plan[@]}"; do
     echo "  · /cwk-map";         run node "$HERE/../skills/cwk-map/references/build-map.cjs" . || echo "  ⚠ map failed — continuing";;
   esac
   did+=("$abs")
+  # Audit trail, one line per repo: which steps ran, at which depth and permission mode, on which commit.
+  if [ "$DRY" = 0 ] && [ -f "$HERE/audit-log.sh" ]; then
+    bash "$HERE/audit-log.sh" kb.pipeline "repo=$abs" "commit=$(git -C "$abs" rev-parse --short HEAD 2>/dev/null || echo '(no git)')" \
+      "depth=$DEPTH" "steps=$(printf '%s' "$todo" | sed 's/^ *//')" "permission_mode=$PERM" || true
+  fi
 done
 
 echo

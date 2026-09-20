@@ -107,3 +107,10 @@ node "$SKILL_DIR/render-html.cjs" "<the .md just saved>" "<same path>.html" "PR 
 ```
 Then open it and give the user the path. (This is also what the VS Code panel's **📄 Report** button
 looks for — without it the button has nothing to open.)
+
+Finish by recording the run in the audit trail: `bash "$KIT_SCRIPTS/audit-log.sh" pr.review
+repo=<origin, credentials stripped> commit=<headRefOid> pr=<n> verdict=<APPROVED|APPROVED_WITH_FOLLOW_UPS|NEEDS_REVISION>`
+(PREPARE mode: action `pr.prepare`, no `pr=`/`verdict=`) — `$KIT_SCRIPTS` is `${CLAUDE_PLUGIN_ROOT}/scripts`
+if set, else `../../scripts` relative to this skill folder's real path (`cd -P`; it is usually a
+symlink), else `$HOME/.claude/skills/cwk-pr/../../scripts` resolved the same way. Not found → say so in
+the report and continue; never put the diff, a comment's text or a secret in the values.

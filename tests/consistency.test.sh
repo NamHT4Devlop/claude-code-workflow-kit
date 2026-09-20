@@ -250,11 +250,159 @@ grep -qi "auto-send" skills/cwk-splunk-report/SKILL.md && { echo "  ✗ cwk-splu
 grep -qi "trips the git-guard" skills/cwk-skillify/SKILL.md && { echo "  ✗ cwk-skillify explains how to get around the git-guard again"; bad=1; }
 [ "$bad" -eq 0 ] && echo "  ✓ every skill cites untrusted-input.md; every agent carries the prompt defence baseline" || fail=1
 
-echo "consistency: version + changelog"
+# One version, four places. plugin.json is the source of truth; the marketplace entry, the newest
+# changelog heading and any current-version claim in the README must repeat it exactly, or a user
+# who reads one file installs from another and files a bug against a release that does not exist.
+echo "consistency: version in sync — plugin.json == marketplace.json == newest CHANGELOG heading == README"
 bad=0
-plugin_v=$(grep -oE '"version": "[0-9.]+"' .claude-plugin/plugin.json | grep -oE '[0-9.]+')
-grep -qF "## [$plugin_v]" CHANGELOG.md || { echo "  ✗ plugin.json is $plugin_v but CHANGELOG.md has no '## [$plugin_v]' entry"; bad=1; }
-[ "$bad" -eq 0 ] && echo "  ✓ plugin version $plugin_v is in the changelog" || fail=1
+plugin_v=$(grep -oE '"version": *"[0-9.]+"' .claude-plugin/plugin.json | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+[ -n "$plugin_v" ] || { echo "  ✗ .claude-plugin/plugin.json has no semver \"version\""; bad=1; }
+market_v=$(grep -oE '"version": *"[0-9.]+"' .claude-plugin/marketplace.json | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+[ -n "$market_v" ] || { echo "  ✗ .claude-plugin/marketplace.json: the cwk plugin entry has no \"version\""; bad=1; }
+[ -z "$market_v" ] || [ "$market_v" = "$plugin_v" ] || { echo "  ✗ marketplace.json says $market_v, plugin.json says $plugin_v"; bad=1; }
+newest_cl=$(grep -oE '^## \[[0-9]+\.[0-9]+\.[0-9]+\]' CHANGELOG.md | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+[ -n "$newest_cl" ] || { echo "  ✗ CHANGELOG.md has no '## [x.y.z]' heading"; bad=1; }
+[ -z "$newest_cl" ] || [ "$newest_cl" = "$plugin_v" ] || { echo "  ✗ newest CHANGELOG heading is [$newest_cl] but plugin.json is $plugin_v (bump one or the other)"; bad=1; }
+# README: a semver is either the current version or a released one it refers back to ("Version 3.0.0
+# dropped the prefix"); a line that presents itself as the current/latest version must carry plugin_v.
+while IFS= read -r line; do
+  [ -n "$line" ] || continue
+  for v in $(echo "$line" | grep -oE '\b[0-9]+\.[0-9]+\.[0-9]+\b' | sort -u); do
+    [ "$v" = "$plugin_v" ] && continue
+    if echo "$line" | grep -qiE 'current version|latest version|badge/version|shields\.io'; then
+      echo "  ✗ README.md presents $v as the current version; plugin.json is $plugin_v"; bad=1
+    elif ! grep -qF "## [$v]" CHANGELOG.md; then
+      echo "  ✗ README.md mentions version $v, which is neither the current $plugin_v nor a CHANGELOG release"; bad=1
+    fi
+  done
+done < <(grep -E '\b[0-9]+\.[0-9]+\.[0-9]+\b' README.md | grep -vE 'node-version|semver\.org|keepachangelog')
+[ "$bad" -eq 0 ] && echo "  ✓ version $plugin_v agrees across plugin.json, marketplace.json, CHANGELOG and README" || fail=1
+
+# The kit is installed onto company machines. A stray "/Users/<me>/…" in a doc, an e-mail in a
+# comment, or an invisible character (zero-width joiner, bidi override — the Trojan Source class) in
+# a prompt is a leak or an attack vector a code review cannot see. Shipped = tracked, minus the
+# changelog (release notes may quote a reported path), tests/ (fixtures plant these on purpose) and
+# the vendored minified bundles (third-party, pinned by hash in vendor/SHA256SUMS). docs/*.html are
+# hand-written, not generated, so they are shipped and scanned like everything else.
+echo "consistency: zero footprint — no personal paths, e-mails or invisible characters ship"
+bad=0
+shipped=$(git ls-files | grep -vE '^(CHANGELOG\.md$|tests/|vendor/.*\.min\.js$)' | perl -ne 'chomp; print "$_\n" if -f $_ && ! -B $_')
+[ -n "$shipped" ] || { echo "  ✗ git ls-files returned nothing — not a git checkout?"; bad=1; }
+# grep -P is GNU-only (macOS ships BSD grep); perl is on every macOS and ubuntu-latest, so it does the
+# Unicode scan, and grep -P is used for the byte patterns only where it exists.
+if grep -qP '' /dev/null 2>/dev/null; then
+  hits=$(echo "$shipped" | tr '\n' '\0' | xargs -0 grep -nP '/Users/[a-z]|/home/[a-z]|C:\\\\Users\\\\' 2>/dev/null)
+else
+  hits=$(echo "$shipped" | tr '\n' '\0' | xargs -0 perl -ne 'print "$ARGV:$.:$_" if m{/Users/[a-z]|/home/[a-z]|C:\\Users\\}; close ARGV if eof')
+fi
+[ -z "$hits" ] || { echo "  ✗ absolute personal path in a shipped file:"; echo "$hits" | head -10 | sed 's/^/    /'; bad=1; }
+# every e-mail-shaped token is a leak unless its domain is a documentation placeholder (example.com,
+# *.example), a git SSH URL (git@github.com) or a vendor address (@anthropic.com)
+hits=$(echo "$shipped" | tr '\n' '\0' | xargs -0 perl -ne '
+  while (/\b([A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,}))\b/g) {
+    my ($addr, $dom) = ($1, lc $2);
+    next if $dom =~ /(^|\.)example(\.[a-z]+)?$/ || $dom eq "github.com" || $dom eq "anthropic.com";
+    print "$ARGV:$.: $addr\n";
+  }
+  close ARGV if eof')
+[ -z "$hits" ] || { echo "  ✗ e-mail address in a shipped file:"; echo "$hits" | head -10 | sed 's/^/    /'; bad=1; }
+# U+200B–U+200F zero-width + marks, U+202A–U+202E bidi embeddings/overrides, U+2060–U+2064 invisible
+# operators, U+FEFF BOM/ZWNBSP — none has a legitimate use in this repo's prose or code
+hits=$(echo "$shipped" | tr '\n' '\0' | xargs -0 perl -CSD -ne '
+  if (/[\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{2064}\x{FEFF}]/) { printf "%s:%d: U+%04X\n", $ARGV, $., ord($&) }
+  close ARGV if eof' 2>/dev/null)
+[ -z "$hits" ] || { echo "  ✗ zero-width / bidi control character in a shipped file:"; echo "$hits" | head -10 | sed 's/^/    /'; bad=1; }
+[ "$bad" -eq 0 ] && echo "  ✓ $(echo "$shipped" | wc -l | tr -d ' ') shipped text files carry no personal path, e-mail or invisible character" || fail=1
+
+# hooks.json is what Claude Code actually runs. A command that points at a renamed file, a file that
+# lost its +x bit in a checkout, or a syntax error in a hook all fail the same way: the guard does not
+# run and every git command sails through. The plugin loader gives no error for any of them.
+echo "consistency: hooks.json wiring — every command exists, is executable and parses"
+bad=0
+if command -v node >/dev/null 2>&1; then
+  node -e 'JSON.parse(require("fs").readFileSync("hooks/hooks.json","utf8"))' 2>/dev/null || { echo "  ✗ hooks/hooks.json is not valid JSON"; bad=1; }
+elif command -v jq >/dev/null 2>&1; then
+  jq empty hooks/hooks.json 2>/dev/null || { echo "  ✗ hooks/hooks.json is not valid JSON"; bad=1; }
+fi
+cmds=$(grep -oE '"command": *"[^"]+"' hooks/hooks.json | sed -E 's/^"command": *"//; s/"$//')
+[ -n "$cmds" ] || { echo "  ✗ hooks/hooks.json declares no command hooks"; bad=1; }
+n_hooks=0
+for c in $cmds; do
+  case "$c" in
+    '${CLAUDE_PLUGIN_ROOT}/hooks/'*) f=${c#'${CLAUDE_PLUGIN_ROOT}/'} ;;
+    *) echo "  ✗ hooks.json command '$c' is not under \${CLAUDE_PLUGIN_ROOT}/hooks/ — it will not resolve when the plugin is installed"; bad=1; continue ;;
+  esac
+  [ -f "$f" ] || { echo "  ✗ hooks.json points at $f, which does not exist"; bad=1; continue; }
+  [ -x "$f" ] || { echo "  ✗ $f is not executable (chmod +x, and check core.fileMode)"; bad=1; }
+  n_hooks=$((n_hooks+1))
+done
+for f in hooks/*.sh; do
+  bash -n "$f" 2>/dev/null || { echo "  ✗ $f does not parse (bash -n)"; bad=1; }
+  [ -x "$f" ] || { echo "  ✗ $f is not executable"; bad=1; }
+  head -1 "$f" | grep -qE '^#!.*\b(bash|sh)\b' || { echo "  ✗ $f has no bash shebang"; bad=1; }
+  grep -qF "hooks/$(basename "$f")" hooks/hooks.json || echo "  – note: hooks/$(basename "$f") is not wired in hooks.json (deliberate?)"
+done
+[ "$bad" -eq 0 ] && echo "  ✓ $n_hooks hook command(s) wired to existing executable scripts; every hooks/*.sh parses" || fail=1
+
+# A mutable tag (actions/checkout@v4) is a supply-chain door: whoever controls the tag controls the
+# CI runner. Every action is pinned to a full commit SHA, with the version it stands for in a trailing
+# comment so a human can still read the file (and Dependabot can still bump it).
+echo "consistency: GitHub Actions pinned by commit SHA"
+bad=0; n_uses=0
+for wf in .github/workflows/*.yml .github/workflows/*.yaml; do
+  [ -f "$wf" ] || continue
+  while IFS= read -r line; do
+    n_uses=$((n_uses+1))
+    ref=$(echo "$line" | sed -E 's/^[[:space:]]*-?[[:space:]]*uses:[[:space:]]*//')
+    case "$ref" in
+      ./*|docker://*) continue ;;   # a local composite action or an image digest is not a tag
+    esac
+    echo "$ref" | grep -qE '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(/[A-Za-z0-9_./-]+)?@[0-9a-f]{40}[[:space:]]+#[[:space:]]*v?[0-9]+\.[0-9]+(\.[0-9]+)?[[:space:]]*$' \
+      || { echo "  ✗ $wf: not pinned to a 40-hex SHA with a '# vX.Y.Z' comment: $ref"; bad=1; }
+  done < <(grep -E '^[[:space:]]*-?[[:space:]]*uses:' "$wf")
+done
+[ "$n_uses" -gt 0 ] || { echo "  ✗ no 'uses:' found under .github/workflows/ (pattern changed?)"; bad=1; }
+[ "$bad" -eq 0 ] && echo "  ✓ all $n_uses action references are SHA-pinned with a version comment" || fail=1
+
+# README's test table is the only place the suites are described to a reader deciding whether to
+# trust the kit. Every suite run.sh runs gets a row, and the case count in that row is the number the
+# suite prints today — the suites run here (in parallel, each in its own fixture) so the number cannot
+# quietly age. A suite that prints no "N passed" summary is counted by its ✓ marks.
+echo "consistency: README test table — a row per suite in run.sh, with today's case count"
+bad=0
+suites=$(grep -oE 'tests/[a-z0-9-]+\.test\.(sh|cjs)' tests/run.sh | sort -u)
+CT=$(mktemp -d "${TMPDIR:-/tmp}/consistency-counts.XXXXXX")
+for s in $suites; do
+  n=$(basename "$s")
+  [ "$n" = "consistency.test.sh" ] && continue   # this file; it counts itself statically below
+  case "$s" in
+    *.sh)  ( bash "$s" >"$CT/$n.out" 2>&1 ) & ;;
+    *.cjs) if command -v node >/dev/null 2>&1; then ( node "$s" >"$CT/$n.out" 2>&1 ) & else echo skipped >"$CT/$n.skip"; fi ;;
+  esac
+done
+wait
+for s in $suites; do
+  n=$(basename "$s")
+  row=$(grep -E "^\| \`$n\` \|" README.md | head -1)
+  [ -n "$row" ] || { echo "  ✗ README.md test table has no row for $n (it is in tests/run.sh)"; bad=1; continue; }
+  documented=$(echo "$row" | awk -F'|' '{print $3}' | grep -oE '[0-9]+' | head -1)
+  [ -n "$documented" ] || { echo "  ✗ README.md row for $n carries no case count"; bad=1; continue; }
+  if [ "$n" = "consistency.test.sh" ]; then
+    actual=$(grep -cE '^echo "consistency: [A-Za-z]' tests/consistency.test.sh)
+    echo "$row" | grep -qE "\| $actual groups \|" || { echo "  ✗ README.md says $n has '$documented groups', this file has $actual"; bad=1; }
+    continue
+  fi
+  [ -f "$CT/$n.skip" ] && { echo "  – note: $n not run (node missing); README says $documented"; continue; }
+  actual=$(grep -oE '^[a-z0-9-]+: [0-9]+ passed, [0-9]+ failed' "$CT/$n.out" | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+')
+  [ -n "$actual" ] || actual=$(grep -c '✓' "$CT/$n.out")
+  [ "$actual" = "$documented" ] || { echo "  ✗ README.md says $n has $documented cases, it has $actual today"; bad=1; }
+done
+# and no row for a suite run.sh no longer runs
+for n in $(grep -oE '^\| `[a-z0-9-]+\.test\.(sh|cjs)` \|' README.md | grep -oE '[a-z0-9-]+\.test\.(sh|cjs)'); do
+  echo "$suites" | grep -qxF "tests/$n" || { echo "  ✗ README.md lists $n but tests/run.sh does not run it"; bad=1; }
+done
+rm -rf "$CT"
+[ "$bad" -eq 0 ] && echo "  ✓ README table covers all $(echo "$suites" | wc -l | tr -d ' ') suites with their current counts" || fail=1
 
 echo "consistency: $([ "$fail" -eq 0 ] && echo PASS || echo FAIL)"
 [ "$fail" -eq 0 ]

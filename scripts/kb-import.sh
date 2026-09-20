@@ -85,5 +85,10 @@ run mkdir -p "$dest"
 run cp -R "$src/." "$dest/"
 [ "$DRY" = 1 ] && { echo "(dry run — nothing written)"; exit 0; }
 
+# Audit trail: which snapshot landed in which checkout.
+here=$(cd "$(dirname "$0")" && pwd)
+[ -f "$here/audit-log.sh" ] && bash "$here/audit-log.sh" kb.import "hub=$hub" "project=$project" \
+  "target=$target" "commit=${snap_commit:-?}" "classification=$(g classification)" || true
+
 echo "✔ imported. The cwk-* commands in that repo now read this KB."
 echo "  It is a snapshot: after the code moves on, run /cwk-rescan there (or re-import a fresh export)."

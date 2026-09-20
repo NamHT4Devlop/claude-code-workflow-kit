@@ -5,6 +5,7 @@ cd "$(dirname "$0")/.."
 rc=0
 echo "== bundles in sync? =="; bash scripts/sync-bundles.sh --check || rc=1
 echo; echo "== git-guard =="; bash tests/git-guard.test.sh || rc=1
+echo; echo "== file-guard (policy files and credentials stay read-only) =="; bash tests/file-guard.test.sh || rc=1
 echo; echo "== smoke =="; bash tests/smoke.test.sh || rc=1
 echo; echo "== skill name == folder? =="
 names_rc=0

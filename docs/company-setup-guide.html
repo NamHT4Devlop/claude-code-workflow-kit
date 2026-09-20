@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Workflow Kit (the cwk-* commands) — Setup guide for a company machine (for Claude newcomers)</title>
+<title>Workflow Kit (the cwk-* commands) — Company setup guide: security approval + engineer install</title>
 <style>
   :root{ --bg:#0f1115; --panel:#171a21; --panel2:#1d2129; --border:#2a2f3a; --text:#e6e9ef;
     --muted:#9aa3b2; --accent:#7c9cff; --accent2:#5ad1a8; --warn:#ffcf6b; --danger:#ff7b72; --code:#0b0d12; --chip:#222734; }
@@ -19,6 +19,7 @@
   h2{font-size:21px;margin:2em 0 .5em;display:flex;align-items:center;gap:.5em;border-top:1px solid var(--border);padding-top:1.1em}
   h2:first-of-type{border-top:none}
   h3{font-size:16px;margin:1.3em 0 .4em}
+  .part{margin-top:2.6em;padding:10px 16px;border-radius:12px;background:var(--panel2);border:1px solid var(--border);font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
   .sub{color:var(--muted);max-width:64ch}
   p{margin:.6em 0} a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
   code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em;background:var(--chip);padding:.1em .4em;border-radius:6px}
@@ -47,6 +48,7 @@
   .kbd{font-family:ui-monospace,monospace;background:var(--chip);border:1px solid var(--border);border-bottom-width:2px;border-radius:6px;padding:1px 7px;font-size:12.5px}
   .chk{list-style:none;padding-left:0} .chk li{margin:.35em 0;padding-left:1.6em;position:relative}
   .chk li:before{content:"☐";position:absolute;left:0;color:var(--accent)}
+  blockquote.verbatim{margin:.8em 0;padding:.6em 1em;border-left:4px solid var(--danger);background:var(--panel2);border-radius:0 10px 10px 0;font-size:15px}
   footer{color:var(--muted);font-size:13px;margin-top:40px;text-align:center;border-top:1px solid var(--border);padding-top:16px}
   .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:rgba(124,156,255,.16);color:var(--accent)}
 </style>
@@ -55,133 +57,420 @@
 <div class="wrap">
 
   <header class="hero">
-    <div class="eyebrow">Claude Code · Company machine setup · For newcomers</div>
-    <h1>🏢 Install “Workflow Kit” (the <code>/cwk-*</code> commands) on a company machine</h1>
-    <p class="sub">A step-by-step, beginner-friendly guide for people <b>new to Claude Code</b>: copy the
-    <code>claude-code-workflow-kit</code> toolkit onto your company machine, install it safely (no code leaks, no impact
-    on team repos), and use it right away: understand the codebase, build features, fix bugs, review, write docs.</p>
+    <div class="eyebrow">Claude Code · Company deployment · Security approval + install</div>
+    <h1>🏢 “Workflow Kit” (the <code>/cwk-*</code> commands) on company machines</h1>
+    <p class="sub"><b>Part A</b> is written for the security team that has to approve the kit: what it is, what it is
+    not, how to deploy its guards as <i>policy</i> rather than as a suggestion, what leaves the machine, and a
+    checklist. <b>Part B</b> is the engineer's step-by-step install, unchanged in substance from earlier versions
+    of this page.</p>
     <div style="margin-top:10px">
-      <span class="pill">⏱ ~15 minutes</span><span class="pill">🔒 Enterprise-safe</span>
-      <span class="pill">🙈 Zero footprint on team repos</span><span class="pill">🔑 No API key needed</span>
+      <span class="pill">📄 Prompts + short scripts</span><span class="pill">📡 No telemetry</span>
+      <span class="pill">🔒 Guards enforceable from managed settings</span><span class="pill">🧾 Audit trail (JSONL)</span>
+      <span class="pill">🙈 Zero footprint on team repos</span>
     </div>
   </header>
 
   <div class="box info">
-    <div class="ti">🧠 First, a few concepts (30-second read)</div>
+    <div class="ti">🧠 Five terms, 30 seconds</div>
     <table style="margin:.4em 0 0">
-      <tr><td><b>Claude Code</b></td><td>An AI coding assistant that runs in the terminal/IDE — the thing you type commands into.</td></tr>
-      <tr><td><b>Skill / Command</b></td><td>A pre-packaged “skill”. Type <code>/command-name</code> to run it (e.g. <code>/cwk-build</code>).</td></tr>
-      <tr><td><b>Knowledge Base (KB)</b></td><td>The <code>knowledge-base/</code> folder in each repo — the AI reads it to understand the project's business.</td></tr>
-      <tr><td><b>MCP</b></td><td>How external tools connect to Claude so it can query them.</td></tr>
-      <tr><td><b>Hook</b></td><td>A guard enforced at the system level (e.g. blocking <code>git push</code> to a team repo) — the AI can't disable it on a whim.</td></tr>
+      <tr><td><b>Claude Code</b></td><td>Anthropic's AI coding agent in the terminal/IDE. The kit runs <i>inside</i> it; it has no runtime of its own.</td></tr>
+      <tr><td><b>Skill / command</b></td><td>A Markdown prompt. <code>/cwk-scan</code>, <code>/cwk-review</code>, … are instructions the agent follows, not programs.</td></tr>
+      <tr><td><b>Knowledge Base (KB)</b></td><td><code>knowledge-base/</code> — a written distillation of one repo: business rules, data model, auth model, endpoints, integrations. Page for page, often more sensitive than the code.</td></tr>
+      <tr><td><b>Hook</b></td><td>A script Claude Code runs <i>before</i> a tool call and that can deny it. Installed from <b>managed settings</b> it cannot be switched off by the user or the agent.</td></tr>
+      <tr><td><b>Managed settings</b></td><td>A settings file owned by the machine administrator that overrides every user/project setting: <code>/Library/Application Support/ClaudeCode/managed-settings.json</code> (macOS), <code>/etc/claude-code/managed-settings.json</code> (Linux/WSL), <code>C:\Program Files\ClaudeCode\managed-settings.json</code> (Windows).</td></tr>
     </table>
   </div>
 
   <nav class="toc">
-    <strong>Steps</strong>
+    <strong>Part A — for the security team</strong>
     <ol>
-      <li><a href="#pre">0. Prerequisites</a></li>
-      <li><a href="#get">1. Get the toolkit</a></li>
-      <li><a href="#install">2. Install for yourself</a></li>
-      <li><a href="#safe">3. Enable the safety guards (important)</a></li>
-      <li><a href="#first">4. First use on a repo</a></li>
-      <li><a href="#provenlens">4b. Optional: provenlens (the call graph)</a></li>
-      <li><a href="#daily">5. Command table &amp; daily flow</a></li>
-      <li><a href="#verify">6. Verify it works</a></li>
-      <li><a href="#maintain">7. Update / Uninstall</a></li>
-      <li><a href="#trouble">8. Common issues</a></li>
-      <li><a href="#faq">9. FAQ &amp; safety</a></li>
+      <li><a href="#a1">What the kit is, and is not</a></li>
+      <li><a href="#a2">Deploying the guards as policy (managed settings)</a></li>
+      <li><a href="#a3">Baseline <code>permissions.deny</code> and permission mode per role</a></li>
+      <li><a href="#a4">GitHub Enterprise Server, proxies, offline</a></li>
+      <li><a href="#a5">Windows</a></li>
+      <li><a href="#a6">Data classification — where KB content can end up</a></li>
+      <li><a href="#a7">Repository hygiene</a></li>
+      <li><a href="#a8">Audit trail</a></li>
+      <li><a href="#a9">Freshness and depth</a></li>
+      <li><a href="#a10">Approval checklist</a></li>
+    </ol>
+    <strong style="display:block;margin-top:.8em">Part B — for the engineer</strong>
+    <ol>
+      <li><a href="#pre">Prerequisites</a></li>
+      <li><a href="#get">Get the toolkit</a></li>
+      <li><a href="#install">Install for yourself</a></li>
+      <li><a href="#safe">Enable the guards on a machine without managed settings</a></li>
+      <li><a href="#first">First use on a repo</a> · <a href="#provenlens">provenlens</a></li>
+      <li><a href="#daily">Command table</a> · <a href="#verify">Verify</a> · <a href="#maintain">Update</a> · <a href="#trouble">Issues</a></li>
     </ol>
   </nav>
 
-  <!-- 0 -->
-  <h2 id="pre">0. Prerequisites</h2>
-  <ul class="chk">
-    <li><b>Claude Code</b> installed &amp; working: open a terminal and run <code>claude --version</code> to see a version number. (If <code>/plugin</code> is unknown → update Claude Code.)</li>
-    <li><b>git</b>: <code>git --version</code>. <b>Node.js</b> (for map &amp; HTML): <code>node --version</code> (ideally ≥ 18).</li>
-    <li><b>Your company's Claude plan is Team/Enterprise</b> (a commercial plan — Anthropic does not train on your code). Ask your admin if unsure.</li>
-    <li><b>Access to the toolkit repo</b> <code>NamHT4Devlop/claude-code-workflow-kit</code> (public) — or copy the folder over yourself.</li>
-  </ul>
-  <div class="box warn"><div class="ti">⚠️ Note on the Claude plan</div>
-    Use this only on an <b>organization plan (Team/Enterprise)</b>. Don't use a personal plan (Pro/Max) for company code — the data policy is different.</div>
+  <div class="part">Part A — Security approval</div>
 
-  <!-- 1 -->
-  <h2 id="get">1. Get the toolkit onto your machine</h2>
-  <p>Put it in a fixed location so you can later update with <code>git pull</code>. For example <code>~/claude-code-workflow-kit</code>:</p>
-  <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># option 1: clone from GitHub (needs repo access)</span>
-git clone https://github.com/NamHT4Devlop/claude-code-workflow-kit.git ~/claude-code-workflow-kit
+  <!-- A1 -->
+  <h2 id="a1">A1. What the kit is, and is not</h2>
+  <p><b>It is</b> a Claude Code plugin: about thirty Markdown prompts (<code>skills/</code>, <code>commands/</code>,
+  <code>agents/</code>), a handful of shell scripts (<code>scripts/</code>, <code>hooks/</code>) and three small Node
+  programs that turn Markdown or a call graph into a self-contained HTML page. There is no daemon, no server, no
+  account, no API key of its own, no package it installs. The full executable-surface audit, with the
+  <code>grep</code> commands to reproduce it, is in <code>SECURITY.md</code>.</p>
+  <p><b>It is not</b> a sandbox, a DLP control, or something that changes what Claude Code may do with the model.
+  <b>The model reads code — that is inherent</b> to using an AI coding agent: when Claude reads a file, that text enters
+  the model context under your company's Claude plan terms (Team/Enterprise: commercial terms, no training on your data
+  by default). The kit adds <b>no other egress</b>:</p>
+  <table>
+    <thead><tr><th>Network / process use</th><th>When</th><th>Where to</th></tr></thead>
+    <tbody>
+      <tr><td>Telemetry, analytics, “phone home”</td><td>never</td><td>—</td></tr>
+      <tr><td>Generated HTML loading a chart library</td><td>only at view-time, and only when <code>vendor/</code> is absent</td><td><code>cdnjs.cloudflare.com</code> (Mermaid / Cytoscape). With <code>vendor/</code> present — the default, SHA-256 pinned in <code>vendor/SHA256SUMS</code> — the page makes <b>zero</b> external requests. No data is sent either way.</td></tr>
+      <tr><td><code>shadow-parity.cjs</code> (parity harness of <code>/cwk-rails-to-spring</code>)</td><td>only when a user runs it</td><td>the two <code>--source</code>/<code>--target</code> URLs on its command line</td></tr>
+      <tr><td><code>/cwk-splunk-report</code> (a prompt)</td><td>only when a user runs it</td><td>Splunk / Slack through MCP or env credentials the company configured; nothing hardcoded</td></tr>
+      <tr><td>VS Code extension (optional)</td><td>on a button click</td><td>spawns the local <code>claude</code> CLI; no network of its own</td></tr>
+    </tbody>
+  </table>
+  <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># reproduce the surface audit in the kit checkout (expected hits: RegExp .exec, shadow-parity fetch, the extension's spawn)</span>
+grep -rnE "child_process|execSync|spawn|\beval\(|new Function|http\.|https\.|fetch\(|net\.|dns\." \
+  --include='*.js' --include='*.cjs' --include='*.sh' --include='*.ts' .
+bash tests/run.sh          <span class="cmt"># every guard rule and every script that writes outside the repo is pinned by a test</span></code></pre></div>
 
-<span class="cmt"># option 2: if given a zip/folder → extract it into ~/claude-code-workflow-kit</span></code></pre></div>
-  <p class="muted">Below this folder is referred to as <b>&lt;TOOL&gt;</b>. Windows: replace <code>~</code> with <code>%USERPROFILE%</code>.</p>
+  <!-- A2 -->
+  <h2 id="a2">A2. Deploying the guards as policy</h2>
+  <p>Two PreToolUse hooks ship with the kit. Installed by an engineer in their own <code>~/.claude/settings.json</code>
+  they are a habit; installed by you from <b>managed settings</b>, with the hook files owned by root/admin, they are
+  policy the user and the agent cannot remove.</p>
+  <table>
+    <thead><tr><th>Hook</th><th>Matcher</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td><code>hooks/git-guard.sh</code></td><td><code>Bash</code></td><td>Allows read/sync-in git (<code>fetch · pull · status · log · diff · add · commit …</code>) and <code>gh</code> reads; <b>denies</b> <code>push</code> and <code>gh</code> writes to any repository outside the whitelist, every way of retargeting git (<code>remote</code>, <code>-c</code>/<code>config</code> outside a key allowlist, <code>GIT_*=</code>, <code>url.*.insteadOf</code>), git/gh hidden in <code>sh -c</code>/<code>python -c</code> strings, and destructive local git (<code>reset --hard</code>, <code>clean -f</code>, <code>rebase</code>, <code>branch -D</code>, <code>commit --amend</code> …). Fails closed without <code>jq</code>.</td></tr>
+      <tr><td><code>hooks/file-guard.sh</code></td><td><code>Edit|Write|MultiEdit|NotebookEdit</code> and <code>Bash</code></td><td>Blocks Edit/Write and shell writes to <code>settings.json</code>, the hooks, <code>~/.gitconfig</code>, <code>.git/config</code>, <code>~/.ssh</code>, <code>~/.aws</code> (and <code>~/.config/gh</code>, <code>~/.netrc</code>, the audit log). Reads stay allowed. Fails closed without <code>jq</code>.</td></tr>
+    </tbody>
+  </table>
 
-  <!-- 2 -->
-  <h2 id="install">2. Install for yourself (one command)</h2>
-  <p>This command creates <b>symlinks</b> for the skills/commands/agents into your personal <code>~/.claude</code> folder →
-  usable in <b>every repo</b>, and stored in <b>no</b> repo (the team sees nothing).</p>
-  <div class="cb"><button class="copy">Copy</button><pre><code>~/claude-code-workflow-kit/scripts/personal-install.sh</code></pre></div>
-  <p>It prints the number of skills/commands linked + a reminder of the git-guard config snippet (done in step 3).
-  Because it's symlinked, later a <code>cd ~/claude-code-workflow-kit &amp;&amp; git pull</code> updates everything instantly.</p>
-  <div class="box info"><div class="ti">💡</div> A skill auto-activates when you speak naturally (e.g. “review this file”), or type <code>/cwk-...</code> directly. No API key needed — it runs on your own Claude Code.</div>
-
-  <!-- 3 -->
-  <h2 id="safe">3. Enable the safety guards — IMPORTANT on a company machine</h2>
-  <p>Two things ensure “whatever you run can't harm team repos”:</p>
-
-  <div class="step"><div class="num">A</div><div class="body">
-    <h3>Global gitignore — keep artifacts out of commits</h3>
-    <p>Every <code>knowledge-base/</code> and <code>cwk-sessions/</code> is ignored by git machine-wide (no repo is modified):</p>
-    <div class="cb"><button class="copy">Copy</button><pre><code>touch ~/.gitignore_global
-printf '%s\n' 'cwk-sessions/' 'spec-kit-sessions/' 'knowledge-base/' 'CLAUDE.local.md' >> ~/.gitignore_global
-git config --global core.excludesfile ~/.gitignore_global</code></pre></div>
+  <div class="step"><div class="num">1</div><div class="body">
+    <h3>Install the hook files read-only, owned by root/admin</h3>
+    <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># macOS / Linux — from a reviewed checkout of the kit, pinned to a tag</span>
+sudo mkdir -p /usr/local/lib/cwk
+sudo install -o root -g wheel -m 0755 hooks/git-guard.sh  /usr/local/lib/cwk/git-guard.sh    <span class="cmt"># Linux: -g root</span>
+sudo install -o root -g wheel -m 0755 hooks/file-guard.sh /usr/local/lib/cwk/file-guard.sh
+ls -l /usr/local/lib/cwk/                       <span class="cmt"># -rwxr-xr-x root … — nobody but root can rewrite the policy</span>
+which jq || echo "install jq: both hooks deny everything without it"</code></pre></div>
   </div></div>
 
-  <div class="step"><div class="num">B</div><div class="body">
-    <h3>git guard — read/sync only, no pushing to team repos</h3>
-    <p><code>personal-install.sh</code> has already placed the guard script at <code>~/.claude/hooks/cwk-git-guard.sh</code>.
-    Now “wire” it into Claude Code: open <code>~/.claude/settings.json</code> and add the block below (merge it in, don't delete what's there):</p>
+  <div class="step"><div class="num">2</div><div class="body">
+    <h3>Set the company whitelist in the root-owned copy</h3>
+    <p>The whitelist lives <b>inside</b> <code>git-guard.sh</code> on purpose — an environment variable would be one more
+    thing the agent could set. Edit the two lines at the top of the copy you just installed
+    (they compose <code>ALLOW_OWNER_RE</code> and <code>ALLOW_GH_REPO_RE</code>):</p>
+    <div class="cb"><button class="copy">Copy</button><pre><code>ALLOW_OWNERS='acme-org|acme-platform'       <span class="cmt"># GitHub orgs/users the agent may push to (regex alternatives)</span>
+ALLOW_HOSTS='github\.com|ghe\.acme\.example'  <span class="cmt"># github.com and/or your GitHub Enterprise host</span>
+<span class="cmt"># strictest: ALLOW_OWNERS='__NONE__' — the agent pushes nowhere; engineers push from their own terminal</span></code></pre></div>
+  </div></div>
+
+  <div class="step"><div class="num">3</div><div class="body">
+    <h3>Wire both hooks and the deny list from managed settings</h3>
+    <p>Path per OS: <code>/Library/Application Support/ClaudeCode/managed-settings.json</code> (macOS) ·
+    <code>/etc/claude-code/managed-settings.json</code> (Linux/WSL) · <code>C:\Program Files\ClaudeCode\managed-settings.json</code>
+    (Windows). Claude Code applies this file above every user, project and <code>--settings</code> value; hooks and
+    <code>permissions.deny</code> set here cannot be overridden. Make the file itself root-owned and <code>0644</code>.</p>
     <div class="cb"><button class="copy">Copy</button><pre><code>{
   "permissions": {
     "deny": [
       "Bash(git remote add:*)", "Bash(git remote set-url:*)", "Bash(git remote remove:*)",
       "Bash(git reset --hard:*)", "Bash(git clean -f:*)", "Bash(git rebase:*)",
       "Bash(git commit --amend:*)", "Bash(git restore:*)", "Bash(git branch -D:*)",
-      "Bash(git send-email:*)"
+      "Bash(git send-email:*)",
+      "Read(~/.ssh/**)", "Read(~/.aws/**)", "Read(**/.env)", "Read(**/.env.*)",
+      "Bash(curl *| sh*)", "Bash(curl *| bash*)", "Bash(wget *| sh*)", "Bash(sudo:*)",
+      "WebFetch"
     ]
   },
   "hooks": {
     "PreToolUse": [
       { "matcher": "Bash", "hooks": [
-        { "type": "command", "command": "~/.claude/hooks/cwk-git-guard.sh", "timeout": 10 } ] }
+        { "type": "command", "command": "/usr/local/lib/cwk/git-guard.sh",  "timeout": 10 },
+        { "type": "command", "command": "/usr/local/lib/cwk/file-guard.sh", "timeout": 10 } ] },
+      { "matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [
+        { "type": "command", "command": "/usr/local/lib/cwk/file-guard.sh", "timeout": 10 } ] }
     ]
   }
 }</code></pre></div>
-    <p>Result: allows <code>fetch · pull · status · log · diff · add · commit</code>; <b>hard-blocks</b> pushing to team repos + destructive commands (<code>reset --hard</code>, <code>rebase</code>…).</p>
+    <p class="muted">There is deliberately no blanket <code>Bash(git push:*)</code> deny: the hook decides a push by its
+    <i>target</i>, so pushes to the whitelisted org still work. Verify on a machine after a Claude Code restart:</p>
+    <div class="cb"><button class="copy">Copy</button><pre><code>printf '{"tool_name":"Bash","tool_input":{"command":"git push https://github.com/some-other-org/x"}}' | /usr/local/lib/cwk/git-guard.sh
+<span class="cmt"># → {"hookSpecificOutput":{…"permissionDecision":"deny"…}}   (a push to the whitelisted org prints nothing = allowed)</span>
+printf '{"tool_name":"Write","tool_input":{"file_path":"%s/.claude/settings.json"}}' "$HOME" | /usr/local/lib/cwk/file-guard.sh
+<span class="cmt"># → …"permissionDecision":"deny"…</span></code></pre></div>
+  </div></div>
+
+  <div class="box danger">
+    <div class="ti">⛔ What the guard cannot do — verbatim from <code>SECURITY.md</code></div>
+    <blockquote class="verbatim">Treat it as <b>best-effort defence in depth, not a security boundary</b>. What it cannot do, stated
+    plainly: it reads the text of one Bash command, so it cannot see inside a script file it is asked to run
+    (<code>bash deploy.sh</code>), a git alias or credential helper defined elsewhere, or a tool other than Bash — and
+    nothing in the hook stops the Edit or Write tool from changing the hook file or <code>settings.json</code>. An
+    organisation that needs the policy enforced installs the hook and its <code>settings.json</code> entries
+    <b>read-only from managed settings</b>, and keeps the whitelist there.</blockquote>
+    <p><code>file-guard.sh</code> closes the last clause (the file tools and shell writes to the policy files); the root-owned
+    install closes it again at the OS level. Nothing closes the first: a script file, a git alias, an MCP server or any tool
+    other than Bash remain outside what either hook can read. Branch protection on the team's repositories and the
+    engineer's own credentials scope are the controls that hold when the hook cannot.</p>
+  </div>
+
+  <!-- A3 -->
+  <h2 id="a3">A3. Baseline <code>permissions.deny</code> and permission mode per role</h2>
+  <p>The deny list in A2 is the baseline; put it in managed settings, or at least in each engineer's
+  <code>~/.claude/settings.json</code>. Line by line:</p>
+  <table>
+    <thead><tr><th>Rule</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><code>Read(~/.ssh/**)</code>, <code>Read(~/.aws/**)</code></td><td>Private keys and cloud credentials never need to be in a model context. (The file-guard blocks <i>writes</i> there; this blocks reads.)</td></tr>
+      <tr><td><code>Read(**/.env)</code>, <code>Read(**/.env.*)</code></td><td>Local secrets. <code>/cwk-scan</code> already skips secret files and records only that one exists; this makes it a rule, not a habit.</td></tr>
+      <tr><td><code>Bash(curl *| sh*)</code>, <code>Bash(curl *| bash*)</code>, <code>Bash(wget *| sh*)</code></td><td>Piping a download into a shell is the one-liner every supply-chain incident starts with.</td></tr>
+      <tr><td><code>Bash(sudo:*)</code></td><td>No privilege escalation from an agent session.</td></tr>
+      <tr><td><code>WebFetch</code></td><td>No arbitrary outbound HTTP from the agent. Documentation lookups can go through an approved MCP server instead.</td></tr>
+      <tr><td>the <code>git …</code> rules</td><td>The same destructive/retargeting commands the hook denies, as a second layer that needs no <code>jq</code>.</td></tr>
+    </tbody>
+  </table>
+  <h3>Permission mode by role</h3>
+  <table>
+    <thead><tr><th>Role</th><th>Mode</th><th>What it means</th></tr></thead>
+    <tbody>
+      <tr><td>Engineer</td><td><code>claude --permission-mode acceptEdits</code></td><td>File edits inside the workspace are accepted; every Bash command, install and network call still prompts. The kit's <code>kb-pipeline.sh</code> and the VS Code panel default to this mode.</td></tr>
+      <tr><td>PM / analyst / reader (asks questions, reads KBs and reports, never edits)</td><td>The VS Code panel's <b><code>cwkUi.mode: "readonly"</code></b> — it launches the CLI with <code>--permission-mode default</code> plus a read-only tool allowlist and refuses code-editing skills. On the bare CLI: <code>--permission-mode plan</code>.</td><td>No writes at all; <code>/cwk-ask</code>, <code>/cwk-document</code>, <code>/cwk-plan</code>, <code>/cwk-qa</code> work from the KB.</td></tr>
+      <tr><td>Anyone</td><td><b>never</b> <code>bypassPermissions</code> on a company machine</td><td>It also permits any Bash command, writes outside the workspace and network calls. The hooks still run (PreToolUse precedes the mode check), but they are the only thing left.</td></tr>
+    </tbody>
+  </table>
+
+  <!-- A4 -->
+  <h2 id="a4">A4. GitHub Enterprise Server, proxies, offline use</h2>
+  <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># 1) gh talks to your GHES host; the kit only ever calls gh read-only unless the hook allows the write</span>
+gh auth login --hostname ghe.acme.example --git-protocol https
+gh auth status
+
+<span class="cmt"># 2) the git-guard must know the host, or every push there is "not whitelisted" (see A2 step 2)</span>
+ALLOW_HOSTS='ghe\.acme\.example'          <span class="cmt"># in the root-owned git-guard.sh; add github\.com only if you use both</span>
+
+<span class="cmt"># 3) proxies — git, gh, npm and Node all honour these; set them in the shell profile or managed env</span>
+export HTTPS_PROXY=http://proxy.acme.example:3128
+export NO_PROXY=localhost,127.0.0.1,.acme.example
+
+<span class="cmt"># 4) offline / CDN-blocked networks: keep vendor/ so generated HTML never touches cdnjs</span>
+scripts/fetch-vendor.sh --check          <span class="cmt"># verifies vendor/*.min.js against vendor/SHA256SUMS</span>
+scripts/fetch-vendor.sh                  <span class="cmt"># if missing: pulls through npm (your .npmrc registry / Artifactory) or cdnjs, then verifies</span></code></pre></div>
+  <p class="muted">A vendored bundle whose hash does not match the pinned value is <b>never inlined</b>; the generators say so and fall
+  back to the CDN link. On an air-gapped machine, copy a verified <code>vendor/</code> from a connected one.
+  <code>provenlens</code> (optional call graph) is fully offline as well.</p>
+
+  <!-- A5 -->
+  <h2 id="a5">A5. Windows</h2>
+  <p>Both hooks are <b>bash</b> scripts and need <code>jq</code>. They run under <b>Git Bash</b> or <b>WSL</b> only. A Windows
+  install of Claude Code that does not route hooks through one of those has <b>no guard at all</b> — the
+  <code>permissions.deny</code> list from A2 still applies (it is enforced by Claude Code itself), the hooks do not. Treat
+  such a machine as "deny list only" in your risk register, or standardise on WSL, where the Linux path
+  (<code>/etc/claude-code/managed-settings.json</code>) applies inside the distribution.</p>
+
+  <!-- A6 -->
+  <h2 id="a6">A6. Data classification — where KB content can end up</h2>
+  <p>A Knowledge Base records permission matrices, unpatched defects, integration auth and env var <i>names</i>,
+  endpoints and business rules. It is derived from the code and easier to read than the code. Every KB now carries a
+  <code>classification</code> in its <code>knowledge-base/_meta.yml</code>: <code>public | internal | confidential | restricted</code>,
+  <b>default <code>internal</code></b> — a scan asks for a different level only when it can (an interactive session) and never
+  invents <code>public</code>. The export copies it into the hub's <code>_meta.yml</code> and README table, and the hub page shows it
+  as a badge on every project card and a banner above every document
+  (<i>“Internal — contains security findings and configuration for &lt;project&gt;; do not forward outside &lt;org&gt;”</i>;
+  <code>confidential</code>/<code>restricted</code> in red).</p>
+  <table>
+    <thead><tr><th>Where KB content can go</th><th>Control</th></tr></thead>
+    <tbody>
+      <tr><td>The repo checkout itself</td><td><code>knowledge-base/</code>, <code>cwk-sessions/</code>, <code>.provenlens/</code> are gitignored (A7). They live only on the machine that ran the scan.</td></tr>
+      <tr><td>A hub (<code>scripts/kb-export.sh</code>) and its <code>index.html</code></td><td>The export refuses a hub repo it can see is <b>public</b>, refuses to overwrite a snapshot from a different repo, runs a <b>secret scan</b> over every page (AWS keys, GitHub/Slack/OpenAI tokens, private keys, <code>user:password@</code> URLs — a hit skips the project and fails the run; <code>--allow-secrets</code> is the explicit override), strips credentials from remote URLs, and strips the <b>source text</b> from the code graph unless <code>--with-source</code> is passed (which prints a warning). It never commits or pushes.</td></tr>
+      <tr><td>E-mail, chat, an artifact link</td><td>The hub page is one self-contained HTML file built to be emailed. That is exactly why it carries the classification banner. A <code>confidential</code>/<code>restricted</code> page goes only to people who already have access to the repository it describes.</td></tr>
+      <tr><td>A pushed hub repo</td><td>Private, same-access-as-the-source only. <b>Never publish a hub of a company repo</b> — not to a public GitHub repo, not to a public Pages site, not to a shared drive with open links.</td></tr>
+      <tr><td>The model context</td><td>Inherent (A1). Reading a KB is reading a file.</td></tr>
+    </tbody>
+  </table>
+
+  <!-- A7 -->
+  <h2 id="a7">A7. Repository hygiene</h2>
+  <p>The engineer's global gitignore (Part B, step 3A) protects <b>one machine</b>. A colleague without it, or a CI
+  checkout, will happily commit a <code>knowledge-base/</code>. Put the rule in the team repository itself, or in a
+  pre-commit check, or both:</p>
+  <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># .gitignore of every team repo (scripts/onboard-project.sh adds exactly these three lines, idempotently)</span>
+knowledge-base/
+cwk-sessions/
+.provenlens/
+
+<span class="cmt"># pre-commit / CI check: fail if any of them is staged anyway (git add -f, a rename, a nested copy)</span>
+if git diff --cached --name-only | grep -qE '(^|/)(knowledge-base|cwk-sessions|\.provenlens)/'; then
+  echo "refusing to commit generated Workflow Kit artifacts (knowledge-base/, cwk-sessions/, .provenlens/)" >&2
+  exit 1
+fi</code></pre></div>
+  <p class="muted">Also gitignore <code>CLAUDE.local.md</code> if engineers keep personal notes there. A branch-protection rule with a
+  required status check that runs the snippet above makes it hold for everyone, including bots.</p>
+
+  <!-- A8 -->
+  <h2 id="a8">A8. Audit trail</h2>
+  <p>Every notable kit action appends <b>one JSON line</b> to <code>~/.claude/cwk-audit.jsonl</code>
+  (mode <code>0600</code>; override the path with <code>CWK_AUDIT_LOG=/var/log/cwk/audit.jsonl</code>,
+  disable with <code>CWK_AUDIT_LOG=off</code>). It never contains command text, file contents or secrets; a value that looks
+  like a URL with credentials is redacted before it is written, and a missing <code>jq</code> or an unwritable path never
+  fails the caller.</p>
+  <table>
+    <thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>ts</code>, <code>user</code>, <code>host</code>, <code>cwd</code></td><td>ISO-8601 UTC time, <code>$USER</code>, <code>hostname -s</code>, working directory.</td></tr>
+      <tr><td><code>action</code></td><td><code>kb.scan</code>, <code>kb.rescan</code>, <code>kb.export</code>, <code>kb.import</code>, <code>kb.pipeline</code>, <code>review</code>, <code>pr.review</code>, <code>pr.prepare</code>, <code>runbook</code>, <code>project.onboard</code>, <code>schedule.install</code>, <code>schedule.remove</code>.</td></tr>
+      <tr><td>per action</td><td><code>repo</code> (origin, credentials stripped), <code>commit</code>, <code>depth</code>, <code>classification</code>, <code>hub</code>, <code>code_graph</code>, <code>pr</code>, <code>verdict</code>, <code>preset</code>, <code>cron</code>, …</td></tr>
+      <tr><td>hook lines</td><td>The two guards write to the <b>same file</b> with <code>guard: "git-guard" | "file-guard"</code>, <code>tool</code>, <code>decision: deny | allow</code>, and for the git-guard the <code>action</code> (<code>git push</code>, <code>gh pr merge</code> …) and its redacted <code>target</code>. Every deny is logged, and every <b>allowed outward action</b> (a push, a <code>gh</code> write) — so the trail shows what left the machine, not only what was refused.</td></tr>
+    </tbody>
+  </table>
+  <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># example lines</span>
+{"ts":"2026-09-20T08:14:03Z","user":"nam","host":"mbp-nam","action":"kb.export","cwd":"/srv/work","repo":"https://ghe.acme.example/acme/billing.git","commit":"9f2c1ab","project":"billing","hub":"/srv/kb-hub","classification":"confidential","code_graph":"stripped"}
+{"ts":"2026-09-20T08:20:41Z","user":"nam","host":"mbp-nam","guard":"git-guard","tool":"Bash","decision":"deny","action":"","target":"push to a non-whitelisted remote: https://github.com/other-org/x","cwd":"/srv/work/billing"}
+
+<span class="cmt"># ship it to a SIEM — pick one</span>
+tail -F ~/.claude/cwk-audit.jsonl | logger -t cwk-audit               <span class="cmt"># → syslog → your collector (rsyslog/fluent-bit/Splunk UF)</span>
+*/5 * * * * cat ~/.claude/cwk-audit.jsonl >> /srv/siem-drop/cwk-$(hostname -s).jsonl   <span class="cmt"># cron copy, or point CWK_AUDIT_LOG at the drop folder</span></code></pre></div>
+  <p class="muted">The scripts (<code>kb-export.sh</code>, <code>kb-import.sh</code>, <code>kb-pipeline.sh</code>, <code>onboard-project.sh</code>,
+  <code>schedule.sh</code>) log unconditionally; the skills (<code>/cwk-scan</code>, <code>/cwk-rescan</code>, <code>/cwk-review</code>,
+  <code>/cwk-pr</code>, <code>/cwk-runbook</code>) are prompts that are told to call <code>scripts/audit-log.sh</code> when they finish —
+  a prompt can be ignored by a model, so treat skill lines as best-effort and hook/script lines as reliable.</p>
+
+  <!-- A9 -->
+  <h2 id="a9">A9. Freshness and depth</h2>
+  <p>A KB is a <b>snapshot</b>. <code>_meta.yml</code> names the <code>commit</code> and the <code>generated</code> date it describes;
+  the hub page shows an amber badge after 30 days and a banner naming the commit, and <code>kb-import.sh</code> warns when
+  that commit is not in the target checkout. <code>/cwk-rescan</code> refreshes only what a <code>git diff</code> touched and
+  rewrites the stamp; <code>scripts/schedule.sh add rescan "0 7 * * 1" &lt;repo&gt;</code> puts it on a weekly cron (read-only
+  skills only — code-editing skills are refused by design).</p>
+  <p><b>Depth is the honesty dial.</b> <code>quick</code> and <code>standard</code> <b>sample</b>: on a repository over roughly 40
+  files, <code>standard</code> reads representative files per layer and says so in <code>_coverage-report.md</code>; a business rule
+  in a file that was not sampled is not in the KB. <code>deep</code> reads every file, gives every module its own document, and
+  records for each rule where it is enforced and whether a test covers it. For a system whose KB will be used to approve
+  changes — or read by security — run <code>deep</code>, and check <code>provenlens</code> in <code>_meta.yml</code>: a KB built on a
+  resolved call graph and one built on grep are not the same claim, and each says which it is.</p>
+
+  <!-- A10 -->
+  <h2 id="a10">A10. Approval checklist</h2>
+  <ul class="chk">
+    <li>Company Claude plan is <b>Team/Enterprise</b>; personal Pro/Max accounts are not used for company code.</li>
+    <li>The kit is pinned to a reviewed <b>tag/commit</b>; <code>bash tests/run.sh</code> passes on that revision; updates go through the same review.</li>
+    <li>The surface audit in <code>SECURITY.md</code> was reproduced (no <code>eval</code>, no dynamic <code>require</code>, no telemetry, no secrets).</li>
+    <li><code>hooks/git-guard.sh</code> and <code>hooks/file-guard.sh</code> are installed <b>root/admin-owned</b> and wired from <b>managed settings</b>; <code>jq</code> is present on every machine.</li>
+    <li><code>ALLOW_OWNERS</code>/<code>ALLOW_HOSTS</code> in the installed guard name only the company org (and GHES host), or <code>__NONE__</code>.</li>
+    <li>The baseline <code>permissions.deny</code> (A3) is in managed settings; <code>bypassPermissions</code> is not used on company machines.</li>
+    <li>Permission mode per role is documented: engineers <code>acceptEdits</code>, readers the panel's <code>readonly</code> / CLI <code>plan</code>.</li>
+    <li>Windows machines run the hooks under Git Bash/WSL, or are recorded as “deny list only”.</li>
+    <li><code>vendor/</code> is present and <code>scripts/fetch-vendor.sh --check</code> passes (no CDN egress from generated HTML); proxy variables are set where needed.</li>
+    <li>Every team repo ignores <code>knowledge-base/</code>, <code>cwk-sessions/</code>, <code>.provenlens/</code>, and a pre-commit/CI check refuses them when staged.</li>
+    <li>Hub repos are private and same-access-as-source; no hub of a company repo is published; <code>--with-source</code> is not used for shared hubs.</li>
+    <li>Classification levels are agreed (<code>internal</code> default; which repos are <code>confidential</code>/<code>restricted</code>) and the hub page shows them.</li>
+    <li><code>~/.claude/cwk-audit.jsonl</code> (or <code>CWK_AUDIT_LOG</code>) is shipped to the SIEM; someone reviews <code>decision: deny</code> lines and allowed pushes.</li>
+    <li>KBs used for decisions are <code>deep</code> scans, re-scanned on a schedule, and their <code>_meta.yml</code> commit is checked before use.</li>
+    <li>Branch protection is enabled on team repositories — the control that holds where the hook cannot see.</li>
+  </ul>
+
+  <div class="part">Part B — Engineer install</div>
+
+  <!-- 0 -->
+  <h2 id="pre">B0. Prerequisites</h2>
+  <ul class="chk">
+    <li><b>Claude Code</b> installed &amp; working: open a terminal and run <code>claude --version</code> to see a version number. (If <code>/plugin</code> is unknown → update Claude Code.)</li>
+    <li><b>git</b>: <code>git --version</code>. <b>Node.js</b> (for map &amp; HTML): <code>node --version</code> (ideally ≥ 18). <b>jq</b>: <code>jq --version</code> — both guards deny everything without it.</li>
+    <li><b>Your company's Claude plan is Team/Enterprise</b> (a commercial plan — Anthropic does not train on your code). Ask your admin if unsure.</li>
+    <li><b>Access to the toolkit repo</b> <code>NamHT4Devlop/claude-code-workflow-kit</code> (public) — or the tag your security team approved, copied over.</li>
+  </ul>
+  <div class="box warn"><div class="ti">⚠️ Note on the Claude plan</div>
+    Use this only on an <b>organization plan (Team/Enterprise)</b>. Don't use a personal plan (Pro/Max) for company code — the data policy is different.</div>
+
+  <!-- 1 -->
+  <h2 id="get">B1. Get the toolkit onto your machine</h2>
+  <p>Put it in a fixed location so you can later update with <code>git pull</code>. For example <code>~/claude-code-workflow-kit</code>:</p>
+  <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># option 1: clone from GitHub, at the tag your company approved</span>
+git clone --branch v3.7.0 https://github.com/NamHT4Devlop/claude-code-workflow-kit.git ~/claude-code-workflow-kit
+
+<span class="cmt"># option 2: if given a zip/folder → extract it into ~/claude-code-workflow-kit</span></code></pre></div>
+  <p class="muted">Below this folder is referred to as <b>&lt;TOOL&gt;</b>. Windows: replace <code>~</code> with <code>%USERPROFILE%</code> and run everything in Git Bash or WSL (see A5).</p>
+
+  <!-- 2 -->
+  <h2 id="install">B2. Install for yourself (one command)</h2>
+  <p>This command creates <b>symlinks</b> for the skills/commands/agents into your personal <code>~/.claude</code> folder →
+  usable in <b>every repo</b>, and stored in <b>no</b> repo (the team sees nothing).</p>
+  <div class="cb"><button class="copy">Copy</button><pre><code>~/claude-code-workflow-kit/scripts/personal-install.sh</code></pre></div>
+  <p>It prints the number of skills/commands linked + a reminder of the git-guard config snippet (step B3).
+  Because it's symlinked, later a <code>cd ~/claude-code-workflow-kit &amp;&amp; git pull</code> updates everything instantly.</p>
+  <div class="box info"><div class="ti">💡</div> A skill auto-activates when you speak naturally (e.g. “review this file”), or type <code>/cwk-...</code> directly. No API key needed — it runs on your own Claude Code.</div>
+
+  <!-- 3 -->
+  <h2 id="safe">B3. Enable the guards — on a machine <i>without</i> managed settings</h2>
+  <p>If your company deployed A2, both hooks are already active and you can skip to B4 (you will see
+  <span class="kbd">/hooks</span> list them). Otherwise, arm them yourself:</p>
+
+  <div class="step"><div class="num">A</div><div class="body">
+    <h3>Global gitignore — keep artifacts out of commits</h3>
+    <p>Every <code>knowledge-base/</code>, <code>cwk-sessions/</code> and <code>.provenlens/</code> is ignored by git machine-wide (no repo is modified):</p>
+    <div class="cb"><button class="copy">Copy</button><pre><code>touch ~/.gitignore_global
+printf '%s\n' 'cwk-sessions/' 'spec-kit-sessions/' 'knowledge-base/' '.provenlens/' 'CLAUDE.local.md' >> ~/.gitignore_global
+git config --global core.excludesfile ~/.gitignore_global</code></pre></div>
+  </div></div>
+
+  <div class="step"><div class="num">B</div><div class="body">
+    <h3>git guard + file guard — read/sync only, no pushing to team repos, no rewriting the policy files</h3>
+    <p><code>personal-install.sh</code> has already placed the git guard at <code>~/.claude/hooks/cwk-git-guard.sh</code>.
+    Now “wire” it into Claude Code: open <code>~/.claude/settings.json</code> and add the block below (merge it in, don't delete what's there).
+    The file guard is referenced from the kit checkout so a <code>git pull</code> updates it:</p>
+    <div class="cb"><button class="copy">Copy</button><pre><code>{
+  "permissions": {
+    "deny": [
+      "Bash(git remote add:*)", "Bash(git remote set-url:*)", "Bash(git remote remove:*)",
+      "Bash(git reset --hard:*)", "Bash(git clean -f:*)", "Bash(git rebase:*)",
+      "Bash(git commit --amend:*)", "Bash(git restore:*)", "Bash(git branch -D:*)",
+      "Bash(git send-email:*)",
+      "Read(~/.ssh/**)", "Read(~/.aws/**)", "Read(**/.env)", "Read(**/.env.*)",
+      "Bash(curl *| sh*)", "Bash(curl *| bash*)", "Bash(wget *| sh*)", "Bash(sudo:*)", "WebFetch"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [
+        { "type": "command", "command": "~/.claude/hooks/cwk-git-guard.sh", "timeout": 10 },
+        { "type": "command", "command": "~/claude-code-workflow-kit/hooks/file-guard.sh", "timeout": 10 } ] },
+      { "matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [
+        { "type": "command", "command": "~/claude-code-workflow-kit/hooks/file-guard.sh", "timeout": 10 } ] }
+    ]
+  }
+}</code></pre></div>
+    <p>Result: allows <code>fetch · pull · status · log · diff · add · commit</code>; <b>hard-blocks</b> pushing to team repos + destructive commands (<code>reset --hard</code>, <code>rebase</code>…); blocks the agent from editing <code>settings.json</code>, the hooks, <code>~/.gitconfig</code>, <code>.git/config</code>, <code>~/.ssh</code>, <code>~/.aws</code>.</p>
     <div class="box danger"><div class="ti">🎯 Tune the push whitelist for a company machine</div>
-      Open <code>~/claude-code-workflow-kit/hooks/git-guard.sh</code>, the <code>ALLOW_OWNER_RE</code> line:
+      Open <code>~/claude-code-workflow-kit/hooks/git-guard.sh</code>, the <code>ALLOW_OWNERS</code> / <code>ALLOW_HOSTS</code> lines:
       <ul style="margin:.4em 0">
         <li>To let the AI push to <b>your personal repos</b>: change <code>NamHT4Devlop</code> to your personal GitHub username.</li>
-        <li><b>Safest (recommended at a company):</b> block the AI from pushing <i>anywhere</i> — set <code>ALLOW_OWNER_RE='__NONE__'</code>. When you need to push, run it yourself in a terminal.</li>
+        <li><b>Safest (recommended at a company):</b> block the AI from pushing <i>anywhere</i> — set <code>ALLOW_OWNERS='__NONE__'</code>. When you need to push, run it yourself in a terminal.</li>
+        <li>GitHub Enterprise: add your host to <code>ALLOW_HOSTS</code> (A4).</li>
       </ul>
+      A self-installed guard is a habit, not a policy: you (or the agent, before the file guard is armed) can edit it. Ask your security team for the managed-settings deployment in A2.
     </div>
   </div></div>
-  <div class="box warn"><div class="ti">🔁 Reload</div> After editing <code>settings.json</code>, open <span class="kbd">/hooks</span> once or restart Claude Code so the guard takes effect.</div>
+  <div class="box warn"><div class="ti">🔁 Reload</div> After editing <code>settings.json</code>, open <span class="kbd">/hooks</span> once or restart Claude Code so the guards take effect.</div>
 
   <!-- 4 -->
-  <h2 id="first">4. First use on a repo</h2>
+  <h2 id="first">B4. First use on a repo</h2>
   <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># 1) cd into THE project you want to work on</span>
 cd /path/to/your-project
+<span class="cmt"># optional: add the three ignore lines to the repo's own .gitignore (idempotent; review the diff before committing)</span>
+~/claude-code-workflow-kit/scripts/onboard-project.sh .
 <span class="cmt"># open Claude Code</span>
-claude</code></pre></div>
+claude --permission-mode acceptEdits</code></pre></div>
   <p>Inside Claude Code, the first time on a repo create the Knowledge Base, then use:</p>
-  <div class="cb"><button class="copy">Copy</button><pre><code>/cwk-scan                 <span class="cmt"># scan the repo → generate knowledge-base/ (run once)</span>
+  <div class="cb"><button class="copy">Copy</button><pre><code>/cwk-scan                 <span class="cmt"># scan the repo → generate knowledge-base/ (run once; `deep` for a system with a lot of business logic)</span>
 /cwk-ask how does the login flow work?
 /cwk-build add a forgot-password feature via email OTP
 /cwk-fix-bug the /tasks API returns 500 on an invalid status</code></pre></div>
-  <p class="muted">Already have a <code>knowledge-base/</code> from another machine? Just copy it into the repo to reuse it — no need to scan.</p>
-
+  <p class="muted">Already have a <code>knowledge-base/</code> from a hub? <code>scripts/kb-import.sh &lt;hub&gt; &lt;project&gt; .</code> drops it in (it warns if the snapshot's commit is not in your checkout). The KB's <code>_meta.yml</code> carries its <code>classification</code> — respect it when you share anything derived from it.</p>
 
   <!-- ============ PROVENLENS (optional) ============ -->
-  <h2 id="provenlens">🔗 4b. Optional: <code>provenlens</code> — the call graph</h2>
+  <h2 id="provenlens">🔗 B4b. Optional: <code>provenlens</code> — the call graph</h2>
   <p>Nothing here needs it. But <b>27 of the 30 skills</b> use it when a repository has a
   <code>.provenlens/</code> index, and grep when it does not — and when they fall back they
   <b>say so</b>, marking the output <code>⚠️ grep-depth only (no provenlens index)</code>. That
@@ -209,7 +498,7 @@ cd /path/to/your/repo &amp;&amp; provenlens init .</code></pre>
   <code>docs/provenlens.md</code>.</p>
 
   <!-- 6 -->
-  <h2 id="daily">5. Command table &amp; daily flow</h2>
+  <h2 id="daily">B5. Command table &amp; daily flow</h2>
   <table>
     <thead><tr><th>Command</th><th>What it does</th></tr></thead>
     <tbody>
@@ -241,55 +530,50 @@ cd /path/to/your/repo &amp;&amp; provenlens init .</code></pre>
       <tr><td><code>/cwk-map</code></td><td>Interactive dependency graph (HTML) opened in the browser — single repo.</td></tr>
       <tr><td><code>/cwk-system-map</code></td><td><b>Cross-service</b> map for a multi-microservice workspace: dependency graph + end-to-end flows.</td></tr>
       <tr><td><code>/cwk-document</code></td><td>Business↔code documentation, exported to HTML.</td></tr>
+      <tr><td><code>/cwk-runbook</code></td><td>Operational runbook (business lifecycle + playbooks) from the KB and the real deploy config.</td></tr>
+      <tr><td><code>/cwk-drift</code></td><td>Audit KB vs code drift — read-only report with an owner per item.</td></tr>
       <tr><td><code>/cwk-help</code></td><td>List commands + the repo's KB status.</td></tr>
     </tbody>
   </table>
   <p><b>Recommended flow:</b> <code>scan</code> (once) → <code>ask/map/document</code> (understand) → <code>plan</code> (break down) → <code>build</code>/<code>fix-bug</code> (do) → <code>rescan</code> (keep the KB fresh).</p>
 
   <!-- 7 -->
-  <h2 id="verify">6. Verify it works</h2>
+  <h2 id="verify">B6. Verify it works</h2>
   <ul class="chk">
     <li>In Claude Code, type <span class="kbd">/</span> → you see the <code>/cwk-*</code> commands.</li>
     <li>Run <code>/cwk-help</code> → it lists commands + reports whether the repo has a KB.</li>
+    <li><span class="kbd">/hooks</span> lists <code>git-guard</code> and <code>file-guard</code> under PreToolUse.</li>
     <li>git guard: <code>printf '{"tool_input":{"command":"git push https://github.com/some-org/x"}}' | ~/.claude/hooks/cwk-git-guard.sh</code> → outputs JSON <code>deny</code>.</li>
+    <li>audit trail: after a <code>/cwk-scan</code> or an export, <code>tail -1 ~/.claude/cwk-audit.jsonl</code> shows the line.</li>
   </ul>
 
   <!-- 8 -->
-  <h2 id="maintain">7. Update / Uninstall</h2>
-  <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># update the toolkit</span>
-cd ~/claude-code-workflow-kit && git pull        <span class="cmt"># symlinked, so it applies immediately</span>
+  <h2 id="maintain">B7. Update / Uninstall</h2>
+  <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># update the toolkit (to the next tag your security team approved)</span>
+cd ~/claude-code-workflow-kit && git fetch --tags && git checkout v3.8.0 && bash tests/run.sh   <span class="cmt"># symlinked, so it applies immediately</span>
 <span class="cmt"># uninstall (only removes symlinks in ~/.claude, touches no repo)</span>
 ~/claude-code-workflow-kit/scripts/personal-install.sh uninstall</code></pre></div>
 
   <!-- 9 -->
-  <h2 id="trouble">8. Common issues</h2>
+  <h2 id="trouble">B8. Common issues</h2>
   <table>
     <thead><tr><th>Symptom</th><th>Fix</th></tr></thead>
     <tbody>
       <tr><td>Don't see the <code>/cwk-*</code> commands</td><td>Reload/restart Claude Code; check <code>ls ~/.claude/skills | grep cwk-</code>.</td></tr>
       <tr><td><code>/plugin</code> or <code>/hooks</code> is unknown</td><td>Update Claude Code to a newer build.</td></tr>
       <tr><td>A command says “no knowledge-base”</td><td>Run <code>/cwk-scan</code> once in that repo.</td></tr>
-      <tr><td>The git guard isn't blocking</td><td>Open <span class="kbd">/hooks</span> or restart to load <code>settings.json</code>.</td></tr>
+      <tr><td>The git guard isn't blocking</td><td>Open <span class="kbd">/hooks</span> or restart to load <code>settings.json</code>. On Windows: are you in Git Bash/WSL? (A5)</td></tr>
+      <tr><td>Every command is denied with “jq is not installed”</td><td>Both guards fail closed without <code>jq</code>. Install it (<code>brew install jq</code> / <code>apt install jq</code>).</td></tr>
+      <tr><td>Push to the company org is denied</td><td>The org/host is not in <code>ALLOW_OWNERS</code>/<code>ALLOW_HOSTS</code> of the installed guard (A2 step 2, A4) — or that is the policy: push from your own terminal.</td></tr>
       <tr><td><code>git clone</code> asks for a password</td><td>Public repo — clone the HTTPS URL (no auth), or set up an SSH key for the git@ URL.</td></tr>
-      <tr><td>Map/HTML doesn't render diagrams</td><td>Needs Node; the offline build bundles the libraries, so no network is required.</td></tr>
+      <tr><td>Map/HTML doesn't render diagrams</td><td>Needs Node; with <code>vendor/</code> present the page is offline. Run <code>scripts/fetch-vendor.sh --check</code>.</td></tr>
+      <tr><td><code>kb-export.sh</code> refuses a project: “secret-looking strings”</td><td>A KB page quoted a token. Remove it at the source (and rotate the token); <code>--allow-secrets</code> only for a confirmed false positive.</td></tr>
     </tbody>
   </table>
 
-  <!-- 10 -->
-  <h2 id="faq">9. FAQ &amp; enterprise safety</h2>
-  <h3>Is it safe to copy onto a company machine?</h3>
-  <p>The toolkit code is <b>purely local</b> (reads/writes files), makes <b>no</b> network/exec/eval calls, and contains no secrets.
-  Audit details + how to verify: see <code>&lt;TOOL&gt;/SECURITY.md</code>.</p>
-  <h3>Is any code data sent anywhere?</h3>
-  <p>The KB stays local. When the AI reads code to answer, that snippet enters the LLM context — <b>just like Claude reading a file normally</b>, and already permitted by your organization (Team/Enterprise plans don't train on your data).</p>
-  <h3>How do I make sure team repos aren't touched?</h3>
-  <p>Global gitignore (step 3A) + the git guard (3B) + setting <code>ALLOW_OWNER_RE='__NONE__'</code> to forbid the AI from pushing anywhere. Even stronger: enable <b>branch protection</b> on the team GitHub repo.</p>
-  <h3>Does it remember me between sessions?</h3>
-  <p>Yes. Claude Code has auto-memory (per-project) + you can keep general preferences in <code>~/.claude/CLAUDE.md</code> (loaded in every repo). Each repo's KB also grows over each build/rescan.</p>
-
   <footer>
-    Workflow Kit (the cwk-* commands) · a port of Auto Spec extension · Repo <code>NamHT4Devlop/claude-code-workflow-kit</code><br>
-    This file: <code>&lt;TOOL&gt;/docs/company-setup-guide.html</code> — open in any browser. Security details: <code>SECURITY.md</code>.
+    Workflow Kit (the cwk-* commands) · Repo <code>NamHT4Devlop/claude-code-workflow-kit</code><br>
+    This file: <code>&lt;TOOL&gt;/docs/company-setup-guide.html</code> — open in any browser. Audit details: <code>SECURITY.md</code>.
   </footer>
 </div>
 

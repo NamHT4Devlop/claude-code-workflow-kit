@@ -9,6 +9,23 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/git-guard.sh",
             "timeout": 10,
             "statusMessage": "git-guard"
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/file-guard.sh",
+            "timeout": 10,
+            "statusMessage": "file-guard"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/file-guard.sh",
+            "timeout": 10,
+            "statusMessage": "file-guard"
           }
         ]
       }

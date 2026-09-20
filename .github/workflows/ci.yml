@@ -10,20 +10,24 @@ on:
 permissions:
   contents: read
 
+# Every action is pinned to a full commit SHA (tests/consistency.test.sh enforces it): a mutable tag
+# such as @v4 hands whoever controls that tag a shell on this runner. The trailing comment is the
+# release the SHA was resolved from — keep it in step when bumping.
 jobs:
   tests:
     name: toolkit tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
-      # tests/run.sh covers: bundle sync, git-guard (56 cases), smoke, skill-name==folder,
-      # consistency (commands ↔ skills ↔ extension ↔ docs ↔ counts ↔ changelog),
+      # tests/run.sh covers: bundle sync, git-guard (every deny rule and bypass), smoke,
+      # skill-name==folder, consistency (commands ↔ skills ↔ extension ↔ docs ↔ counts ↔ version
+      # sync ↔ zero footprint ↔ hooks wiring ↔ SHA-pinned actions ↔ the README test table),
       # fixtures for every script that touches things outside the repo (migrate-sessions,
-      # schedule, personal-install, onboard, kb-hub), webview script parsing + markdown escaping,
-      # i18n coverage, and the vendored-lib hashes.
+      # schedule, personal-install, onboard, kb-hub, kb-pipeline), webview script parsing +
+      # markdown escaping, i18n coverage, and the vendored-lib hashes.
       - name: Run the test suite
         run: bash tests/run.sh
 
@@ -31,8 +35,8 @@ jobs:
     name: vscode extension compiles
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
       - name: Install (frozen lockfile)
@@ -46,7 +50,7 @@ jobs:
     name: shell scripts lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       # The guard hook and the install/migrate scripts are the highest-risk shell in the repo.
       - name: shellcheck
         run: |

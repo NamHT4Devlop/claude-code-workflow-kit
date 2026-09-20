@@ -202,6 +202,12 @@ decision diamonds and a step table with `file:line` (a flow moved to `modules/<m
 diagram per lifecycle entity as §05 defines it, or says there are none; `04` has the journey and
 domain-map diagrams; `07` has the architecture `flowchart`; `08` has an `erDiagram` whenever the
 system stores relational data.
+Record the run in the audit trail: `bash "$KIT_SCRIPTS/audit-log.sh" kb.scan repo=<origin, credentials
+stripped as in _meta.yml> commit=<sha> depth=<quick|standard|deep> classification=<from _meta.yml>` —
+`$KIT_SCRIPTS` is `${CLAUDE_PLUGIN_ROOT}/scripts` if `CLAUDE_PLUGIN_ROOT` is set, else `../../scripts`
+relative to this skill folder's **real** path (it is usually a symlink: `cd -P`), else
+`$HOME/.claude/skills/cwk-scan/../../scripts` resolved the same way. If the script is not found, say so
+in the report and continue — the audit line is never a reason to fail the scan.
 Report: number of section docs, module docs, and coverage %. Point the user to the most
 valuable files (04, 05, 10, 13, review-skills) and suggest running `/cwk-build` next.
 Be efficient with reads on huge repos — sample representative files per layer rather than

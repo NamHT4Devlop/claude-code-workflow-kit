@@ -237,7 +237,12 @@ catalogs are put side by side.
   modules: [auth, orders, billing]         # the modules/ docs present
   files_analyzed: 412
   provenlens: 93.4%                # in-repo resolution at scan time, or "none" if unindexed
+  classification: internal         # public | internal | confidential | restricted — default internal
   ```
+  `classification` says how far this KB may travel: it records permission matrices, unpatched
+  defects, integration auth and env var names, and the hub copies it, so a reader must see what they
+  are holding. Default `internal`; ask the user for a different value only when the session can ask
+  (never invent `public`); `kb-export.sh` and the hub page read it and fall back to `internal`.
   `provenlens` records how much of the call graph was resolved when this KB was written
   (`provenlens status`), or `none`. It is the honesty column: a reader comparing two KBs needs to
   know that one was built on a resolved graph and the other on grep. Omit the key rather than

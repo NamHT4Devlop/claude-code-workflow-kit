@@ -198,6 +198,18 @@ git config --global core.excludesfile ~/.gitignore_global
 > Note: a global ignore of `knowledge-base/` keeps your KBs private. If a project legitimately
 > needs a committed `knowledge-base/`, force-add it there with `git add -f knowledge-base/`.
 
+### For companies
+
+Rolling the kit out to a team, or getting it past a security review? Read
+**[`docs/company-setup-guide.html`](docs/company-setup-guide.html)** first. Part A is for the
+security team: what the kit is and is not, deploying `hooks/git-guard.sh` + `hooks/file-guard.sh`
+as policy from **managed settings** (root-owned, with the company's own `ALLOW_OWNERS`/`ALLOW_HOSTS`),
+a baseline `permissions.deny`, the permission mode per role, GitHub Enterprise Server / proxies /
+offline `vendor/`, Windows limits, KB **data classification** (`_meta.yml`, default `internal`),
+repository hygiene, the **audit trail** (`~/.claude/cwk-audit.jsonl`, shipped to a SIEM), KB
+freshness and depth, and a checklist to tick. Part B is the engineer's install. The one-line
+summary is in [SECURITY.md](SECURITY.md#recommended-enterprise-hardening).
+
 ---
 
 ## Verify the install
@@ -679,15 +691,18 @@ The suite is weighted toward the parts that can do damage, not the parts that ar
 
 | Suite | Cases | Why it exists |
 |---|---:|---|
-| `git-guard.test.sh` | 139 | Every deny rule, every bypass ever found (each reproduced live before it was fixed: config redirects, `GIT_*`, `gh` writes, interpreter strings), every false positive ever reported, and the bare-`push`-resolved-from-cwd path against real fixture repos |
-| `kb-hub.test.sh` | 32 | Export/import move real Knowledge Bases between repos; also pins the page generator's escaping and CSP |
-| `schedule.test.sh` | 20 | Edits your **crontab** — behind a stubbed `crontab`, so the real one is never touched |
+| `git-guard.test.sh` | 148 | Every deny rule, every bypass ever found (each reproduced live before it was fixed: config redirects, `GIT_*`, `gh` writes, interpreter strings), every false positive ever reported, and the bare-`push`-resolved-from-cwd path against real fixture repos |
+| `kb-hub.test.sh` | 125 | Export/import move real Knowledge Bases between repos; also pins the page generator's escaping and CSP |
+| `file-guard.test.sh` | 50 | The hook that stops the agent rewriting its own policy files (`settings.json`, the hooks) and the credential stores beside them — file tools and shell writes blocked, reads and ordinary files untouched, a deny audited without the command text |
+| `kb-pipeline.test.sh` | 27 | `kb-pipeline.sh` spends real tokens over other people's repos — behind stubbed `claude` and `provenlens`, so a scan already done is never redone and `--dry-run` runs nothing |
+| `schedule.test.sh` | 24 | Edits your **crontab** — behind a stubbed `crontab`, so the real one is never touched |
+| `smoke.test.sh` | 23 | The bundled Node tools (`render-html`, `build-map`, the provenlens graph, `check-mermaid`) still produce output from real input, the map's CSP stays nonce-only, and a vendored bundle is used only when its hash matches |
+| `migrate-sessions.test.sh` | 21 | Renames a folder full of your past work |
 | `webview-markdown.test.cjs` | 18 | The panel renders model output as HTML; pins escaping and that only `http(s)` links become links |
-| `migrate-sessions.test.sh` | 15 | Renames a folder full of your past work |
 | `onboard.test.sh` | 14 | Writes into **other people's repos** (`.gitignore`, `CLAUDE.md`) |
-| `personal-install.test.sh` | 10 | The one script that **deletes** from `~/.claude` — including that a foreign symlink survives an uninstall |
+| `personal-install.test.sh` | 13 | The one script that **deletes** from `~/.claude` — including that a foreign symlink survives an uninstall |
 | `i18n.test.cjs` | 5 | Catches a card reworded out of its translation, and status text the host sends in English |
-| `consistency.test.sh` | 9 groups | Commands ↔ skills ↔ extension ↔ catalog ↔ counts ↔ changelog ↔ the skill-anatomy trailer |
+| `consistency.test.sh` | 18 groups | Commands ↔ skills ↔ extension ↔ catalog ↔ counts ↔ the skill-anatomy trailer ↔ version sync (plugin, marketplace, changelog, README) ↔ zero footprint (no personal paths, e-mails or invisible characters ship) ↔ hooks wiring ↔ SHA-pinned Actions ↔ this table's own counts (each suite is re-run to check them) |
 
 Plus: bundle sync, skill-name == folder, the vendored libraries' pinned hashes, and `node --check` on
 the webview scripts (`tsc` only ever parses `src/`, so a syntax error in `media/` would otherwise ship

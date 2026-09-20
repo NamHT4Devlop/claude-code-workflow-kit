@@ -202,6 +202,32 @@ allowj $'git commit -q -F - <<\'EOF\'\nfix: the git command the guard blocks\n\n
 allowj $'cat > notes.txt <<EOF\nremember: git push is blocked here\nEOF' "$P"
 allowj 'echo "git push" > notes.txt' "$P"
 allowj 'git log --grep rebase --oneline' "$P"
+
+# ── hosts are configurable, not hard-coded (GitHub Enterprise), and never from the environment ──
+echo "git-guard: ALLOW_HOSTS / ALLOW_OWNERS come from the file, not the environment"
+denyj 'git push https://ghe.corp.example/NamHT4Devlop/x.git main' "$P"          # host not allowed by default
+denyj 'gh issue create -R ghe.corp.example/NamHT4Devlop/x --title t' "$P"
+o=$(ALLOW_HOSTS='github\.com|ghe\.corp\.example' ALLOW_OWNERS='NamHT4Devlop|acme-corp' runj 'git push https://ghe.corp.example/acme-corp/x.git main' "$P")
+if printf '%s' "$o" | grep -q '"deny"'; then pass=$((pass+1)); else echo "  ✗ env vars must not widen the whitelist"; fail=$((fail+1)); fi
+GHE=$(mktemp "${TMPDIR:-/tmp}/git-guard-ghe.XXXXXX")
+sed -e "s/^ALLOW_OWNERS=.*/ALLOW_OWNERS='NamHT4Devlop|acme-corp'/" -e "s/^ALLOW_HOSTS=.*/ALLOW_HOSTS='github\\\\.com|ghe\\\\.corp\\\\.example'/" "$GUARD" > "$GHE"
+runghe() { jq -cn --arg c "$1" --arg d "$2" '{tool_input:{command:$c},cwd:$d}' | bash "$GHE"; }
+if [ -z "$(runghe 'git push https://ghe.corp.example/acme-corp/x.git main' "$P")" ]; then pass=$((pass+1)); else echo "  ✗ a copy configured for the company host should allow its push"; fail=$((fail+1)); fi
+if [ -z "$(runghe 'gh pr merge 3 -R ghe.corp.example/acme-corp/x' "$P")" ]; then pass=$((pass+1)); else echo "  ✗ gh -R host/owner/repo on the configured host should be allowed"; fail=$((fail+1)); fi
+if runghe 'git push https://ghe.corp.example/other-org/x.git main' "$P" | grep -q '"deny"'; then pass=$((pass+1)); else echo "  ✗ the configured host still restricts owners"; fail=$((fail+1)); fi
+rm -f "$GHE"
+
+# ── audit log: one line per deny and per allowed outward action, never the command text ──
+echo "git-guard: audit log records decisions without command text"
+LOG=$FIX/audit.jsonl
+CWK_AUDIT_LOG="$LOG" runj 'git push https://github.com/acme-corp/app main # SECRET_MARKER_1' "$P" >/dev/null
+CWK_AUDIT_LOG="$LOG" runj 'git push origin main' "$P" >/dev/null
+CWK_AUDIT_LOG="$LOG" runj 'git status' "$P" >/dev/null
+if [ -f "$LOG" ] && [ "$(grep -c '"decision":"deny"' "$LOG")" = 1 ] && [ "$(grep -c '"decision":"allow"' "$LOG")" = 1 ] && grep -q '"action":"git push"' "$LOG" && ! grep -q SECRET_MARKER_1 "$LOG"; then pass=$((pass+1)); else echo "  ✗ audit log: expected 1 deny + 1 allow (push), no command text; got: $(cat "$LOG" 2>/dev/null)"; fail=$((fail+1)); fi
+CWK_AUDIT_LOG="$LOG" runj 'git push https://u:tok123@github.com/acme-corp/app main' "$P" >/dev/null
+if ! grep -q tok123 "$LOG"; then pass=$((pass+1)); else echo "  ✗ audit log leaked a URL credential"; fail=$((fail+1)); fi
+CWK_AUDIT_LOG=off runj 'git push https://github.com/acme-corp/app main' "$P" >/dev/null
+if [ "$(wc -l < "$LOG" | tr -d ' ')" = 3 ]; then pass=$((pass+1)); else echo "  ✗ CWK_AUDIT_LOG=off should write nothing"; fail=$((fail+1)); fi
 rm -rf "$FIX"
 
 

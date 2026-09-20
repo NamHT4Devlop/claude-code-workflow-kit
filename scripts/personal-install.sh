@@ -61,10 +61,11 @@ for f in "$SRC"/commands/*.md; do [ -f "$f" ] && ln -sfn "$f"     "$DEST/command
 
 echo "   ✅ linked $n_s skills, $n_a agents, $n_c commands"
 
-# ── git-guard hook (read/sync-in git only; block remote-affecting + destructive) ──
+# ── guard hooks: git-guard (git/gh policy) + file-guard (policy files and credentials stay read-only) ──
 mkdir -p "$DEST/hooks"
 ln -sfn "$SRC/hooks/git-guard.sh" "$DEST/hooks/cwk-git-guard.sh"
-echo "   ✅ linked hooks/cwk-git-guard.sh"
+ln -sfn "$SRC/hooks/file-guard.sh" "$DEST/hooks/cwk-file-guard.sh"
+echo "   ✅ linked hooks/cwk-git-guard.sh and hooks/cwk-file-guard.sh"
 # A 2.x install armed settings.json with hooks/namht-git-guard.sh. Removing that link would not
 # disarm anything visibly — a hook whose file is gone just stops running — so keep the old name
 # alive as an alias until settings.json names the new one.
@@ -72,10 +73,14 @@ if [ -L "$DEST/hooks/namht-git-guard.sh" ]; then
   ln -sfn "$SRC/hooks/git-guard.sh" "$DEST/hooks/namht-git-guard.sh"
   echo "   ⚠  kept the 2.x alias hooks/namht-git-guard.sh — point settings.json at hooks/cwk-git-guard.sh, then uninstall/install once to drop it"
 fi
-echo "   ⚠  To ARM the git guard, add this to $DEST/settings.json (one time):"
+echo "   ⚠  To ARM the guards, add this to $DEST/settings.json (one time; see SECURITY.md for the full snippet):"
 echo '        hooks.PreToolUse += { "matcher":"Bash", "hooks":[{"type":"command",'
-echo "          \"command\":\"$DEST/hooks/cwk-git-guard.sh\",\"timeout\":10}] }"
-echo '        permissions.deny += "Bash(git push:*)", "Bash(git reset --hard:*)", … (see SECURITY.md)'
+echo "          \"command\":\"$DEST/hooks/cwk-git-guard.sh\",\"timeout\":10},{\"type\":\"command\","
+echo "          \"command\":\"$DEST/hooks/cwk-file-guard.sh\",\"timeout\":10}] }"
+echo '        hooks.PreToolUse += { "matcher":"Edit|Write|MultiEdit|NotebookEdit", "hooks":[{"type":"command",'
+echo "          \"command\":\"$DEST/hooks/cwk-file-guard.sh\",\"timeout\":10}] }"
+echo '        permissions.deny += "Bash(git reset --hard:*)", "Bash(git rebase:*)", … (see SECURITY.md)'
+echo "   A company deploys both hooks read-only from managed settings instead — see docs/company-setup-guide.html."
 
 echo "✔  Done. Open Claude Code in any project and use /cwk-build, /cwk-ask, /cwk-review, …"
 echo "   Upgrading from 2.x? Rename each repo's namht-sessions/ with scripts/migrate-sessions.sh and add cwk-sessions/ to ~/.gitignore_global."

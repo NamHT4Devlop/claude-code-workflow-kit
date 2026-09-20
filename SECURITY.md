@@ -30,7 +30,7 @@ verify it yourself.
 | Install scripts | `scripts/personal-install.sh`, `scripts/onboard-project.sh`, `scripts/sync-bundles.sh` | Symlink into `~/.claude`; write `.gitignore`/`CLAUDE.md`; copy bundled files |
 | Parity harness | `skills/cwk-rails-to-spring/references/shadow-parity.cjs` | **Outbound HTTP — only to the two user-supplied `--source`/`--target` URLs** (opt-in per run) |
 | VS Code extension | `vscode-extension/` (TypeScript, proprietary) | **Spawns the local `claude` CLI** (whitelisted skill commands); no network of its own |
-| Git guard hook | `hooks/git-guard.sh` | Blocks remote-touching/destructive git; push only to the personal whitelist |
+| Guard hooks | `hooks/git-guard.sh`, `hooks/file-guard.sh` | git/gh policy (push and gh writes only to the whitelist, config allowlist, no GIT_* overrides); the policy files and credential stores stay read-only to the agent |
 
 ## Executable-surface audit (verify it yourself)
 ```bash
@@ -56,7 +56,7 @@ minified) — provenance: the author's own Auto Spec extension project.
 
 ## Scripts that write outside this repo
 
-Most of the kit only reads. Six scripts do not, and each one is listed here with what it touches,
+Most of the kit only reads. Seven scripts do not, and each one is listed here with what it touches,
 what stops it going wrong, and where that is pinned by a test. **None of them runs on its own** — you
 invoke them.
 
@@ -69,6 +69,7 @@ invoke them.
 | `scripts/kb-import.sh` | a target repo's `knowledge-base/` | Refuses to overwrite an existing KB without `--force`, and keeps a timestamped backup when forced — `knowledge-base/` is gitignored, so git is not an undo here. Warns when the snapshot's commit is absent from that checkout. |
 | `scripts/kb-pipeline.sh` | nothing itself — it invokes `claude -p`, and the skills write `knowledge-base/`, `cwk-sessions/` and `.provenlens/` inside the repos you name | **Never clones**: a URL is rejected as a path, so it can only touch checkouts you already have. Prints the full plan with a per-repo step list, the permission mode in effect and a cost warning, and asks before the first token is spent (`--yes` to skip, `--dry-run` to print only). A step whose output exists is skipped unless `--force`. Defaults to `--permission-mode acceptEdits` rather than `bypassPermissions`: the safe mode is the default and the hammer is opt-in, named in the plan you confirm. *(19 cases, behind stubbed `claude`/`provenlens`)* |
 | `scripts/migrate-sessions.sh` | renames `spec-kit-sessions/` → `cwk-sessions/` in a repo | Never overwrites on merge; leaves anything it could not merge in place; `--dry-run`. *(15 cases)* |
+| `scripts/audit-log.sh` (and both hooks) | `${CWK_AUDIT_LOG:-~/.claude/cwk-audit.jsonl}`, created `0600` | Appends one JSON line per action or decision: timestamp, user, host, action, cwd, and the key=values the caller passes. Never command text, file contents or secrets; `user:pass@` is stripped from anything URL-shaped. `CWK_AUDIT_LOG=off` disables it; a failure to write never fails the caller. The hooks refuse to let the agent write the log file itself. |
 
 `scripts/kb-site.cjs` and the other Node generators only read and write inside the directory you
 point them at. Their output is a self-contained HTML page: every document is JSON-escaped before it
@@ -182,8 +183,24 @@ Bash — and nothing in the hook stops the Edit or Write tool from changing the 
   `checkout -- / . / -f / --force`, `restore` of the working tree, `branch -D`, `commit --amend`,
   `rebase`, `filter-branch/filter-repo`, `reflog expire`, `gc --prune`, `update-ref -d`.
 
-Wire it into `~/.claude/settings.json` (the installer symlinks the script to
-`~/.claude/hooks/cwk-git-guard.sh`; arm it once with this snippet):
+**`hooks/file-guard.sh`** is the second hook, and the reason the first one can be trusted at all:
+it runs on `Edit`, `Write`, `MultiEdit`, `NotebookEdit` and `Bash`, and refuses any write to
+`~/.claude/settings*.json` and project `.claude/settings*.json`, `~/.claude/hooks/*`, the kit's own
+`hooks/` directory, the managed-settings locations, `~/.gitconfig`, `.git/config`, `.git/hooks/*`,
+`~/.ssh`, `~/.aws`, `~/.config/gh`, `~/.netrc` and the audit log — whether through a file tool, a
+shell redirection, `sed -i`, `cp`, `mv`, `rm`, `ln`, `chmod` or an interpreter. Reads (`cat`,
+`grep`, `jq`, `diff`, `ls`) are allowed. `tests/file-guard.test.sh` pins **50 cases**.
+
+Both hooks append a JSON line per deny, and the git-guard also per **allowed** push or `gh` write,
+to `${CWK_AUDIT_LOG:-~/.claude/cwk-audit.jsonl}` — decisions and redacted targets, never the
+command text. The whitelist is `ALLOW_OWNERS` / `ALLOW_HOSTS` at the top of `git-guard.sh` (regex
+alternatives; a GitHub Enterprise host goes in `ALLOW_HOSTS`); it is read from the file only,
+never from the environment, so an env var cannot widen it.
+
+Wire both into `~/.claude/settings.json` (the installer symlinks them to
+`~/.claude/hooks/cwk-git-guard.sh` and `~/.claude/hooks/cwk-file-guard.sh`; arm them once with this
+snippet — a company installs the same entries from managed settings instead, see
+`docs/company-setup-guide.html`):
 
 ```jsonc
 {
@@ -199,7 +216,10 @@ Wire it into `~/.claude/settings.json` (the installer symlinks the script to
   "hooks": {
     "PreToolUse": [
       { "matcher": "Bash", "hooks": [
-        { "type": "command", "command": "~/.claude/hooks/cwk-git-guard.sh", "timeout": 10 } ] }
+        { "type": "command", "command": "~/.claude/hooks/cwk-git-guard.sh",  "timeout": 10 },
+        { "type": "command", "command": "~/.claude/hooks/cwk-file-guard.sh", "timeout": 10 } ] },
+      { "matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [
+        { "type": "command", "command": "~/.claude/hooks/cwk-file-guard.sh", "timeout": 10 } ] }
     ]
   }
 }
@@ -208,16 +228,23 @@ Wire it into `~/.claude/settings.json` (the installer symlinks the script to
 Verify (push to a team URL is denied, pull is allowed):
 `printf '{"tool_input":{"command":"git push https://github.com/some-org/repo"}}' | ~/.claude/hooks/cwk-git-guard.sh`
 → `permissionDecision":"deny"`. A push to a whitelisted personal remote returns no output (allowed).
-Edit `ALLOW_OWNER_RE` / the rules in `hooks/git-guard.sh` to taste. (A settings change needs a
+Edit `ALLOW_OWNERS` / `ALLOW_HOSTS` / the rules in `hooks/git-guard.sh` to taste. (A settings change needs a
 Claude Code reload to go live; editing the hook script itself takes effect immediately.)
 
 ## Recommended enterprise hardening
-1. Use a company **Team/Enterprise** Claude plan (not a personal consumer plan).
-2. Pin the toolkit to a specific commit/tag and review diffs before pulling updates.
-3. Keep `vendor/` so generated HTML is fully offline.
-4. Keep secrets out of repos (the toolkit won't index raw secret files, but config source files
-   are read like any other code).
-5. Have your security team skim `graph-builder.js` / `html-builder.js` (readable JS) and the two
-   shell scripts — they are short.
+
+The full, concrete version — with the managed-settings JSON, the deny list, the SIEM one-liner and a
+checklist a security team can tick — is **`docs/company-setup-guide.html`, Part A**. In one line each:
+
+1. **What it is / is not** — prompts and short scripts; the model reading code is inherent to Claude Code, not added here; no telemetry; the only egress is cdnjs at view-time when `vendor/` is absent.
+2. **Guards as policy** — install `hooks/git-guard.sh` and `hooks/file-guard.sh` root/admin-owned and wire them from managed settings (`/Library/Application Support/ClaudeCode/managed-settings.json`, `/etc/claude-code/managed-settings.json`, `C:\Program Files\ClaudeCode\managed-settings.json`); set `ALLOW_OWNERS`/`ALLOW_HOSTS` in that copy; the limits in the guardrail section above still apply.
+3. **Baseline `permissions.deny`** — the git rules plus `Read(~/.ssh/**)`, `Read(~/.aws/**)`, `Read(**/.env)`, `Read(**/.env.*)`, `Bash(curl *| sh*)`, `Bash(curl *| bash*)`, `Bash(wget *| sh*)`, `Bash(sudo:*)`, `WebFetch`; engineers run `--permission-mode acceptEdits`, readers the panel's `readonly` mode; never `bypassPermissions` on a company machine.
+4. **GitHub Enterprise Server** — `gh auth login --hostname`, the host in `ALLOW_HOSTS`, `HTTPS_PROXY`/`NO_PROXY`, and `vendor/` (verified by `scripts/fetch-vendor.sh --check`) for offline use.
+5. **Windows** — the hooks are bash and run under Git Bash/WSL only; a Windows install without them has no guard, only the deny list.
+6. **Data classification** — every KB carries `classification: public | internal | confidential | restricted` (default `internal`) in `_meta.yml`; the export copies it and the hub page shows it as a badge and a banner; the export secret scan, source stripping (`--with-source` is opt-in) and "never publish a hub of a company repo" govern where KB content may go.
+7. **Repository hygiene** — the global gitignore protects one machine; put `knowledge-base/`, `cwk-sessions/`, `.provenlens/` in every team repo's `.gitignore` and refuse them in a pre-commit/CI check.
+8. **Audit trail** — `scripts/audit-log.sh` and both hooks append JSON lines to `${CWK_AUDIT_LOG:-~/.claude/cwk-audit.jsonl}` (0600; never command text or secrets): scans, rescans, reviews, PR reviews, runbooks, exports, imports, pipelines, onboarding, schedules, every hook deny and every allowed push/`gh` write; ship it with `tail -F … | logger` or a cron copy.
+9. **Freshness and depth** — trust a KB only at the `commit`/`generated` in its `_meta.yml`; `/cwk-rescan` on a schedule; `standard` depth samples layers over ~40 files, `deep` reads everything.
+10. **Checklist** — the guide ends with the list a security team ticks before approving; pin the kit to a reviewed tag and rerun `bash tests/run.sh` on each update.
 
 _Not a substitute for your own security review. This reflects the state of the repo at audit time._

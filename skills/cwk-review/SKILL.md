@@ -144,6 +144,13 @@ Checklist areas with no findings: <one line>
 ````
 Save to `cwk-sessions/reviews/<target>-<date>.md` when asked to keep it.
 
+When finished, record the review in the audit trail: `bash "$KIT_SCRIPTS/audit-log.sh" review
+repo=<origin, credentials stripped> commit=<sha reviewed> verdict=<APPROVED|APPROVED_WITH_FOLLOW_UPS|NEEDS_REVISION>
+target=<file or diff range>` — `$KIT_SCRIPTS` is `${CLAUDE_PLUGIN_ROOT}/scripts` if set, else
+`../../scripts` relative to this skill folder's real path (`cd -P`; it is usually a symlink), else
+`$HOME/.claude/skills/cwk-review/../../scripts` resolved the same way. Not found → say so in the report
+and continue; never put code, a finding's text or a secret in the values.
+
 ## Severity → merge rules
 `[CRITICAL]` blocks merge (must fix + re-review). `[MAJOR]` with high risk blocks; with low
 risk may merge with a follow-up ticket. `[MINOR]`/`[NIT]` don't block. Section 14

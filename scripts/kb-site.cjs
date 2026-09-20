@@ -128,6 +128,14 @@ for (const p of projects) {
   const gen = p.meta.generated && /^\d{4}-\d{2}-\d{2}$/.test(p.meta.generated) ? new Date(p.meta.generated + 'T00:00:00') : null;
   p.ageDays = gen ? Math.round((today - gen) / DAY) : null;
   p.stale = p.ageDays != null && p.ageDays > 30;
+  // Data classification (resources/kb-steps.md). Normalised to one of four known words so the value
+  // can double as a CSS class; anything else — including no key at all — is `internal`, never `public`.
+  p.classification = classificationOf(p.meta.classification);
+}
+
+function classificationOf(v) {
+  const s = String(v || '').trim().toLowerCase();
+  return ['public', 'internal', 'confidential', 'restricted'].includes(s) ? s : 'internal';
 }
 
 /**
@@ -178,7 +186,7 @@ function parseMeta(f) {
 // -- it resolves whenever the folder travels together, and the link simply 404s when it does not,
 // which is visible rather than silent.
 const dataJson = JSON.stringify(projects.map(p => ({
-  name: p.name, meta: p.meta, ageDays: p.ageDays, stale: p.stale,
+  name: p.name, meta: p.meta, ageDays: p.ageDays, stale: p.stale, classification: p.classification,
   graph: p.graphFile && fs.existsSync(p.graphFile)
     ? path.relative(path.dirname(path.resolve(out)), p.graphFile).split(path.sep).join('/')
     : '',
@@ -260,6 +268,19 @@ a.graphlink:hover{color:var(--fg);border-color:var(--accent)}
 .badge{display:inline-block;font-size:10px;padding:1px 6px;border-radius:999px;border:1px solid;margin-left:4px}
 .badge.stale{color:var(--warn);border-color:var(--warn)}
 .badge.fresh{color:var(--ok);border-color:var(--ok)}
+/* data classification — the badge on the card and the banner over the document share one palette:
+   public/internal are informational, confidential/restricted are the ones a reader must not forward */
+.badge.cls{text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.cls-public{color:var(--ok);border-color:var(--ok)}
+.cls-internal{color:var(--warn);border-color:var(--warn)}
+.cls-confidential{color:var(--bad);border-color:var(--bad)}
+.cls-restricted{color:#0b1020;background:var(--bad);border-color:var(--bad)}
+#cls{padding:7px 16px;font-size:12px;border-bottom:1px solid var(--line);background:var(--panel2)}
+#cls b{text-transform:uppercase;letter-spacing:.4px;margin-right:6px}
+#cls.cls-public{color:var(--fg);border-left:4px solid var(--ok)}
+#cls.cls-internal{color:var(--fg);border-left:4px solid var(--warn)}
+#cls.cls-confidential{color:var(--fg);border-left:4px solid var(--bad)}
+#cls.cls-restricted{color:#0b1020;background:var(--bad);border-left:4px solid #7a1f22}
 /* main */
 #main{flex:1;display:flex;flex-direction:column;min-width:0}
 #tabs{display:flex;gap:4px;overflow-x:auto;padding:10px 16px 0;border-bottom:1px solid var(--line);background:var(--panel)}
@@ -326,6 +347,7 @@ figure.dg .dgbody > .mermaid{flex:0 0 auto}
 </div>
 <div id="main">
   <div id="tabs"></div>
+  <div id="cls"></div>
   <div id="meta"></div>
   <div id="doc"><div id="empty">Pick a project.</div></div>
 </div>
@@ -352,6 +374,9 @@ function renderRail() {
     const t = el('b', null, p.name);
     if (p.stale) t.appendChild(Object.assign(el('span', 'badge stale', p.ageDays + 'd'), { style: 'display:inline-block' }));
     else if (p.ageDays != null) t.appendChild(Object.assign(el('span', 'badge fresh', p.ageDays + 'd'), { style: 'display:inline-block' }));
+    // classification was normalised server-side to one of four words, so it is safe as a class name;
+    // the label is still set through textContent like every other meta value.
+    t.appendChild(Object.assign(el('span', 'badge cls cls-' + p.classification, p.classification), { style: 'display:inline-block' }));
     b.appendChild(t);
     b.appendChild(el('span', null, (p.meta.branch ? p.meta.branch + ' · ' : '') + (p.meta.commit || '') + (q ? '  — ' + n + ' match' + (n > 1 ? 'es' : '') : '')));
     b.onclick = () => { pi = i; di = q ? p.docs.findIndex(hits) : 0; if (di < 0) di = 0; render(); };
@@ -381,6 +406,19 @@ function render() {
     tabs.appendChild(b);
   });
   if (!tabs.children.length) tabs.appendChild(el('div', null, 'No document in this project matches.'));
+
+  // Classification banner above the document: the reader must see what they are holding before
+  // they forward it. All text goes through textContent; the class comes from the normalised value.
+  const c = document.getElementById('cls'); c.textContent = ''; c.className = 'cls-' + p.classification;
+  const org = p.meta.org || ownerOf(p.meta.repo) || 'the organisation that owns it';
+  const what = 'contains security findings and configuration for ' + p.name;
+  c.appendChild(el('b', null, p.classification));
+  c.appendChild(document.createTextNode({
+    public: '— no distribution restriction recorded in _meta.yml',
+    internal: '— ' + what + '; do not forward outside ' + org,
+    confidential: '— ' + what + '; share only with people who already have access to that repository, never outside ' + org,
+    restricted: '— ' + what + '; need-to-know only. Do not copy, forward, paste or attach it anywhere outside ' + org,
+  }[p.classification]));
 
   const m = document.getElementById('meta'); m.textContent = '';
   const bits = [];
@@ -429,6 +467,13 @@ function drawDiagrams(host) {
   const nodes = host.querySelectorAll('.mermaid');
   if (!nodes.length) return;
   try { mermaid.run({ nodes }); } catch (e) { /* a bad diagram must not blank the page */ }
+}
+
+// The owner segment of a remote URL (github.com/acme/x → acme), used only to name the organisation in
+// the banner when _meta.yml carries no org: key. Returns '' when the URL has no recognisable owner.
+function ownerOf(repo) {
+  const mm = /^(?:[a-z+]+:\\/\\/)?(?:[^@\\/]+@)?[^\\/:]+[\\/:]([^\\/]+)\\/[^\\/]+\\/?$/i.exec(String(repo || '').trim());
+  return mm ? mm[1] : '';
 }
 
 function openZoom(node) {

@@ -34,6 +34,7 @@ done
 set -- "${args[@]:-}"
 
 die() { echo "✗ $*" >&2; exit 1; }
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # preset → the slash command it runs. Read-only skills only, on purpose.
 preset_cmd() {
@@ -73,6 +74,7 @@ if [ "$cmd" = "remove" ]; then
   if [ "$YES" != 1 ]; then printf 'Write this crontab? [y/N] '; read -r ans; [ "$ans" = y ] || [ "$ans" = Y ] || die "aborted"; fi
   printf '%s\n' "$new" | crontab -
   echo "✔ removed"
+  [ -f "$HERE/audit-log.sh" ] && bash "$HERE/audit-log.sh" schedule.remove "preset=$name" "repo=$repo" || true
   exit 0
 fi
 
@@ -121,3 +123,5 @@ if [ "$YES" != 1 ]; then printf '\nWrite this to your crontab? [y/N] '; read -r 
 mkdir -p "$(dirname "$log")"
 printf '%s\n%s\n' "$current" "$line" | grep -v '^$' | crontab -
 echo "✔ scheduled — check it with: scripts/schedule.sh list"
+# Audit trail: a crontab entry is a standing, unattended run — record who installed it, for what.
+[ -f "$HERE/audit-log.sh" ] && bash "$HERE/audit-log.sh" schedule.install "preset=$name" "repo=$repo" "cron=$sched" || true

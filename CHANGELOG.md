@@ -14,6 +14,56 @@ noted per release when it changed.
 
 ---
 
+## [3.8.0] — 2026-09-20
+
+Enterprise release: the guard becomes a policy that protects itself, a company can configure it for
+its own org and GitHub Enterprise host, every action leaves an audit line, and a security team gets
+a guide with a checklist.
+
+### Added
+
+- **`hooks/file-guard.sh`.** The git-guard could be edited or removed by the agent it constrains.
+  This second PreToolUse hook (Edit, Write, MultiEdit, NotebookEdit and Bash) refuses any write to
+  `settings.json` (user and project), `~/.claude/hooks/*`, the kit's `hooks/`, managed-settings
+  locations, `~/.gitconfig`, `.git/config`, `.git/hooks`, `~/.ssh`, `~/.aws`, `~/.config/gh`,
+  `~/.netrc` and the audit log — through a file tool, a redirection, `sed -i`, `cp`, `mv`, `rm`,
+  `ln`, `chmod`, `find -delete` or an interpreter — while reads stay allowed. Paths are normalised
+  (a `~`, `$HOME`, `..` or a `cd` in an earlier segment does not hide the target). Fails closed
+  without jq. 50 cases. `hooks.json` and `personal-install.sh` wire it; the settings snippet in
+  `SECURITY.md` arms both hooks.
+- **Audit trail.** `scripts/audit-log.sh` appends one JSON line (timestamp, user, host, action, cwd,
+  key=values; URL credentials stripped; never command text) to
+  `${CWK_AUDIT_LOG:-~/.claude/cwk-audit.jsonl}`, created `0600`; `CWK_AUDIT_LOG=off` disables it and
+  a failure never fails the caller. `kb-export`, `kb-import`, `kb-pipeline`, `onboard-project` and
+  `schedule` log their runs; `/cwk-scan`, `/cwk-rescan`, `/cwk-review`, `/cwk-pr` and
+  `/cwk-runbook` log theirs at finish; both hooks log every deny and the git-guard every allowed
+  push or `gh` write. The hooks refuse to let the agent write the log.
+- **Data classification.** `_meta.yml` carries `classification` (`public | internal | confidential |
+  restricted`, default `internal`); the hub page shows it as a badge on the project card and a
+  banner above every document, and `kb-export.sh` carries it into the hub.
+- **`docs/company-setup-guide.html`** rewritten for a security review: what the kit is and is not,
+  deploying both hooks read-only from managed settings with the company's `ALLOW_OWNERS` /
+  `ALLOW_HOSTS`, a baseline `permissions.deny` (`~/.ssh`, `~/.aws`, `.env*`, `curl | sh`, `sudo`,
+  `WebFetch`) and a permission mode per role, GitHub Enterprise and proxies, Windows, where KB
+  content can end up, repository hygiene beyond the global gitignore, the audit trail and how to
+  ship it, freshness and depth, and a checklist. `SECURITY.md` points at it.
+- **Hygiene tests.** No shipped file may contain a personal path, an e-mail or a zero-width/bidi
+  character; `plugin.json`, `marketplace.json`, the newest changelog heading and the README must
+  agree on the version; every `hooks.json` command must exist, be executable and parse; every
+  GitHub Action must be pinned by commit SHA with a version comment (`actions/checkout` and
+  `actions/setup-node` are now pinned to v4.4.0); the README test table must cover every suite
+  with the right counts.
+
+### Changed
+
+- **The git-guard whitelist is configurable**: `ALLOW_OWNERS` and `ALLOW_HOSTS` at the top of
+  `hooks/git-guard.sh` (regex alternatives), so a company sets its org and its GitHub Enterprise
+  host. They are read from the file only; an environment variable cannot widen them, and a test
+  proves it. `gh -R host/owner/repo` and any GitHub URL are checked against the same lists.
+  148 git-guard cases.
+
+---
+
 ## [3.7.0] — 2026-09-20
 
 Security release. A full audit of the kit (hook, scripts, generated pages, extension, prompts,

@@ -11,6 +11,7 @@ bad()  { echo "  ✗ $1"; fail=$((fail+1)); }
 check(){ if [ "$2" = "$3" ]; then ok "$1"; else bad "$1 (want '$3', got '$2')"; fi; }
 
 TMP=$(cd "$(mktemp -d "${TMPDIR:-/tmp}/onboard-test.XXXXXX")" && pwd); trap 'rm -rf "$TMP"' EXIT
+export CWK_AUDIT_LOG=off      # the script under test logs to the audit trail; never touch the real ~/.claude/cwk-audit.jsonl from a test
 
 echo "onboard: a fresh repo gets both ignores and a starter CLAUDE.md"
 mkdir -p "$TMP/fresh"

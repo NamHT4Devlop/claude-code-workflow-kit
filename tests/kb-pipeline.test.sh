@@ -13,6 +13,7 @@ check(){ if [ "$2" = "$3" ]; then ok "$1"; else bad "$1 (want '$3', got '$2')"; 
 
 TMP=$(cd "$(mktemp -d "${TMPDIR:-/tmp}/kb-pipeline.XXXXXX")" && pwd); trap 'rm -rf "$TMP"' EXIT
 export CALLS="$TMP/calls.log"; : > "$CALLS"
+export CWK_AUDIT_LOG=off      # never append to the real ~/.claude/cwk-audit.jsonl from a test
 
 # --- stubs: record what would have been spent, do nothing else --------------------
 mkdir -p "$TMP/bin"
@@ -93,6 +94,23 @@ r=$(mk_repo real kb)
 check "indexed once"      "$(calls '^provenlens init')" 1
 check "no scan (KB there)" "$(calls 'cwk-scan')" 0
 check "runbook once"       "$(calls 'cwk-runbook')" 1
+
+echo "kb-pipeline: a run leaves one audit line per repo, naming the depth and the steps"
+r=$(mk_repo audited kb)
+AUD="$TMP/audit.jsonl"
+CWK_AUDIT_LOG="$AUD" "$PIPE" --yes --depth deep --hub "$TMP/hub3" "$r" >/dev/null 2>&1
+check "kb.pipeline line written"  "$(grep -c '"action":"kb.pipeline"' "$AUD" 2>/dev/null)" 1
+check "names the repo"            "$(grep -c "\"repo\":\"$r\"" "$AUD" 2>/dev/null)" 1
+check "records the depth"         "$(grep -c '"depth":"deep"' "$AUD" 2>/dev/null)" 1
+check "records the steps run"     "$(grep -c '"steps":"index runbook map"' "$AUD" 2>/dev/null)" 1
+check "records the permission mode" "$(grep -c '"permission_mode":"acceptEdits"' "$AUD" 2>/dev/null)" 1
+# The export it triggers logs its own line too, so the trail shows the KB leaving the repo.
+check "export line follows"       "$(grep -c '"action":"kb.export"' "$AUD" 2>/dev/null)" 1
+rm -f "$AUD"
+CWK_AUDIT_LOG="$AUD" "$PIPE" --dry-run --hub "$TMP/hub3" "$r" >/dev/null 2>&1
+check "dry run logs nothing"      "$([ -e "$AUD" ] && echo yes || echo no)" no
+CWK_AUDIT_LOG=off "$PIPE" --yes --hub "$TMP/hub3" "$r" >/dev/null 2>&1
+check "off: nothing written"      "$([ -e "$AUD" ] && echo yes || echo no)" no
 
 echo "kb-pipeline: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

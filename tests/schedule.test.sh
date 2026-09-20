@@ -14,6 +14,7 @@ check(){ if [ "$2" = "$3" ]; then ok "$1"; else bad "$1 (want '$3', got '$2')"; 
 # canonicalise: $TMPDIR ends with a slash on macOS, so the raw mktemp path can contain `//` while
 # schedule.sh stores the `cd && pwd` form — the two would never compare equal in an assertion.
 TMP=$(cd "$(mktemp -d "${TMPDIR:-/tmp}/schedule-test.XXXXXX")" && pwd); trap 'rm -rf "$TMP"' EXIT
+export CWK_AUDIT_LOG=off      # the script under test logs to the audit trail; never touch the real ~/.claude/cwk-audit.jsonl from a test
 export FAKE_CRONTAB="$TMP/crontab.txt"
 : > "$FAKE_CRONTAB"
 

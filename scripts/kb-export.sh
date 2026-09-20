@@ -190,12 +190,18 @@ for repo in "$@"; do
     fi
   fi
 
+  # Data classification travels with the KB (resources/kb-steps.md, _meta.yml). A KB that predates
+  # the key, or one whose value is not one of the four, is `internal` — never silently `public`.
+  classification=$(grep -m1 '^classification:' "$kb/_meta.yml" 2>/dev/null | cut -d: -f2- | tr -d ' \r' | tr 'A-Z' 'a-z' || true)
+  case "$classification" in public|internal|confidential|restricted) ;; *) classification=internal ;; esac
+
   if [ "$DRY" = 0 ]; then
     if [ -f "$kb/_meta.yml" ]; then
-      # same redaction as $origin: a scan that wrote the raw remote URL must not leak it via the hub
-      sed -E 's#(https?://)[^/@]+@#\1#g' "$kb/_meta.yml" > "$dest/_meta.yml"
+      # same redaction as $origin: a scan that wrote the raw remote URL must not leak it via the hub;
+      # the classification line is rewritten with the normalised value (an unknown word is `internal`)
+      sed -E -e 's#(https?://)[^/@]+@#\1#g' -e '/^classification:/d' "$kb/_meta.yml" > "$dest/_meta.yml"
       # the export stamp is added even when the KB carries its own meta
-      printf 'exported: %s\nexported_from: %s\ncode_graph: %s\n' "$today" "$repo" "$code_graph" >> "$dest/_meta.yml"
+      printf 'exported: %s\nexported_from: %s\ncode_graph: %s\nclassification: %s\n' "$today" "$repo" "$code_graph" "$classification" >> "$dest/_meta.yml"
     else
       cat > "$dest/_meta.yml" <<EOF
 # Synthesised at export time — this KB predates cwk-scan writing its own _meta.yml.
@@ -208,9 +214,13 @@ generated: (unknown — KB has no _meta.yml)
 exported: $today
 exported_from: $repo
 code_graph: $code_graph
+classification: $classification
 files: $files
 EOF
     fi
+    # Audit trail: what left which repo, at which commit, to where, under which classification.
+    [ -f "$here/audit-log.sh" ] && bash "$here/audit-log.sh" kb.export "repo=$origin" "commit=$commit" \
+      "project=$project" "hub=$hub" "classification=$classification" "code_graph=$code_graph" || true
   fi
   ok=$((ok+1))
 done
@@ -229,18 +239,21 @@ if [ "$DRY" = 0 ] && [ "$ok" -gt 0 ]; then
     echo "scripts/kb-import.sh <this-hub> <project> <your-local-repo>"
     echo '```'
     echo
-    echo "| Project | Branch | Commit | Exported | Files |"
-    echo "|---|---|---|---|---|"
+    echo "| Project | Classification | Branch | Commit | Exported | Files |"
+    echo "|---|---|---|---|---|---|"
     for d in "$hub"/projects/*/; do
       [ -d "$d" ] || continue
       n=$(basename "$d"); m="$d/_meta.yml"
       g() { grep -m1 "^$1:" "$m" 2>/dev/null | cut -d: -f2- | sed 's/^ *//' || true; }
-      echo "| [$n](projects/$n/knowledge-base/) | $(g branch) | $(g commit) | $(g exported) | $(find "$d/knowledge-base" -type f 2>/dev/null | wc -l | tr -d ' ') |"
+      c=$(g classification); c=${c:-internal}
+      echo "| [$n](projects/$n/knowledge-base/) | $c | $(g branch) | $(g commit) | $(g exported) | $(find "$d/knowledge-base" -type f 2>/dev/null | wc -l | tr -d ' ') |"
     done
     echo
     echo "> A KB is a readable distillation of source code — business rules, data model, auth model."
     echo "> Keep this repository **private** and share it only with people who already have access to"
-    echo "> the repos above."
+    echo "> the repos above. The **Classification** column is each KB's own \`_meta.yml\` value"
+    echo "> (\`public | internal | confidential | restricted\`; \`internal\` when the KB did not say) —"
+    echo "> \`confidential\` and \`restricted\` pages must not be emailed or pasted outside that circle."
   } > "$hub/README.md"
 fi
 

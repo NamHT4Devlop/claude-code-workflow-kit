@@ -33,13 +33,19 @@
 # The whitelist below lives in this file; an environment that needs it enforced installs the hook
 # read-only from managed settings.
 
-# ── EDIT ME: personal namespaces allowed to receive pushes ────────────────────
+# ── EDIT ME: where pushes and gh writes may go ────────────────────────────────
+# Owners (users or orgs) and hosts, as regex alternatives. A company deployment sets its own org
+# and its GitHub Enterprise host here, in a copy of this file installed read-only from managed
+# settings. Nothing in the environment can override these on purpose: an env var would be one more
+# thing the agent could set.
+#   ALLOW_OWNERS='NamHT4Devlop|my-org'        ALLOW_HOSTS='github\.com|ghe\.corp\.example'
+ALLOW_OWNERS='NamHT4Devlop'
+ALLOW_HOSTS='github\.com'
 # Anchored at the start of the URL, so hosts like evil.example/github.com/… or
-# github.com@evil.example cannot impersonate github.com.
-# Add more owners: (NamHT4Devlop|my-other-user)
-ALLOW_OWNER_RE='^(https://([^@/]+@)?|ssh://([^@/]+@)?|git@)github\.com[:/](NamHT4Devlop)/'
-# The same owners, as `gh -R owner/repo` names them.
-ALLOW_GH_REPO_RE='^(https://github\.com/)?(NamHT4Devlop)/'
+# github.com@evil.example cannot impersonate an allowed host.
+ALLOW_OWNER_RE="^(https://([^@/]+@)?|ssh://([^@/]+@)?|git@)(${ALLOW_HOSTS})[:/](${ALLOW_OWNERS})/"
+# The same, as `gh -R owner/repo`, `gh -R host/owner/repo` or a URL names it.
+ALLOW_GH_REPO_RE="^(https://(${ALLOW_HOSTS})/|(${ALLOW_HOSTS})/)?(${ALLOW_OWNERS})/"
 
 # git config keys that `-c key=value` and `git config key value` may set. Everything else is
 # refused: the list of dangerous keys (remote.*, url.*, alias.*, core.sshCommand, include.*, …)
@@ -47,6 +53,9 @@ ALLOW_GH_REPO_RE='^(https://github\.com/)?(NamHT4Devlop)/'
 CONFIG_KEY_ALLOW_RE='^(user\.(name|email|signingkey)|color\.[a-z.]+|advice\.[a-z]+|core\.(autocrlf|safecrlf|quotepath|ignorecase|filemode|eol|longpaths|preloadindex|fscache)|log\.[a-z.]+|diff\.(renames|renamelimit|context|noprefix|mnemonicprefix|algorithm)|commit\.(gpgsign|verbose|cleanup)|tag\.gpgsign|status\.[a-z.]+|column\.[a-z]+|i18n\.[a-z]+|gc\.auto|pull\.(rebase|ff)|push\.(default|autosetupremote)|init\.defaultbranch|branch\.autosetuprebase|fetch\.prune|rerere\.enabled|merge\.(conflictstyle|ff)|rebase\.(autostash|autosquash))$'
 
 input=$(cat)
+
+# Hide credentials embedded in a remote URL before echoing it back into the transcript or a log.
+redact() { printf '%s' "$1" | sed -E 's#//[^/@]*@#//***@#g'; }
 
 # The command text arrives as JSON, and jq is how it is read. Without jq, $cmd is empty, and an
 # empty $cmd used to mean "not a git command" -- exit 0, allowed. So a machine that simply lacked jq
@@ -61,7 +70,21 @@ cmd=$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)
 # Cheap pre-filter: nothing to guard unless the text mentions git, gh or a GIT_ variable.
 printf '%s' "$cmd" | grep -qE '(^|[^[:alnum:]_])(git|gh)([^[:alnum:]_]|$)|GIT_[A-Z0-9_]+=' || exit 0
 
+# ── audit log: decisions only, never the command text ─────────────────────────
+# One JSON line per deny, and per ALLOWED outward action (a push, a gh write), so a team can see
+# what left the machine. ${CWK_AUDIT_LOG:-~/.claude/cwk-audit.jsonl}; CWK_AUDIT_LOG=off disables.
+audit() { # <decision> <action> <target-or-reason>
+  local log=${CWK_AUDIT_LOG:-${HOME:-/nonexistent}/.claude/cwk-audit.jsonl}
+  [ "$log" = off ] && return 0
+  mkdir -p "$(dirname "$log")" 2>/dev/null || return 0
+  [ -f "$log" ] || { : > "$log" 2>/dev/null && chmod 600 "$log" 2>/dev/null; }
+  jq -cn --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg user "${USER:-}" --arg host "$(hostname -s 2>/dev/null)" \
+     --arg decision "$1" --arg action "$2" --arg target "$(redact "$3")" --arg cwd "$(printf '%s' "$input" | jq -r '.cwd // empty' 2>/dev/null)" \
+     '{ts:$ts,user:$user,host:$host,guard:"git-guard",tool:"Bash",decision:$decision,action:$action,target:$target,cwd:$cwd}' >> "$log" 2>/dev/null || true
+}
+
 deny() {
+  audit deny "" "$1"
   local msg="🚫 cwk git-guard blocked this command: $1
 Allowed: read/sync git (fetch·pull·status·log·diff·show·blame·add·commit·stash·merge·checkout <branch>·config --get) and PUSH / gh writes to a whitelisted personal repo. Forbidden: pushing to other repos, config that retargets git, GIT_* overrides, git or gh hidden in an interpreter string, destructive operations. Need something else → run it yourself in a terminal."
   printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":%s}}\n' \
@@ -87,8 +110,6 @@ shortlog show show-branch show-index show-ref sparse-checkout stash status strip
 switch symbolic-ref tag unpack-file unpack-objects update-index update-ref update-server-info var
 verify-commit verify-pack verify-tag version whatchanged worktree write-tree "
 
-# Hide credentials embedded in a remote URL before echoing it back into the transcript.
-redact() { printf '%s' "$1" | sed -E 's#//[^/@]*@#//***@#g'; }
 
 # Strip shell quoting/grouping chars from a token for classification
 # ("push" → push, \git → git, $(git → $git). $ is deliberately KEPT: stripping
@@ -295,7 +316,7 @@ while [ $segstart -lt $NTOK ]; do
             -R*|--repo=*) repo=${a#-R}; repo=${repo#--repo=};;
             # a repository named positionally: any GitHub URL, owner/repo for `gh repo …`,
             # or the repos/{owner}/{repo} path of an api call
-            https://github.com/*) [ -z "$repo" ] && repo=$a;;
+            https://*/*/*) [ -z "$repo" ] && repo=$a;;
             repos/*/*) [ "$sub" = api ] && [ -z "$repo" ] && { repo=${a#repos/}; repo=${repo%%/*}/$(printf '%s' "${a#repos/*/}" | cut -d/ -f1); };;
             */*) [ "$sub" = repo ] && [ -z "$repo" ] && case "$a" in -*|*/*/*) ;; *) repo=$a;; esac;;
           esac
@@ -304,12 +325,14 @@ while [ $segstart -lt $NTOK ]; do
         [ "$sub" = api ] && [ -z "$repo" ] && deny "gh api write that names no repos/{owner}/{repo} path (account- or org-level change)"
         if [ -n "$repo" ]; then
           printf '%s' "$repo" | grep -qE "$ALLOW_GH_REPO_RE" ||
-            deny "gh $sub $act on $repo — GitHub writes are allowed only on NamHT4Devlop/* repositories"
+            deny "gh $sub $act on $repo — GitHub writes are allowed only on whitelisted repositories (${ALLOW_OWNERS}/* at ${ALLOW_HOSTS})"
+          audit allow "gh $sub $act" "$repo"
         else
           dir=$(resolve_dir "")
           url=$(git -C "$dir" remote get-url origin 2>/dev/null)
           printf '%s' "$url" | grep -qE "$ALLOW_OWNER_RE" ||
-            deny "gh $sub $act against $(redact "${url:-a repo with no resolvable origin}") — GitHub writes are allowed only on NamHT4Devlop/* repositories"
+            deny "gh $sub $act against $(redact "${url:-a repo with no resolvable origin}") — GitHub writes are allowed only on whitelisted repositories (${ALLOW_OWNERS}/* at ${ALLOW_HOSTS})"
+          audit allow "gh $sub $act" "$url"
         fi
       fi
     fi
@@ -410,7 +433,8 @@ while [ $segstart -lt $NTOK ]; do
     esac
 
     printf '%s' "$url" | grep -qE "$ALLOW_OWNER_RE" ||
-      deny "git push to a remote NOT in the personal whitelist ($(redact "${url:-could not resolve remote}")) — only NamHT4Devlop/* may be pushed"
+      deny "git push to a remote NOT in the whitelist ($(redact "${url:-could not resolve remote}")) — only ${ALLOW_OWNERS}/* at ${ALLOW_HOSTS} may be pushed"
+    audit allow "git push" "$url"
     continue
   fi
 

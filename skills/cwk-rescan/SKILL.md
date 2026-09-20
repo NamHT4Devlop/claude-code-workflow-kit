@@ -84,6 +84,12 @@ whose meta still points at a three-month-old commit will be trusted as current b
 that is the whole reason the file exists. If it doesn't exist yet (a KB from before `_meta.yml`),
 create it from git.
 
+Record the run in the audit trail: `bash "$KIT_SCRIPTS/audit-log.sh" kb.rescan repo=<origin, credentials
+stripped> commit=<new sha> from=<previous commit in _meta.yml>` — `$KIT_SCRIPTS` is
+`${CLAUDE_PLUGIN_ROOT}/scripts` if set, else `../../scripts` relative to this skill folder's real path
+(`cd -P`; the folder is usually a symlink), else `$HOME/.claude/skills/cwk-rescan/../../scripts` resolved
+the same way. If the script is not found, say so in the report and continue.
+
 Report which KB files were updated and why (the change that triggered each). Suggest
 `/cwk-build` for the next feature, now grounded on the refreshed KB.
 

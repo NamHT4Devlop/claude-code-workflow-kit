@@ -17,6 +17,7 @@
 set -euo pipefail
 
 PROJECT_DIR="${1:-$(pwd)}"
+KIT_SCRIPTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # resolved before the cd below
 
 if [ ! -d "$PROJECT_DIR" ]; then
   echo "❌ Not a directory: $PROJECT_DIR" >&2
@@ -92,4 +93,6 @@ else
   echo "   ⚠  No knowledge-base/ found"
   echo "▶  Next: cd into this project, run 'claude', then run /cwk:scan to generate the KB"
 fi
+# Audit trail: which repo was onboarded (its .gitignore edited, a CLAUDE.md possibly created).
+[ -f "$KIT_SCRIPTS/audit-log.sh" ] && bash "$KIT_SCRIPTS/audit-log.sh" project.onboard "project=$(pwd -P)" || true
 echo "✔  Done: $NAME"

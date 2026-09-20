@@ -12,6 +12,9 @@ bad()  { echo "  ✗ $1"; fail=$((fail+1)); }
 check(){ if [ "$2" = "$3" ]; then ok "$1"; else bad "$1 (want '$3', got '$2')"; fi; }
 
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+# The scripts under test append to the audit trail (scripts/audit-log.sh). A test run must never
+# write into the real ~/.claude/cwk-audit.jsonl; the audit cases below point it at $TMP explicitly.
+export CWK_AUDIT_LOG=off
 
 mk_repo() {  # <name> — a repo with a small KB
   local r="$TMP/$1"; mkdir -p "$r/knowledge-base/modules"
@@ -270,6 +273,82 @@ done
 "$EXPORT" --allow-secrets "$TMP/hub4" "$TMP/leaky" >/dev/null 2>&1
 check "--allow-secrets exports, exit 0"  "$?" 0
 check "project written on override"     "$([ -f "$TMP/hub4/projects/leaky/knowledge-base/01-x.md" ] && echo yes || echo no)" yes
+
+echo "kb-export: data classification travels with the KB, and defaults to internal"
+# A KB records permission matrices, unpatched defects and env var names; the hub copies it, so every
+# reader must see what they are holding. resources/kb-steps.md defines the key; absent → internal.
+mkdir -p "$TMP/rho/knowledge-base" "$TMP/sigma/knowledge-base"
+printf '# rho\n' > "$TMP/rho/knowledge-base/01-x.md"
+printf 'project: rho\nrepo: https://github.com/acme/rho.git\nclassification: restricted\n' > "$TMP/rho/knowledge-base/_meta.yml"
+printf '# sigma\n' > "$TMP/sigma/knowledge-base/01-x.md"     # no _meta.yml at all
+"$EXPORT" "$TMP/hub7" "$TMP/rho" "$TMP/sigma" >/dev/null 2>&1
+check "restricted carried into hub meta"   "$(grep -c '^classification: restricted' "$TMP/hub7/projects/rho/_meta.yml" 2>/dev/null)" 1
+check "absent → internal in hub meta"      "$(grep -c '^classification: internal' "$TMP/hub7/projects/sigma/_meta.yml" 2>/dev/null)" 1
+check "README table has the column"        "$(grep -c '^| Project | Classification |' "$TMP/hub7/README.md" 2>/dev/null)" 1
+check "README row says restricted"         "$(grep -c '^| \[rho\].* | restricted |' "$TMP/hub7/README.md" 2>/dev/null)" 1
+check "README row says internal"           "$(grep -c '^| \[sigma\].* | internal |' "$TMP/hub7/README.md" 2>/dev/null)" 1
+# A scan-written meta with the key present is copied, not duplicated.
+check "key not duplicated when present"    "$(grep -c '^classification:' "$TMP/hub7/projects/rho/_meta.yml" 2>/dev/null)" 1
+# An unknown word is not trusted as a level — and is never read as public.
+printf 'project: tau\nclassification: Top Secret\n' > "$TMP/sigma/knowledge-base/_meta.yml"
+"$EXPORT" "$TMP/hub7" "$TMP/sigma" >/dev/null 2>&1
+check "unknown value → internal in README" "$(grep -c '^| \[sigma\].* | internal |' "$TMP/hub7/README.md" 2>/dev/null)" 1
+check "unknown value → internal in hub meta" "$(grep -c '^classification: internal' "$TMP/hub7/projects/sigma/_meta.yml" 2>/dev/null)" 1
+check "raw unknown value not carried"      "$(grep -c 'Top Secret' "$TMP/hub7/projects/sigma/_meta.yml" 2>/dev/null)" 0
+if command -v node >/dev/null 2>&1; then
+  node "$PWD/scripts/kb-site.cjs" "$TMP/hub7" "$TMP/site7.html" >/dev/null 2>&1
+  # The page normalises the value server-side (it doubles as a CSS class) and renders a badge on the
+  # project card plus a banner over the document. The top-level key is what the client reads.
+  check "restricted badge data in the page"  "$(grep -c '"classification":"restricted","graph"' "$TMP/site7.html" 2>/dev/null)" 1
+  check "sigma defaults to internal"         "$(grep -c '"name":"sigma".*"classification":"internal","graph"' "$TMP/site7.html" 2>/dev/null)" 1
+  check "badge + banner styles present"      "$(grep -c 'cls-restricted' "$TMP/site7.html" 2>/dev/null)" 2
+  check "banner element present"             "$(grep -c '<div id="cls"></div>' "$TMP/site7.html" 2>/dev/null)" 1
+  check "an unknown value never becomes a class" "$(grep -c 'cls-top' "$TMP/site7.html" 2>/dev/null)" 0
+  # Single-repo shape, no key anywhere → internal.
+  mkdir -p "$TMP/solo7/knowledge-base"; printf '# s\n' > "$TMP/solo7/knowledge-base/01-x.md"
+  node "$PWD/scripts/kb-site.cjs" "$TMP/solo7" "$TMP/solo7.html" >/dev/null 2>&1
+  check "single repo without meta → internal" "$(grep -c '"classification":"internal","graph"' "$TMP/solo7.html" 2>/dev/null)" 1
+fi
+
+echo "audit-log: an export leaves one JSON line per project, or nothing when switched off"
+# Nothing recorded what was exported, by whom, on which commit. scripts/audit-log.sh does, into
+# ${CWK_AUDIT_LOG:-~/.claude/cwk-audit.jsonl}; CWK_AUDIT_LOG=off disables it; it never fails a caller.
+AUD="$TMP/audit/cwk-audit.jsonl"                     # the directory does not exist yet — it must be created
+CWK_AUDIT_LOG="$AUD" "$EXPORT" "$TMP/hub8" "$TMP/rho" "$TMP/cred" >/dev/null 2>&1
+check "export still exits 0"              "$?" 0
+check "one line per exported project"     "$(grep -c '"action":"kb.export"' "$AUD" 2>/dev/null)" 2
+check "line carries the classification"   "$(grep -c '"project":"rho".*"classification":"restricted"' "$AUD" 2>/dev/null)" 1
+check "line carries the code_graph field" "$(grep -c '"code_graph":"none"' "$AUD" 2>/dev/null)" 2
+check "line carries hub, commit, cwd"     "$(grep -c '"commit":.*"hub":"'"$TMP"'/hub8"' "$AUD" 2>/dev/null)" 2
+check "required fields present"           "$(head -1 "$AUD" | grep -c '"ts":"[0-9-]*T[0-9:]*Z".*"user":.*"host":.*"action":.*"cwd":')" 1
+# The cred fixture's origin is https://u:tok@example.com — the token must not reach the audit line either.
+check "credential redacted in the log"    "$(grep -c 'tok@' "$AUD" 2>/dev/null)" 0
+check "host kept"                         "$(grep -c '"repo":"https://example.com/x.git"' "$AUD" 2>/dev/null)" 1
+check "file is 0600"                      "$(ls -l "$AUD" | cut -c1-10)" "-rw-------"
+if command -v jq >/dev/null 2>&1; then
+  check "every line is valid JSON"        "$(jq -c . "$AUD" >/dev/null 2>&1 && echo yes || echo no)" yes
+fi
+CWK_AUDIT_LOG="$AUD" "$IMPORT" --force "$TMP/hub8" rho "$TMP/mate" >/dev/null 2>&1
+check "import logs kb.import"             "$(grep -c '"action":"kb.import".*"project":"rho"' "$AUD" 2>/dev/null)" 1
+CWK_AUDIT_LOG="$AUD" "$EXPORT" --dry-run "$TMP/hub8" "$TMP/rho" >/dev/null 2>&1
+check "a dry run logs nothing"            "$(grep -c '"action":"kb.export"' "$AUD" 2>/dev/null)" 2
+rm -f "$AUD"
+CWK_AUDIT_LOG=off "$EXPORT" "$TMP/hub8" "$TMP/rho" >/dev/null 2>&1
+check "off: export still exits 0"         "$?" 0
+check "off: nothing written"              "$([ -e "$AUD" ] && echo yes || echo no)" no
+# A destination that cannot be written must not break the export.
+CWK_AUDIT_LOG="/dev/null/nope/audit.jsonl" "$EXPORT" "$TMP/hub8" "$TMP/rho" >/dev/null 2>&1
+check "unwritable log never fails the caller" "$?" 0
+# Direct call: no jq on PATH → the fallback escaper still writes valid JSON.
+mkdir -p "$TMP/nojq"
+for b in bash sed tr awk date hostname id pwd mkdir chmod dirname; do p=$(command -v "$b" 2>/dev/null) && ln -sf "$p" "$TMP/nojq/$b"; done
+PATH="$TMP/nojq" CWK_AUDIT_LOG="$TMP/nojq.jsonl" bash "$PWD/scripts/audit-log.sh" test.fallback 'v=a "quoted" back\slash' repo=https://u:p@h/x >/dev/null 2>&1
+check "fallback: line written"            "$(grep -c '"action":"test.fallback"' "$TMP/nojq.jsonl" 2>/dev/null)" 1
+check "fallback: quotes and backslash escaped" "$(grep -cF '"v":"a \"quoted\" back\\slash"' "$TMP/nojq.jsonl" 2>/dev/null)" 1
+check "fallback: credential redacted"     "$(grep -c 'u:p@' "$TMP/nojq.jsonl" 2>/dev/null)" 0
+if command -v jq >/dev/null 2>&1; then
+  check "fallback: valid JSON"            "$(jq -c . "$TMP/nojq.jsonl" >/dev/null 2>&1 && echo yes || echo no)" yes
+fi
 
 echo "kb-hub: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]
