@@ -34,6 +34,7 @@ claude-code-workflow-kit/
 ├── hooks/                   # git-guard.sh + hooks.json (PreToolUse git guardrail)
 ├── scripts/                 # personal-install.sh, onboard-project.sh, sync-bundles.sh
 ├── docs/                    # setup guides (HTML) + skill-anatomy.md (the standard skills follow)
+│                           #   + build-flow.md (the /cwk-build pipeline, step by step, with diagrams)
 │                           #   + provenlens.md (the optional call-graph dependency)
 ├── tests/                   # toolkit self-tests
 └── vscode-extension/        # optional VS Code panel that drives the local claude CLI (proprietary)

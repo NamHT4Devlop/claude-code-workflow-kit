@@ -685,6 +685,55 @@ function buildDocumentHtml(topic, markdown) {
 // manual run() here would find no .mermaid nodes yet (and double-render once they appear).
 // useMaxWidth keeps each diagram inside the page/container width so print never clips it.
 document.addEventListener('click',function(e){var m=e.target.closest('.mermaid');if(m)m.classList.toggle('natural');});
+// Edges all drew in one grey, so a flowchart with thirty crossings read as a tangle. After Mermaid
+// renders, colour each edge by its source node (a fixed palette), make "no"/"fail"/"missing"
+// branches red and dashed and "yes"/"ok" branches green, and give decision diamonds a warm
+// border. Arrowheads get a marker per colour, cloned from Mermaid's own.
+function recolourDiagrams(host) {
+  var PAL = ['#7c9cff', '#f7a34f', '#c084fc', '#22d3ee', '#facc15', '#f472b6', '#a78bfa', '#67e8f9'];  // no red or green: those mean no/yes
+  var NO  = /^(?:rejected|reject|failed|failure|fail|expired|denied|blocked|unknown|conflict|lost|dead|stale|timeout|exception|throw|missing|invalid|absent|otherwise|else|needs|gaps|revision|retry|error|not|no|không|unauthorized|unauthorised|red)(?:$|[^a-z0-9])/i;
+  var YES = /^(?:yes|có|ok|valid|present|found|success|allowed|matched|match|passed|pass|green)(?:$|[^a-z0-9])/i;
+  host.querySelectorAll('.mermaid svg').forEach(function (svg) {
+    if (svg.getAttribute('data-cwk-coloured')) return;
+    svg.setAttribute('data-cwk-coloured', '1');
+    var defs = svg.querySelector('defs');
+    if (!defs) { defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs'); svg.insertBefore(defs, svg.firstChild); }
+    var made = {};
+    function marker(color) {
+      if (made[color]) return made[color];
+      var base = svg.querySelector('marker[id*="pointEnd"], marker[id*="arrowhead"], marker[id*="barbEnd"]');
+      if (!base) return null;
+      var m = base.cloneNode(true);
+      var id = 'cwk-mk-' + Object.keys(made).length + '-' + Math.random().toString(36).slice(2, 7);
+      m.setAttribute('id', id);
+      m.querySelectorAll('path,polygon,circle').forEach(function (p) { p.setAttribute('fill', color); p.setAttribute('stroke', color); p.style.fill = color; p.style.stroke = color; });
+      defs.appendChild(m); made[color] = 'url(#' + id + ')'; return made[color];
+    }
+    var paths = svg.querySelectorAll('path.flowchart-link, path.transition, g.edgePath path, path.relationshipLine');
+    var labels = svg.querySelectorAll('g.edgeLabel');
+    var srcIdx = {}, n = 0;
+    paths.forEach(function (p, i) {
+      var cls = p.getAttribute('class') || '';
+      var m = /LS-([^\s]+)/.exec(cls);
+      var src = m ? m[1] : ('e' + i);
+      if (!(src in srcIdx)) srcIdx[src] = n++;
+      var color = PAL[srcIdx[src] % PAL.length], dash = false;
+      var lab = labels[i] ? labels[i].textContent.trim() : '';
+      if (NO.test(lab)) { color = '#e5645c'; dash = true; }
+      else if (YES.test(lab)) { color = '#34c78a'; }
+      p.style.stroke = color; p.style.strokeWidth = '1.8px'; p.style.opacity = '0.95';
+      if (dash) p.style.strokeDasharray = '6 4';
+      var mk = marker(color); if (mk) p.style.markerEnd = mk;
+      if (labels[i]) labels[i].querySelectorAll('span, p, text, tspan, div').forEach(function (t) { t.style.color = color; t.style.fill = color; });
+    });
+    svg.querySelectorAll('g.node').forEach(function (g) {
+      var poly = g.querySelector(':scope > polygon, :scope > g > polygon, polygon.label-container');
+      if (poly) { poly.style.stroke = '#f7a34f'; poly.style.strokeWidth = '1.6px'; poly.style.fill = '#2a2415'; }
+    });
+    svg.querySelectorAll('.messageLine0, .messageLine1').forEach(function (l, i) { l.style.stroke = PAL[i % PAL.length]; l.style.strokeWidth = '1.6px'; });
+  });
+}
+(function(){var tries=0;var t=setInterval(function(){var all=document.querySelectorAll('.mermaid');var done=Array.prototype.every.call(all,function(m){return m.querySelector('svg')||m.getAttribute('data-processed');});if(done||tries++>50){clearInterval(t);recolourDiagrams(document);}},200);})();
 mermaid.initialize({startOnLoad:true,theme:'dark',securityLevel:'strict',
   flowchart:{useMaxWidth:true},sequence:{useMaxWidth:true},er:{useMaxWidth:true},gantt:{useMaxWidth:true},
   // The stock dark theme still paints sequence message labels and some edge text almost black —

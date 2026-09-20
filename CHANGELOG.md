@@ -14,6 +14,27 @@ noted per release when it changed.
 
 ---
 
+## [3.8.2] — 2026-09-20
+
+### Added
+
+- **`docs/build-flow.md`**: the `/cwk-build` pipeline as a map — the 14 steps with their gates,
+  the three agent fan-outs and the point of no return, drawn as a flowchart, with a table of what
+  each step answers and produces, the rules that hold throughout, and how the other commands fit.
+
+### Fixed
+
+- **Diagram edges all drew in one grey**, so a flowchart with thirty crossings read as a tangle.
+  After Mermaid renders, the hub page and every standalone document page now colour each edge by
+  its source node from a fixed palette, draw a branch labelled `no`, `fail`, `missing`,
+  `invalid`, `needs revision`, … in red and dashed, a `yes`/`ok`/`valid` branch in green, give
+  decision diamonds a warm border, and clone an arrowhead marker per colour. Red and green are
+  kept out of the ordinary palette so they always mean a failing or passing branch. (One detail
+  worth recording: `\b` cannot be used in a regex inside the page template, because the template
+  literal turns it into a backspace; the patterns use an explicit end-or-non-letter check.)
+
+---
+
 ## [3.8.1] — 2026-09-20
 
 ### Fixed

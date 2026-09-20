@@ -477,7 +477,7 @@ function drawDiagrams(host) {
   });
   const nodes = host.querySelectorAll('.mermaid');
   if (!nodes.length) return;
-  try { mermaid.run({ nodes }); } catch (e) { /* a bad diagram must not blank the page */ }
+  try { mermaid.run({ nodes }).then(function () { recolourDiagrams(host); }).catch(function () {}); } catch (e) { /* a bad diagram must not blank the page */ }
 }
 
 // The owner segment of a remote URL (github.com/acme/x → acme), used only to name the organisation in
@@ -508,6 +508,55 @@ function zset(scale, cx, cy) {
   const ns = Math.min(8, Math.max(0.05, scale));
   zx = px - (px - zx) * (ns / zs); zy = py - (py - zy) * (ns / zs); zs = ns; zapply();
 }
+// Edges all drew in one grey, so a flowchart with thirty crossings read as a tangle. After Mermaid
+// renders, colour each edge by its source node (a fixed palette), make "no"/"fail"/"missing"
+// branches red and dashed and "yes"/"ok" branches green, and give decision diamonds a warm
+// border. Arrowheads get a marker per colour, cloned from Mermaid's own.
+function recolourDiagrams(host) {
+  var PAL = ['#7c9cff', '#f7a34f', '#c084fc', '#22d3ee', '#facc15', '#f472b6', '#a78bfa', '#67e8f9'];  // no red or green: those mean no/yes
+  var NO  = /^(?:rejected|reject|failed|failure|fail|expired|denied|blocked|unknown|conflict|lost|dead|stale|timeout|exception|throw|missing|invalid|absent|otherwise|else|needs|gaps|revision|retry|error|not|no|không|unauthorized|unauthorised|red)(?:$|[^a-z0-9])/i;
+  var YES = /^(?:yes|có|ok|valid|present|found|success|allowed|matched|match|passed|pass|green)(?:$|[^a-z0-9])/i;
+  host.querySelectorAll('.mermaid svg').forEach(function (svg) {
+    if (svg.getAttribute('data-cwk-coloured')) return;
+    svg.setAttribute('data-cwk-coloured', '1');
+    var defs = svg.querySelector('defs');
+    if (!defs) { defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs'); svg.insertBefore(defs, svg.firstChild); }
+    var made = {};
+    function marker(color) {
+      if (made[color]) return made[color];
+      var base = svg.querySelector('marker[id*="pointEnd"], marker[id*="arrowhead"], marker[id*="barbEnd"]');
+      if (!base) return null;
+      var m = base.cloneNode(true);
+      var id = 'cwk-mk-' + Object.keys(made).length + '-' + Math.random().toString(36).slice(2, 7);
+      m.setAttribute('id', id);
+      m.querySelectorAll('path,polygon,circle').forEach(function (p) { p.setAttribute('fill', color); p.setAttribute('stroke', color); p.style.fill = color; p.style.stroke = color; });
+      defs.appendChild(m); made[color] = 'url(#' + id + ')'; return made[color];
+    }
+    var paths = svg.querySelectorAll('path.flowchart-link, path.transition, g.edgePath path, path.relationshipLine');
+    var labels = svg.querySelectorAll('g.edgeLabel');
+    var srcIdx = {}, n = 0;
+    paths.forEach(function (p, i) {
+      var cls = p.getAttribute('class') || '';
+      var m = /LS-([^\s]+)/.exec(cls);
+      var src = m ? m[1] : ('e' + i);
+      if (!(src in srcIdx)) srcIdx[src] = n++;
+      var color = PAL[srcIdx[src] % PAL.length], dash = false;
+      var lab = labels[i] ? labels[i].textContent.trim() : '';
+      if (NO.test(lab)) { color = '#e5645c'; dash = true; }
+      else if (YES.test(lab)) { color = '#34c78a'; }
+      p.style.stroke = color; p.style.strokeWidth = '1.8px'; p.style.opacity = '0.95';
+      if (dash) p.style.strokeDasharray = '6 4';
+      var mk = marker(color); if (mk) p.style.markerEnd = mk;
+      if (labels[i]) labels[i].querySelectorAll('span, p, text, tspan, div').forEach(function (t) { t.style.color = color; t.style.fill = color; });
+    });
+    svg.querySelectorAll('g.node').forEach(function (g) {
+      var poly = g.querySelector(':scope > polygon, :scope > g > polygon, polygon.label-container');
+      if (poly) { poly.style.stroke = '#f7a34f'; poly.style.strokeWidth = '1.6px'; poly.style.fill = '#2a2415'; }
+    });
+    svg.querySelectorAll('.messageLine0, .messageLine1').forEach(function (l, i) { l.style.stroke = PAL[i % PAL.length]; l.style.strokeWidth = '1.6px'; });
+  });
+}
+
 function openZoom(node) {
   const z = document.getElementById('zoom'), body = document.getElementById('zbody');
   const svg = node.querySelector('svg');
@@ -560,7 +609,7 @@ if (typeof mermaid !== 'undefined') {
       background: '#0b1020', mainBkg: '#1e2739', primaryColor: '#1e2739', primaryBorderColor: '#4a5975',
       primaryTextColor: '#e6e9ef', secondaryColor: '#243049', secondaryBorderColor: '#4a5975',
       tertiaryColor: '#131a29', tertiaryBorderColor: '#33405c',
-      lineColor: '#8ba0c4', textColor: '#e6e9ef', titleColor: '#e6e9ef',
+      lineColor: '#9fb3d9', textColor: '#e6e9ef', titleColor: '#e6e9ef',
       nodeBorder: '#4a5975', clusterBkg: '#131a29', clusterBorder: '#33405c',
       edgeLabelBackground: '#0f1420', labelBackground: '#0f1420', labelBoxBkgColor: '#1e2739',
       labelBoxBorderColor: '#4a5975', labelTextColor: '#e6e9ef',
