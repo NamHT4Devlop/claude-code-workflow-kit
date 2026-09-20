@@ -611,7 +611,14 @@ all), and survives being emailed or dropped on a share drive. Build or rebuild i
 node scripts/kb-site.cjs ~/kb-hub              # → ~/kb-hub/index.html
 node scripts/kb-site.cjs ~/work/taskflow       # single repo → ~/work/taskflow/knowledge-base/index.html
 node scripts/check-mermaid.cjs ~/work/taskflow/knowledge-base   # every diagram parses, or file:line of each that does not
+node scripts/measure-diagrams.cjs ~/work/taskflow/knowledge-base --open   # how wide each one actually renders
 ```
+
+`check-mermaid` warns by counting nodes, which is a weak proxy: measured over 292 diagrams in two
+knowledge bases, node count correlates with rendered width at only **r = 0.59**, and the widest
+diagram found (5,913px) was never flagged because its nodes sit side by side rather than stacked.
+`measure-diagrams` renders each one and reports `file:line → width × height`, sorted widest first —
+the only honest answer, because only a browser knows how wide a label is.
 
 Each project also carries a **⛓ Code graph** link: the `/cwk-map` page, with its own per-node search
 over the resolved call graph. It is linked rather than inlined, so this page keeps its "email it and

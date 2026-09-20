@@ -26,7 +26,11 @@
 >    eleven render 1,326px wide and twenty-one render 3,222px — past any screen. Keep it to about
 >    8 entities: one diagram per aggregate, with a small overview naming the aggregates, and a
 >    table of the references that cross between them.
->    `check-mermaid.cjs` warns on diagrams over these sizes.
+>    `check-mermaid.cjs` warns on diagrams over these sizes, but it counts nodes, and node count is
+>    a weak proxy: over 292 measured diagrams it correlates with rendered width at only r = 0.59, and
+>    the widest one found (5,913px) was never flagged because its nodes sit side by side rather than
+>    stacked. When a page looks wrong, measure it — `scripts/measure-diagrams.cjs` renders each
+>    diagram and prints its real width. Over 3,000px cannot be read at any scale.
 
 > 8. **Structure claims come from the call graph where one exists.** With a `.provenlens/` index
 >    (Java · Ruby · TS/JS), `provenlens hotspots` names the real hubs, `provenlens cycles` the real
