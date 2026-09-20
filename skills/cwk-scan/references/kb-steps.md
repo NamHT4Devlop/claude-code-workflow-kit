@@ -169,6 +169,12 @@ diagram with no decision diamonds means the checks were not traced; go back and 
 
 ## 11 — `11-api-docs.md` — API Reference
 **API Overview** · **Endpoints by Module** · **Rate Limits & Special Behaviors**. List ALL endpoints.
+Where the framework binds a route to a handler (Spring `@RequestMapping`, Rails routes, NestJS
+decorators) the index resolves it: `provenlens routes` lists the endpoints and `provenlens impact` on
+the handler gives the chain behind each one. When the repo also has bound SQL (a MyBatis mapper XML),
+carry the chain to its end and give every endpoint a **Data touched** column — the mapper statement
+and the tables it reads or writes, by `file:line`. That column is what lets the page answer "which
+endpoint can change this row", which no list of URLs can.
 
 ## 12 — `12-conventions.md` — Coding Conventions & Patterns
 Every rule MUST have a real code example.

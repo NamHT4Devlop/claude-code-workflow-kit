@@ -25,6 +25,9 @@ noted per release when it changed.
   shows the SQL and the endpoints that reach it.
 - **Search matches route, queue and topic strings.** `/admin/login` now finds
   `UmsAdminController#login`, which no symbol name could have matched.
+- **`11-api-docs.md` carries a `Data touched` column** where the repo has bound SQL: the mapper
+  statement and the tables behind each endpoint, so the page answers "which endpoint can change
+  this row".
 
 ### Fixed
 - The review protocol said the index cannot see "SQL and mapper files". For MyBatis it can:
