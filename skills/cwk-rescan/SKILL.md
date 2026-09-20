@@ -77,7 +77,9 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
 Parse every diagram you added or edited: `node "$SKILL_DIR/check-mermaid.cjs" knowledge-base`
 (`$SKILL_DIR`: `${CLAUDE_PLUGIN_ROOT}/skills/cwk-rescan/references` if set, else the `references/`
 folder next to this file, else `$HOME/.claude/skills/cwk-rescan/references`). Fix every `file:line`
-it prints before reporting.
+it prints before reporting. A `⚠` size warning on a diagram **you touched** is yours to fix — split
+it (an `erDiagram` by aggregate, per §08) or say in one line why it cannot be. One on a diagram you
+did not touch is pre-existing: leave it, and list it under what the rescan did not cover.
 
 **Always refresh `knowledge-base/_meta.yml`** — at minimum `commit`, `branch` and `generated`. A KB
 whose meta still points at a three-month-old commit will be trusted as current by the next person;

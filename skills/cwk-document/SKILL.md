@@ -108,7 +108,9 @@ migration, etc.). This is what lets a non-technical reader follow the technical 
    # then: open / xdg-open / start  the printed path
    ```
    Before rendering, parse the diagrams: `node "$SKILL_DIR/check-mermaid.cjs" <file.md>` exits
-   non-zero and prints `file:line` for any block that does not parse; fix those first.
+   non-zero and prints `file:line` for any block that does not parse; fix those first. It also
+   prints `⚠` for a diagram too wide to read at a reader's width — split that one (an `erDiagram`
+   by aggregate, a flowchart by phase) rather than shipping a page that has to be zoomed.
    Requires Node — if absent, keep chat + `.md` and note HTML was skipped. Give the user the path.
 
 If `knowledge-base/` is missing, document from source directly but recommend `/cwk-scan`

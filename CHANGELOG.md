@@ -14,6 +14,22 @@ noted per release when it changed.
 
 ---
 
+## [3.10.2] — 2026-09-20
+
+### Fixed
+- **The KB spec was asking for the diagram the rules forbid.** Step 08 said `**Full ERD**` — one
+  diagram of every table — which is how mall ended up with eleven entities in one picture and
+  human-essentials with twenty-one. It now asks for the split: a small overview, one `erDiagram`
+  per aggregate (taken from §05 Aggregate Boundaries, or the table prefix), and a table of the
+  references that cross an aggregate, marking which are enforced by a foreign key and which are
+  fetched one query at a time.
+- **A size warning is now a to-do, not noise.** `/cwk-scan`, `/cwk-rescan`, `/cwk-document` and
+  `/cwk-runbook` all ran `check-mermaid.cjs` and acted only on parse failures, so every `⚠` about a
+  diagram too wide to read scrolled past. Each skill now says what to do with one: split it, or
+  write the reason it cannot be split. `/cwk-rescan` only owns the warnings on diagrams it touched.
+
+---
+
 ## [3.10.1] — 2026-09-20
 
 ### Fixed

@@ -194,14 +194,19 @@ security conclusions in both directions.
 Parse every diagram: `node "$SKILL_DIR/check-mermaid.cjs" knowledge-base` (`$SKILL_DIR` is this skill's
 `references/` folder: `${CLAUDE_PLUGIN_ROOT}/skills/cwk-scan/references` if `CLAUDE_PLUGIN_ROOT` is
 set, else the `references/` folder next to this file, else `$HOME/.claude/skills/cwk-scan/references`). It exits non-zero and prints `file:line` for each diagram
-that does not parse; fix those before reporting. The script needs the kit's `vendor/mermaid.min.js`,
+that does not parse; fix those before reporting. **A `⚠` size warning is a to-do, not noise** — the
+diagram is too wide to read at the width a reader actually has. Split it (a flowchart by branch or
+phase, an `erDiagram` by aggregate as §08 defines) or, where it truly cannot be split, write the
+reason in one line under it. Finishing with unacted warnings produces the page nobody opens twice.
+The script needs the kit's `vendor/mermaid.min.js`,
 which it finds by walking up from its own real path; a skill copied without the kit reports that
 (exit 2) rather than passing silently, and the check then has to be done in the rendered page. Then check the flow docs: every `CF-xx` in `10-core-flows.md` has a `flowchart` with
 decision diamonds and a step table with `file:line` (a flow moved to `modules/<m>.md` under the
 §10 split carries them there, and its one-line index entry in `10` points at it); `05` has a state
 diagram per lifecycle entity as §05 defines it, or says there are none; `04` has the journey and
-domain-map diagrams; `07` has the architecture `flowchart`; `08` has an `erDiagram` whenever the
-system stores relational data.
+domain-map diagrams; `07` has the architecture `flowchart`; `08`, whenever the system stores
+relational data, has **one `erDiagram` per aggregate plus the crossing-reference table** — not one
+diagram of every table.
 Record the run in the audit trail: `bash "$KIT_SCRIPTS/audit-log.sh" kb.scan repo=<origin, credentials
 stripped as in _meta.yml> commit=<sha> depth=<quick|standard|deep> classification=<from _meta.yml>` —
 `$KIT_SCRIPTS` is `${CLAUDE_PLUGIN_ROOT}/scripts` if `CLAUDE_PLUGIN_ROOT` is set, else `../../scripts`

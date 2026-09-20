@@ -122,7 +122,15 @@ With an index: `provenlens hotspots` ranks the modules most depended on (start t
 
 ## 08 — `08-database-schema.md` — Database Schema & Query Patterns
 1. **Schema Overview** (JPA, Prisma, TypeORM, Django, ActiveRecord, SQL migrations, MyBatis resultMaps).
-2. **Full ERD**  3. **Critical Business Columns**  4. **Index Strategy**  5. **Data Integrity & Constraints** (DB-level + ORM validation: `@NotNull/@Size`, Prisma `@unique`, Rails `validates`).
+2. **ERD — one diagram per aggregate, never one diagram of every table.** Take the aggregates from
+   §05 "Aggregate Boundaries", or from the table prefix when the schema uses one (`oms_`, `pms_`, …).
+   Write three things: a small overview naming the aggregates and what moves between them; one
+   `erDiagram` per aggregate with its own tables and their attribute blocks; and a table of **the
+   references that cross an aggregate** — from column, to table, nullable or not, where the code
+   reads it. A crossing reference is listed, not drawn; drawing them is what makes an ERD unreadable.
+   For each, say whether a real foreign key enforces it, and mark the ones fetched with a SQL join
+   rather than one query at a time — the rest of that list is where the N+1s are.
+3. **Critical Business Columns**  4. **Index Strategy**  5. **Data Integrity & Constraints** (DB-level + ORM validation: `@NotNull/@Size`, Prisma `@unique`, Rails `validates`).
 6. **Migration History** — Flyway `V*.sql`, Liquibase, Prisma, Rails `db/migrate`, Alembic — what business decision drove each change?
 
 ## 09 — `09-auth-security.md` — Auth, Security & Permission Model

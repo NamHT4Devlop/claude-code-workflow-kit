@@ -267,7 +267,8 @@ default is zero footprint in repos you don't own.
 - [ ] Every command is cited to a file, or labelled `UNVERIFIED`.
 - [ ] Each playbook's "likely cause" was re-read in the code, including any library default it relies
       on, and does not contradict the KB.
-- [ ] Any Mermaid block parses: `node "$SKILL_DIR/check-mermaid.cjs" <runbook.md>` exits 0.
+- [ ] Any Mermaid block parses: `node "$SKILL_DIR/check-mermaid.cjs" <runbook.md>` exits 0, and any
+      `⚠` size warning is split rather than shipped — an operator reads this on a laptop at 3am.
 - [ ] Owners, on-call, SLA and approvers are `❓` in the service card, not invented.
 - [ ] Every playbook has Confirm → Contain → Diagnose → Fix → Verify → Escalate.
 - [ ] Destructive steps say plainly what they cannot be undone from and who approves.
