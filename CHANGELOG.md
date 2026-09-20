@@ -14,6 +14,26 @@ noted per release when it changed.
 
 ---
 
+## [3.9.1] — 2026-09-20
+
+### Fixed
+
+- **Clicking through the code graph lost the picture.** Centring a class, a module or a file drew a
+  single node with nothing around it, and so did any symbol nothing calls — an entry point, a
+  framework callback, dead code. The explorer only drew *call* edges, and a class does not call
+  anything: it declares members. Worse, containment is not an edge in the provenlens index at all
+  (it is computed from line ranges), so no edge filter could have found it. Those nodes now draw
+  the structural view: the symbol that declares them and the members they declare, as dotted
+  links, with a line saying which case it is and that clicking a member follows its calls. Centring
+  `OmsPortalOrderServiceImpl` goes from 1 node to 49, and a member click from there still shows its
+  callers, call sites and source.
+- **A hub code graph blamed the wrong thing for missing source.** It said "not embedded (file too
+  large or unreadable)" where the honest answer is that the export strips source; the page carries
+  the right message but the copies in the hub predated it. Rebuilding every map fixed the message,
+  and the header now ends with "source stripped".
+
+---
+
 ## [3.9.0] — 2026-09-20
 
 ### Changed

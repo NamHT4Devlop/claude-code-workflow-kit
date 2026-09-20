@@ -241,6 +241,7 @@ const cy = cytoscape({
       'target-arrow-shape': 'triangle', 'arrow-scale': 0.8, 'curve-style': 'bezier', 'opacity': 0.8 } },
     { selector: 'edge[?inferred]', style: { 'line-style': 'dashed' } },
     { selector: 'edge[type="type"]', style: { 'line-color': '#e74c3c', 'target-arrow-color': '#e74c3c' } },
+    { selector: 'edge[type="declares"]', style: { 'line-color': '#6b7a99', 'target-arrow-color': '#6b7a99', 'line-style': 'dotted', 'opacity': 0.75 } },
     { selector: 'node:selected', style: { 'border-color': '#7c9cff', 'border-width': 3 } },
   ],
 });
@@ -257,6 +258,12 @@ function focus(i, push = true) {
   const r = document.querySelector(`.res[data-sym="${i}"]`); if (r) r.classList.add('sel');
 }
 function draw(c) {
+  // A class, module or file does not *call* anything — it declares members. Centring one used to
+  // draw a single lonely dot, and a symbol nothing calls (an entry point, dead code) did the same.
+  // In both cases fall back to the structural view: the parent it lives in and the members it holds.
+  const CONTAINER = new Set(['class', 'interface', 'module', 'enum', 'record', 'struct', 'trait', 'object', 'file', 'namespace', 'package']);
+  const callNeighbours = [...IN[c], ...OUT[c]].filter(e => CALLISH.has(K[D.edges[e][2]])).length;
+  const structural = CONTAINER.has(kindOf(c)) || callNeighbours === 0;
   const accept = e => CALLISH.has(K[D.edges[e][2]]) || (showTypes && TYPEISH.has(K[D.edges[e][2]]));
   const side = new Map([[c, 0]]); const dist = new Map([[c, 0]]); const usedEdges = new Set();
   let truncated = 0;
@@ -276,6 +283,19 @@ function draw(c) {
       frontier = next;
     }
   }
+  // Containment is not an edge in the index — it is computed from line ranges (PARENT/KIDS) — so the
+  // structural view is drawn from those directly: the declaring symbol on the left, the members on
+  // the right, in the same columns the call view uses.
+  const structEdges = [];
+  if (structural) {
+    if (PARENT[c] >= 0 && !side.has(PARENT[c])) { side.set(PARENT[c], -1); structEdges.push([PARENT[c], c]); }
+    for (const k of KIDS[c]) {
+      if (side.size >= MAX_DRAWN) { truncated++; continue; }
+      if (!side.has(k)) side.set(k, 1);
+      structEdges.push([c, k]);
+    }
+  }
+
   // Callers to the left, callees to the right, one column per hop: reads like a call trace.
   const cols = new Map();
   for (const [n, s] of side) { if (!cols.has(s)) cols.set(s, []); cols.get(s).push(n); }
@@ -303,13 +323,21 @@ function draw(c) {
     els.push({ group: 'edges', data: { id: 'e' + e, source: String(a), target: String(b),
       inferred: conf < 1, type: TYPEISH.has(K[k]) ? 'type' : 'call' } });
   }
+  structEdges.forEach(([a, b], i) => {
+    if (!side.has(a) || !side.has(b)) return;
+    els.push({ group: 'edges', data: { id: 'd' + i, source: String(a), target: String(b), type: 'declares' } });
+  });
   cy.batch(() => { cy.elements().remove(); cy.add(els); });
   cy.layout({ name: 'preset' }).run();
   cy.fit(undefined, 60);
   const callers = uniq(callersOf(c).map(e => D.edges[e][0])), callees = uniq(calleesOf(c).map(e => D.edges[e][1]));
-  $('trunc').textContent = truncated
-    ? `Drawing capped at ${MAX_DRAWN} nodes (${fmt(truncated)} more links not drawn). The panel lists all ${fmt(callers)} calling symbols and ${fmt(callees)} called ones.`
-    : '';
+  const notes = [];
+  if (truncated) notes.push(`Drawing capped at ${MAX_DRAWN} nodes (${fmt(truncated)} more links not drawn). The panel lists all ${fmt(callers)} calling symbols and ${fmt(callees)} called ones.`);
+  if (structural && structEdges.length) notes.push(callNeighbours === 0
+    ? `No resolved call reaches or leaves ${esc(S(c)[0])}, so the picture shows what declares it and what it declares (dotted). An entry point, a framework callback and dead code all look like this — the panel says which. Click a member to follow its calls.`
+    : `${esc(S(c)[0])} is a ${esc(kindOf(c))}: the dotted links are what it declares. Click a member to follow its calls.`);
+  else if (structural) notes.push(`${esc(S(c)[0])} has no resolved call and declares nothing the index can see.`);
+  $('trunc').textContent = notes.join(' ');
 }
 
 // ---------- details ----------
