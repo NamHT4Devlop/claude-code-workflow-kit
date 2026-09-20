@@ -29,17 +29,19 @@ flowchart TD
     S35["Step 3.5 · Clean tree, baseline build/lint/tests, record the base SHA\n(git undo is blocked by the guard, so the baseline is the only way back)"]
   end
   S35 --> S4
-  subgraph B["Build"]
-    S4["Step 4 · Code generation with Edit/Write\nreuse before create · match conventions · minimal diff"]
+  subgraph B["Build — test-driven"]
+    S4["Step 4 · RED: one failing test per AC,\nseen failing for the right reason"]
+    S4B["Step 4b · GREEN: implement until those tests pass\nreuse before create · match conventions · minimal diff"]
+    S4C["Step 4c · REFACTOR inside the planned files, tests still green"]
     S5{"Step 5 · Independent review: fresh agents that did not write the code\nsecurity · architecture · performance · business consistency"}
     S6["Step 6 · Fix every CRITICAL and high-risk MAJOR"]
-    S4 --> S5
+    S4 --> S4B --> S4C --> S5
     S5 -->|"NEEDS REVISION"| S6 --> S5
   end
   S5 -->|"APPROVED"| S7
-  subgraph T["Test"]
-    S7["Step 7 · Tests from several angles; every AC maps to a named test"]
-    S89{"Steps 8–9 · Test review: coverage of ACs, edge cases, regression set"}
+  subgraph T["Complete the coverage"]
+    S7["Step 7 · Edge cases, security, regression of every impacted caller;\neach new test red before green"]
+    S89{"Steps 8–9 · Test review: every AC → test → RED → GREEN, regression set"}
     S7 --> S89
     S89 -->|"gaps"| S7
   end
@@ -68,10 +70,12 @@ flowchart TD
 | 1 Planning | What exists, what breaks, which business flows change? | 3 parallel read-only agents + provenlens | `01-plan/` (requirement, impact, flows, design, reuse report) |
 | 2–3 Plan review | Does the plan respect the architecture and the business rules? | plan reviewer | review notes; loop to Step 1 if not |
 | 3.5 Safety net | Can this be undone? | the main agent | clean tree, baseline gate results, base SHA |
-| 4 Code | The change itself | the main agent (or one agent per module) | edits in the repo |
+| 4 Red | What must the code do? One failing test per AC, seen failing for the right reason | the main agent | `05-tests/RED.md`: AC → test → failure message |
+| 4b Green | The change itself, until the red tests pass and no further | the main agent (or one agent per module) | edits in the repo; GREEN evidence beside each RED line |
+| 4c Refactor | What did the change leave untidy, inside the planned files? | the main agent | edits; tests still green |
 | 5 Code review | Is the change correct, safe, consistent with the KB? | fresh agents per lens, given only the diff | `04-review/` |
 | 6 Code feedback | Fix what blocks merge | the main agent | edits; loop to Step 5 |
-| 7 Tests | Is every AC covered by a named test? | the main agent or one agent per angle | test files, AC → test mapping |
+| 7 Complete the coverage | What does no AC state: edge cases, security, regression of every impacted caller? | the main agent or one agent per angle | test files; the full AC → test → RED → GREEN table |
 | 8–9 Test review | Are the tests real, do they cover the risk? | test reviewer | notes; loop to Step 7 |
 | 10 Save | Are all files on disk, and is there a reverse patch? | the main agent | `03-code/change.diff` |
 | 11 Verify | Did anything break compared with the baseline? | the main agent, running the gates | gate output; a revert if red |
@@ -81,6 +85,10 @@ flowchart TD
 
 ## Rules that hold at every step
 
+- **Tests before code.** Every acceptance criterion gets a failing test before the implementation
+  exists, and the evidence report shows it red then green. A test written after the code tests the
+  code; a test written first tests the requirement. The ceremony scales with the size of the change
+  (Step 0.5); the order does not.
 - **Ground everything in the Knowledge Base**: business rules by id, conventions, architecture
   invariants. No KB → `/cwk-scan` first, or work at lower confidence and say so.
 - **Reuse before you create**: search the repo for an existing helper, service or pattern before

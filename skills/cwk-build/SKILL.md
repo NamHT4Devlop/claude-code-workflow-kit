@@ -170,7 +170,8 @@ Classify from the Step 0 restatement plus a quick grep — this decides how much
   → plan with the sections that apply, 1–2 planning agents, the review lenses that can find something
   (always Business consistency + Reuse), all test angles.
 - **S (small/mechanical)** — a copy/config/field change, ≤2 files, no contract or schema impact.
-  → **skip the agent fan-out and the 8-section plan**: state scope + file list + ACs in chat, make the
+  → **skip the agent fan-out and the 8-section plan**: state scope + file list + ACs in chat, write the
+  failing test for the behaviour first (Step 4 still applies to a small change; only its ceremony is dropped), make the
   change, add/extend a test, run the gates, and write a short EVIDENCE section. Still obey the change
   discipline and the safety net.
 Say which size you picked and why (one line). When in doubt, size **up**.
@@ -240,8 +241,26 @@ this, and the git commands that would otherwise undo your work are blocked by th
 `git apply -R 03-code/change.diff` to reverse exactly your own change. Never `git restore`,
 `git checkout .`/`--`, `git reset --hard`, `git clean -f` — the guard denies them.
 
-## Step 4 — Code generation
-Implement the plan. For multi-module changes, split work by module/layer (optionally
+## Step 4 — Red: the failing tests come before the code
+Tests are written **before** the implementation, from the acceptance criteria, not from the code.
+A test written afterwards is written to match what the code does; a test written first states what
+the code must do, and its failure is the proof that it tests something.
+
+1. For every AC from Step 0, write one named test that would prove it (unit or integration,
+   whichever reaches the behaviour; the project's own test style and runner, found in Step 3.5).
+   Name it for the behaviour: `should <behaviour> when <condition>`.
+2. **Run them and watch them fail for the right reason** — an assertion on the expected behaviour,
+   not a typo or an unrelated import error. A test that cannot be made to fail yet (the module does
+   not exist) fails on the missing symbol; that counts, and it must turn into an assertion failure
+   once the symbol exists.
+3. Record the mapping `AC → test name → RED evidence` (the failure message, one line each) in
+   `05-tests/RED.md`. Step 12 copies it into the evidence report.
+
+Not test-first, and say so in the plan: a spike the user explicitly asked for, generated code,
+configuration or data with no behaviour, a pure rename. A behaviour change is never one of these.
+
+## Step 4b — Green: implement until the red tests pass
+Implement the plan, and stop when the Step 4 tests pass — no code that no test asked for. For multi-module changes, split work by module/layer (optionally
 parallel sub-agents, using the hand-off contract) and assemble. **Apply changes directly to the repo
 with Edit/Write.** Rules: complete, production-ready code (no placeholders/TODOs); follow the REFERENCE
 patterns; respect layer/dependency rules and the architecture invariants; correct imports, types, error
@@ -256,6 +275,15 @@ test style. If something suitable exists, **use or extend it — do not write a 
 never introduce a second constant/message/token for a value the repo already defines. If the plan's
 Reuse Report said "new" but you now find an existing candidate, follow the code, not the plan, and note
 the correction. Stay inside the planned files: no wandering edits, no speculative helpers "for later".
+
+Run the Step 4 tests again; record `GREEN evidence` beside each RED line. **A test is made to pass by
+changing the code, never its assertion.** If an assertion was wrong, say so, fix the test, and watch
+it go red again before it goes green.
+
+## Step 4c — Refactor, tests still green
+With every test green, tidy what the implementation left behind, inside the planned files only:
+duplication introduced by the change, a name that no longer fits, a helper that two call sites now
+share. Run the tests after each refactor. Nothing here changes behaviour; if it would, it is a new AC.
 
 ## Step 5 — Code review (independent, multi-lens)
 **Author ≠ reviewer.** Run the lenses as **fresh `Task` sub-agents that did not write the code**. Give
@@ -283,10 +311,12 @@ NEEDS_REVISION), and a quality score X/10. Save to `04-code-review/review.md`.
 Apply every `[CRITICAL]` and high-risk `[MAJOR]` fix from the review. Re-verify until the
 verdict is APPROVED (or remaining items are explicitly accepted by the user).
 
-## Step 7 — Write tests (multi-angle)
-Write tests covering these angles (do them yourself, or spin up parallel sub-agents — one per angle —
-then merge). **Every AC must map to ≥1 named test**; list the mapping (`AC-03 → test name`) — an AC with
-no test is an open gap, not a pass.
+## Step 7 — Complete the coverage (multi-angle)
+The AC tests exist since Step 4 and are green. Now cover what an AC does not state: the angles below
+(do them yourself, or spin up parallel sub-agents — one per angle — then merge). Each new test is
+still written before any code it needs and seen red first. **Every AC must map to ≥1 named test**;
+the mapping (`AC-03 → test name → RED → GREEN`) is the table Step 12 reports — an AC with no test,
+or a test that was never seen failing, is an open gap, not a pass.
 - **Unit** — every public function/method; mock dependencies; happy path + return + side effects; name pattern `should [behavior] when [condition]`.
 - **Integration** — API request→response, auth (401/403), validation (400), service composition, DB, full business flows.
 - **Edge cases & security** — boundary values, null/undefined, concurrency/duplicates, error propagation, permission bypass, invalid state transitions, malicious input.
@@ -334,7 +364,7 @@ Only report success for gates that actually ran and passed.
 ## Step 12 — Evidence report
 Write `07-evidence/EVIDENCE.md` with: a header table (requirement, session, date, test status —
 including `NOT RUN` where applicable, coverage); Implementation Summary; Files Changed table;
-**Acceptance Criteria Verification** table (each AC → ✅/❌ → **the named test** that proves it, not
+**Acceptance Criteria Verification** table (each AC → test name → RED evidence → GREEN evidence → ✅/❌ → **the named test** that proves it, not
 prose); Business Flow Validation; **Reach ledger vs tests** (every consumer the graph reaches → the named
 regression test, or `not covered — <why>`); Test Results (vs baseline); any test edited in Step 11 + why; Code
 Quality score; Risk Assessment (reference the plan's matrix — don't restate it); Rollout notes from
@@ -382,7 +412,8 @@ never claim success you didn't verify.
 |---|---|
 | "This change is small — skip the baseline" | Then you cannot tell a test *you* broke from one that was already red, and you will spend the next hour finding out. It costs one command. |
 | "The plan is obvious, just start coding" | The approval gate has objective triggers (migration · dependency · published contract · >3 callers · >5 files · Medium/Complex · auth/money). "Obvious" is not one of them — check the list. |
-| "I'll add the tests once it works" | A test written after the code is written to match the code, not the acceptance criterion. Write the failing test for the AC first. |
+| "I'll add the tests once it works" | A test written after the code is written to match the code, not the acceptance criterion. Step 4 writes the failing test for the AC first, and Step 7 only completes the coverage. |
+| "It's a small change, TDD is overkill" | The ceremony scales down (Step 0.5); the order does not. A failing test for a three-line change costs a minute and is the only proof the change did what the AC says. |
 | "I reviewed it while writing it" | The author is the worst reviewer of their own change. Step 5 spawns agents that did **not** write the code, deliberately. |
 | "They said 'go', so the migration is covered" | A blanket go authorises the **reversible** work only. Migrations, dependencies, published contracts and deletions still need their own yes. |
 | "Nothing similar exists, I'll write it fresh" | Say that only after searching by *capability* and reading the module's siblings. Record the one-line justification — if you can't, you didn't search. |
@@ -392,6 +423,8 @@ never claim success you didn't verify.
 Stop when you notice any of these — they mean the process already went wrong, not that it might:
 
 - You are editing a file that is **not in the approved plan**.
+- You are writing implementation code and **no failing test names the AC** it is for.
+- A test in your mapping was **never seen red**: it may be testing nothing.
 - You made a failing test pass by **changing its assertion**.
 - You cannot name the **AC that the code you just wrote satisfies**.
 - Your diff contains a rename, a reformat or an import reshuffle you did not need.
@@ -400,7 +433,8 @@ Stop when you notice any of these — they mean the process already went wrong, 
 
 ## Verification — the run is not finished until every box is true
 
-- [ ] Every AC maps to a **named test**, and those tests actually ran.
+- [ ] Every AC maps to a **named test** that was seen **RED before the code and GREEN after**, and the
+      evidence report carries both lines.
 - [ ] Every reach-ledger row maps to a regression test, or says `not covered — <why>`.
 - [ ] Gates compared **against `01-plan/baseline.md`** — nothing newly red.
 - [ ] No test was weakened; anything skipped is labelled `NOT RUN (<reason>)`.

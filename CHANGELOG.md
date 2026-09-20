@@ -14,6 +14,24 @@ noted per release when it changed.
 
 ---
 
+## [3.9.0] — 2026-09-20
+
+### Changed
+
+- **`/cwk-build` is test-first.** The pipeline wrote the code at Step 4 and the tests at Step 7,
+  while its own rationalizations table said "write the failing test for the AC first". Step 4 is
+  now **Red**: one named test per acceptance criterion, run and seen failing for the right reason,
+  recorded as `AC → test → RED evidence` in `05-tests/RED.md`; Step 4b is **Green**: implement
+  until those tests pass and no further, recording GREEN beside each RED line; Step 4c is
+  **Refactor** inside the planned files with the tests still green. Step 7 becomes "complete the
+  coverage" (edge cases, security, regression), each new test still red before green. The
+  evidence report's AC table carries both RED and GREEN evidence, the size gate keeps the order
+  for small changes and drops only the ceremony, and the red flags include implementation code
+  with no failing test naming its AC and a test that was never seen red. `docs/build-flow.md`
+  follows. `cwk-fix-bug` already wrote its regression test first and is unchanged.
+
+---
+
 ## [3.8.2] — 2026-09-20
 
 ### Added
