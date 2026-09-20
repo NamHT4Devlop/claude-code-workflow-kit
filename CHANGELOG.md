@@ -17,9 +17,9 @@ noted per release when it changed.
 ## [3.10.1] — 2026-09-20
 
 ### Fixed
-- **A diagram is no longer fitted past the point of being readable.** Fit-to-width squeezed mall's
-  ER diagram (3,222px of entities) into a 457px column — 14%, where the column names are a grey
-  smear. A diagram that would fit below 55% now opens at full size and scrolls, and the frame says
+- **A diagram is no longer fitted past the point of being readable.** Fit-to-width squeezed the
+  human-essentials ER diagram (21 entities, 3,222px) into a 457px column — 14%, where the column
+  names are a grey smear. A diagram that would fit below 55% now opens at full size and scrolls, and the frame says
   `shown at full size — fitting it here would be 14%`.
 - **"Full size" really is full size.** Mermaid writes `width="100%"` on the svg; inside a
   shrink-to-fit flex item that percentage resolves against nothing and the browser fell back to the

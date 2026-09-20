@@ -181,8 +181,9 @@ function sizeWarning(src) {
     if (parts.size > 9) return `sequence diagram with ${parts.size} participants — split by phase`;
   } else if (type === 'erDiagram') {
     // Mermaid lays entities side by side and each attribute block is wide, so an ER grows
-    // horizontally far faster than a flowchart: eleven entities measured 3,222px, which no screen
-    // shows at a readable scale. One ER per aggregate plus a small overview reads; this does not.
+    // horizontally far faster than a flowchart: eleven entities measured 1,326px and twenty-one
+    // measured 3,222px, which no screen shows at a readable scale. One ER per aggregate plus a
+    // small overview reads; this does not.
     const ents = new Set();
     for (const m of src.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\{/gm)) ents.add(m[1]);
     for (const m of src.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s+[|}o][o|{}]*--[o|{}]+\s+([A-Za-z_][A-Za-z0-9_]*)/gm)) { ents.add(m[1]); ents.add(m[2]); }
