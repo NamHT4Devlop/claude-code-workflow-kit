@@ -135,7 +135,10 @@ const bindPlugin = e => (K[D.edges[e][4]] || '').replace(/^binding:/, '');
     + (s.resolution != null ? `${s.resolution}% of in-repo calls resolved · ` : '')
     + `${fmt(s.missed)} unresolved · ${fmt(s.library)} into libraries · provenlens index, complete (not sampled)`
     + (s.sourceStripped ? ' · source stripped' : '')
-    + (D.generatedAt ? ` · built ${D.generatedAt.slice(0, 10)}` : '');
+    // A map is frozen at build time: it carries the viewer code of the day it was made. Saying which
+    // version built it is how anyone can tell a stale page from a current one.
+    + (D.generatedAt ? ` · built ${D.generatedAt.slice(0, 10)}` : '')
+    + (D.kit ? ` · cwk ${D.kit}` : '');
   $('legend').innerHTML = LAYERS.filter(l => l.id !== 'domain' && l.id !== 'external')
     .map(l => `<span><span class="dot" style="background:${l.color}"></span>${esc(l.label)}</span>`).join('')
     + '<span style="color:var(--muted)">— dashed edge = inferred (confidence &lt; 1)</span>'

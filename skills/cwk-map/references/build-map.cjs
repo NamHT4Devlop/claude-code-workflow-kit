@@ -89,7 +89,9 @@ if (mode === 'all' && process.env.PROVENLENS !== '0' && process.env.PROVENLENS_F
       .replace(/__NONCE__/g, () => nonce)
       .replace(/__PROJECT__/g, () => escapeHtml(projectName))
       .replace('__LAYERS__', () => JSON.stringify(layers))
-      .replace('__GRAPH_DATA__', () => pack(full.data));
+      // Which viewer built this page. A map is frozen at build time, so when someone reports that a
+      // fixed bug is still there, the first question is which build they are looking at.
+      .replace('__GRAPH_DATA__', () => pack({ ...full.data, kit: kitVersion() }));
     html = inlineVendored(html);
     const target = out || defaultOut(projectName);
     fs.writeFileSync(target, html, 'utf8');
@@ -177,7 +179,27 @@ function defaultOut(projectName) {
   const dir = path.join(root, 'cwk-sessions', 'maps');
   fs.mkdirSync(dir, { recursive: true });
   const slug = projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'project';
-  return path.join(dir, `${slug}-${new Date().toISOString().slice(0, 10)}.html`);
+  const target = path.join(dir, `${slug}-${new Date().toISOString().slice(0, 10)}.html`);
+  // A map is a self-contained page, frozen at the moment it was built: it carries that day's viewer
+  // code and that day's index. Left beside a new one, the old file keeps opening from Finder or from
+  // a bookmark and shows the old behaviour — a fixed bug looks unfixed, and a renamed symbol looks
+  // present. These are regenerable and gitignored, so the superseded ones go.
+  for (const f of fs.readdirSync(dir)) {
+    if (!f.startsWith(`${slug}-`) || !f.endsWith('.html')) continue;
+    const old = path.join(dir, f);
+    if (path.resolve(old) === path.resolve(target)) continue;
+    try { fs.unlinkSync(old); console.error(`  superseded: removed ${f}`); } catch { /* leave it */ }
+  }
+  return target;
+}
+
+/** The kit version that built this page, or '' when the manifest cannot be read. */
+function kitVersion() {
+  try {
+    const r = kitRoot();
+    if (!r) return '';
+    return JSON.parse(fs.readFileSync(path.join(r, '.claude-plugin', 'plugin.json'), 'utf8')).version || '';
+  } catch { return ''; }
 }
 
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }

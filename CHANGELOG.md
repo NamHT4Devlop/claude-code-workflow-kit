@@ -14,6 +14,19 @@ noted per release when it changed.
 
 ---
 
+## [3.10.4] — 2026-09-20
+
+### Fixed
+- **A fixed bug kept looking unfixed, because the old map was still there.** A `/cwk-map` page is a
+  self-contained file frozen at build time: it carries that day's viewer code and that day's index.
+  Every rebuild wrote a new dated file beside the old one, so opening `<project>-2026-09-08.html`
+  from Finder or a bookmark showed the old behaviour for ever. `build-map.cjs` now removes the
+  superseded maps for that project and says which it removed; they are regenerable and gitignored.
+- **A map now says which version built it.** The meta line ends `· cwk 3.10.4`, so "the fix is not
+  there" can be answered by reading the page instead of guessing.
+
+---
+
 ## [3.10.3] — 2026-09-20
 
 ### Fixed
