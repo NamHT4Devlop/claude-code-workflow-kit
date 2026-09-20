@@ -17,6 +17,13 @@
 >    short and real (actual service/module/table names). This keeps the KB renderable to
 >    HTML/PDF and comparable across rescans.
 
+> 7b. **A diagram is drawn to be read, not to be complete.** Keep a `flowchart` to about 25 nodes
+>    and split above that (part A / part B, or one diagram per branch); use `LR` only for chains
+>    of at most 10 nodes, `TD` otherwise, because a wide diagram becomes a strip the reader has
+>    to scroll; keep node labels to about eight words (the detail goes in the step table);
+>    keep a `stateDiagram-v2` to about 15 states and a `sequenceDiagram` to about 8 participants.
+>    `check-mermaid.cjs` warns on diagrams over these sizes.
+
 > 8. **Structure claims come from the call graph where one exists.** With a `.provenlens/` index
 >    (Java · Ruby · TS/JS), `provenlens hotspots` names the real hubs, `provenlens cycles` the real
 >    circular dependencies, `provenlens dead` what nothing reaches, and `provenlens explore <symbol>`
@@ -78,7 +85,7 @@ Analyze the project structure. Always cite actual paths.
 ## 04 — `04-business-domain.md` — Business Domain & User Stories ★DEEP
 Answer as a Business Analyst reading the ENTIRE codebase.
 1. **Product Brief**  2. **User Roles & Capabilities Matrix**  3. **Top 10 Core Features (ranked by business importance)**  4. **User Journey (main flow)**  5. **Business Constraints Evident in Code**.
-- **Main user journey** as a ```mermaid `flowchart LR` whose nodes are the flows of §10 (labelled
+- **Main user journey** as a ```mermaid `flowchart` (`LR` up to 10 flows, `TD` beyond) whose nodes are the flows of §10 (labelled
   with their `CF-xx` id), with the decision points a user meets between them; each node links to
   the corresponding `CF-xx` section by id.
 - **Domain map** as a `flowchart` of the bounded contexts/modules (`Pms`, `Oms`, … or the

@@ -684,6 +684,7 @@ function buildDocumentHtml(topic, markdown) {
 // startOnLoad:true — mermaid waits for DOMContentLoaded itself. This script sits in <head>, so a
 // manual run() here would find no .mermaid nodes yet (and double-render once they appear).
 // useMaxWidth keeps each diagram inside the page/container width so print never clips it.
+document.addEventListener('click',function(e){var m=e.target.closest('.mermaid');if(m)m.classList.toggle('natural');});
 mermaid.initialize({startOnLoad:true,theme:'dark',securityLevel:'strict',
   flowchart:{useMaxWidth:true},sequence:{useMaxWidth:true},er:{useMaxWidth:true},gantt:{useMaxWidth:true},
   // The stock dark theme still paints sequence message labels and some edge text almost black —
@@ -739,6 +740,9 @@ tr:nth-child(even) td{background:#111726}
    or it vanishes on a dark page. Photos just gain a thin light frame, which is harmless. */
 img{max-width:100%;height:auto;background:#fff;padding:6px;border-radius:8px}
 .mermaid{background:#141a28;border:1px solid #2a3040;border-radius:10px;padding:16px;margin:14px 0;text-align:center;overflow-x:auto}
+.mermaid svg{max-width:100%!important;height:auto!important;cursor:zoom-in}
+.mermaid.natural svg{max-width:none!important;cursor:zoom-out}
+.mermaid::after{content:'click: actual size / fit';display:block;color:#6b7280;font-size:11px;margin-top:6px}
 /* Mermaid scopes its styles by the SVG id, so its own (often dark) text colours beat any theme
    variable we pass. Pin them here with !important — this is what keeps sequence message labels,
    actor names and edge labels readable on the dark card. */

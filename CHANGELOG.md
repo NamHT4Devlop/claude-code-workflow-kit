@@ -14,6 +14,26 @@ noted per release when it changed.
 
 ---
 
+## [3.8.1] — 2026-09-20
+
+### Fixed
+
+- **Large diagrams were unreadable in the hub.** A visual check of all 518 diagrams on the five
+  benchmark Knowledge Bases found no overlapping nodes or labels and no render errors, but about
+  110 diagrams wider than 1800px (one 5087px wide, one 4616px tall): in the document frame the
+  reader saw a strip to scroll sideways, and the Expand view scaled the whole picture to the
+  window, which made a 5000px flowchart illegible. The frame now opens in **Fit width** (whole
+  picture first; a button switches to natural size with scrolling), and Expand is a pan/zoom view:
+  wheel zooms around the cursor, drag pans, `+`/`−`/`Fit`/`1:1` buttons and keys, double-click
+  zooms in. Standalone document pages fit a diagram to the page and toggle to natural size on click.
+- **The scan spec now limits diagram size** (golden rule 7b): about 25 nodes per flowchart, `LR`
+  only up to 10 nodes, labels of about eight words, 15 states, 8 participants; the §04 user journey
+  is `LR` only up to 10 flows. `check-mermaid.cjs` counts nodes and prints a warning with
+  `file:line` for a diagram over those sizes (exit code unchanged); on the benchmark KBs it flags
+  49 of 518. A smoke case pins the warning.
+
+---
+
 ## [3.8.0] — 2026-09-20
 
 Enterprise release: the guard becomes a policy that protects itself, a company can configure it for

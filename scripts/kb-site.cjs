@@ -335,7 +335,14 @@ figure.dg .dgbody > .mermaid{flex:0 0 auto}
 #zoom .zbar{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
 #zoom .zbar button{background:var(--panel2);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:4px 12px;font:inherit;font-size:12px;cursor:pointer}
 #zoom .zbar button:hover{border-color:var(--accent)}
-#zoom .zbody{flex:1;overflow:auto;padding:24px;display:flex;justify-content:center;align-items:flex-start}
+#zoom .zbody{flex:1;overflow:hidden;position:relative;cursor:grab;touch-action:none}
+#zoom .zbody.drag{cursor:grabbing}
+#zcanvas{position:absolute;left:24px;top:24px;transform-origin:0 0;will-change:transform}
+#zoom .zbar .zctl{display:flex;gap:6px;align-items:center}
+#zoom .zbar .zpct{min-width:44px;text-align:center;color:var(--dim);font-size:12px}
+figure.dg .dgbody.fit > .mermaid{flex:0 1 100%;max-width:100%;width:100%}
+figure.dg .dgbody.fit .mermaid svg{max-width:100%!important;height:auto!important}
+figure.dg .dgbar button.on{color:var(--fg);border-color:var(--accent)}
 #zoom svg{max-width:none!important;height:auto}
 #empty{color:var(--dim);padding:40px 32px}
 @media (max-width:760px){body{flex-direction:column;height:auto;overflow:auto}#rail{width:auto;flex:none;border-right:none;border-bottom:1px solid var(--line)}#plist{max-height:180px}}
@@ -351,7 +358,7 @@ figure.dg .dgbody > .mermaid{flex:0 0 auto}
   <div id="meta"></div>
   <div id="doc"><div id="empty">Pick a project.</div></div>
 </div>
-<div id="zoom"><div class="zbar"><b id="ztitle">Diagram</b><button id="zclose">✕  Close  (Esc)</button></div><div class="zbody" id="zbody"></div></div>
+<div id="zoom"><div class="zbar"><b id="ztitle">Diagram</b><span class="zctl"><button id="zout" title="Zoom out">−</button><span class="zpct" id="zpct">100%</span><button id="zin" title="Zoom in">+</button><button id="zfit" title="Fit the whole diagram on screen">Fit</button><button id="z100" title="Actual size">1:1</button><span class="zpct">wheel = zoom · drag = pan</span><button id="zclose">✕  Close  (Esc)</button></span></div><div class="zbody" id="zbody"></div></div>
 <!--MERMAID-->
 <script nonce="${nce}">
 const DATA = ${json};
@@ -458,10 +465,14 @@ function drawDiagrams(host) {
     if (d.closest('figure.dg')) return;
     const fig = document.createElement('figure'); fig.className = 'dg';
     const bar = document.createElement('div'); bar.className = 'dgbar';
+    // "Fit" scales a wide diagram down to the frame so the reader sees the whole picture first;
+    // "1:1" shows it at natural size with scrolling. Expand opens the pan/zoom view.
+    const fit = document.createElement('button'); fit.textContent = 'Fit width'; fit.className = 'on';
     const exp = document.createElement('button'); exp.textContent = '⤢  Expand';
-    bar.appendChild(exp);
-    const body = document.createElement('div'); body.className = 'dgbody';
+    bar.appendChild(fit); bar.appendChild(exp);
+    const body = document.createElement('div'); body.className = 'dgbody fit';
     d.replaceWith(fig); body.appendChild(d); fig.appendChild(bar); fig.appendChild(body);
+    fit.onclick = () => { body.classList.toggle('fit'); fit.classList.toggle('on', body.classList.contains('fit')); };
     exp.onclick = () => openZoom(d);
   });
   const nodes = host.querySelectorAll('.mermaid');
@@ -476,6 +487,27 @@ function ownerOf(repo) {
   return mm ? mm[1] : '';
 }
 
+// Pan/zoom view. A 5000px-wide flowchart scaled to fit the window is unreadable, and scrolling it at
+// natural size loses the picture; wheel-zoom around the cursor plus drag-to-pan gives both.
+let zs = 1, zx = 24, zy = 24, zdrag = null, zw = 0, zh = 0;
+function zapply() {
+  const c = document.getElementById('zcanvas'); if (!c) return;
+  c.style.transform = 'translate(' + zx + 'px,' + zy + 'px) scale(' + zs + ')';
+  document.getElementById('zpct').textContent = Math.round(zs * 100) + '%';
+}
+function zfit() {
+  const body = document.getElementById('zbody');
+  if (!zw || !zh) return;
+  zs = Math.min(1, (body.clientWidth - 48) / zw, (body.clientHeight - 48) / zh);
+  zx = Math.max(24, (body.clientWidth - zw * zs) / 2); zy = 24; zapply();
+}
+function zset(scale, cx, cy) {
+  const body = document.getElementById('zbody');
+  const r = body.getBoundingClientRect();
+  const px = (cx === undefined ? r.width / 2 : cx - r.left), py = (cy === undefined ? r.height / 2 : cy - r.top);
+  const ns = Math.min(8, Math.max(0.05, scale));
+  zx = px - (px - zx) * (ns / zs); zy = py - (py - zy) * (ns / zs); zs = ns; zapply();
+}
 function openZoom(node) {
   const z = document.getElementById('zoom'), body = document.getElementById('zbody');
   const svg = node.querySelector('svg');
@@ -483,11 +515,35 @@ function openZoom(node) {
   body.textContent = '';
   const clone = svg.cloneNode(true);
   clone.removeAttribute('style');              // drop mermaid's inline max-width so it can grow
-  body.appendChild(clone);
+  clone.style.maxWidth = 'none';
+  const canvas = document.createElement('div'); canvas.id = 'zcanvas';
+  canvas.appendChild(clone); body.appendChild(canvas);
   z.classList.add('on');
+  const r = clone.getBoundingClientRect(); zw = r.width; zh = r.height; zs = 1;
+  zfit();
 }
-document.getElementById('zclose').onclick = () => document.getElementById('zoom').classList.remove('on');
-document.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('zoom').classList.remove('on'); });
+(function () {
+  const z = document.getElementById('zoom'), body = document.getElementById('zbody');
+  const close = () => z.classList.remove('on');
+  document.getElementById('zclose').onclick = close;
+  document.getElementById('zfit').onclick = zfit;
+  document.getElementById('z100').onclick = () => { zs = 1; zx = 24; zy = 24; zapply(); };
+  document.getElementById('zin').onclick = () => zset(zs * 1.25);
+  document.getElementById('zout').onclick = () => zset(zs / 1.25);
+  body.addEventListener('wheel', e => { e.preventDefault(); zset(zs * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX, e.clientY); }, { passive: false });
+  body.addEventListener('pointerdown', e => { zdrag = { x: e.clientX - zx, y: e.clientY - zy }; body.classList.add('drag'); body.setPointerCapture(e.pointerId); });
+  body.addEventListener('pointermove', e => { if (!zdrag) return; zx = e.clientX - zdrag.x; zy = e.clientY - zdrag.y; zapply(); });
+  body.addEventListener('pointerup', () => { zdrag = null; body.classList.remove('drag'); });
+  body.addEventListener('dblclick', e => zset(zs * 1.6, e.clientX, e.clientY));
+  document.addEventListener('keydown', e => {
+    if (!z.classList.contains('on')) return;
+    if (e.key === 'Escape') close();
+    else if (e.key === '+' || e.key === '=') zset(zs * 1.25);
+    else if (e.key === '-') zset(zs / 1.25);
+    else if (e.key === '0') zfit();
+    else if (e.key === '1') { zs = 1; zx = 24; zy = 24; zapply(); }
+  });
+})();
 
 if (typeof mermaid !== 'undefined') {
   // Mermaid's own dark theme assumes a mid-grey page; on #0f1420 its clusters go flat grey and its

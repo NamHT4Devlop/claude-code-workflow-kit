@@ -157,14 +157,43 @@ function neutralise(src) {
   }).join('\n');
 }
 
+// Size is not a parse error, but a 40-node LR flowchart renders as a strip nobody reads. Count
+// nodes and states with a simple scan and warn (exit code unchanged) so the author can split it.
+function sizeWarning(src) {
+  const head = (src.trim().split('\n')[0] || '').trim();
+  const type = head.split(/\s+/)[0];
+  if (/^(flowchart|graph)$/.test(type)) {
+    const ids = new Set();
+    for (const m of src.matchAll(/(^|[\s>|])([A-Za-z_][A-Za-z0-9_]*)\s*(\[|\(\(|\(|\{|>\[|\[\[|\[\()/g)) ids.add(m[2]);
+    for (const m of src.matchAll(/(^|[\s|])([A-Za-z_][A-Za-z0-9_]*)\s*(-->|-\.->|==>|--[^>]*-->)/g)) ids.add(m[2]);
+    const n = ids.size, lr = /\b(LR|RL)\b/.test(head);
+    if (n > 40) return `flowchart with ${n} nodes — split it (about 25 per diagram reads well)`;
+    if (n > 25) return `flowchart with ${n} nodes — consider splitting (about 25 per diagram reads well)`;
+    if (lr && n > 10) return `flowchart LR with ${n} nodes renders as a wide strip — use TD or split`;
+  } else if (type === 'stateDiagram-v2' || type === 'stateDiagram') {
+    const st = new Set();
+    for (const m of src.matchAll(/([A-Za-z_][A-Za-z0-9_]*|\[\*\])\s*-->\s*([A-Za-z_][A-Za-z0-9_]*|\[\*\])/g)) { st.add(m[1]); st.add(m[2]); }
+    if (st.size > 18) return `state diagram with ${st.size} states — split by entity or phase`;
+  } else if (type === 'sequenceDiagram') {
+    const parts = new Set();
+    for (const m of src.matchAll(/^\s*(participant|actor)\s+([A-Za-z0-9_]+)/gm)) parts.add(m[2]);
+    for (const m of src.matchAll(/^\s*([A-Za-z0-9_]+)\s*(->>|-->>|->|-->|-x|--x|-\)|--\))\s*([A-Za-z0-9_]+)/gm)) { parts.add(m[1]); parts.add(m[3]); }
+    if (parts.size > 9) return `sequence diagram with ${parts.size} participants — split by phase`;
+  }
+  return '';
+}
+
 (async () => {
   let total = 0;
   const failures = [];
+  const warnings = [];
   for (const t of targets) {
     if (!fs.existsSync(t)) { quiet.error(`✖ not found: ${t}`); process.exit(2); }
     for (const f of mdFiles(t)) {
       for (const b of blocks(f)) {
         total++;
+        const w = sizeWarning(b.src);
+        if (w) warnings.push({ where: `${f}:${b.line}`, why: w });
         try {
           await mermaid.parse(neutralise(b.src));
         } catch (err) {
@@ -174,6 +203,7 @@ function neutralise(src) {
     }
   }
   for (const x of failures) quiet.error(`✖ ${x.where}  ${x.why}`);
-  console.log(`${total - failures.length}/${total} mermaid diagram(s) parse${failures.length ? `, ${failures.length} fail` : ''}`);
+  if (!process.env.MM_QUIET_SIZE) for (const x of warnings) quiet.error(`⚠ ${x.where}  ${x.why}`);
+  console.log(`${total - failures.length}/${total} mermaid diagram(s) parse${failures.length ? `, ${failures.length} fail` : ''}${warnings.length ? `, ${warnings.length} oversized (warning)` : ''}`);
   process.exit(failures.length ? 1 : 0);
 })();

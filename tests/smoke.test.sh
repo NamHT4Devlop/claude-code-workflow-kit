@@ -158,5 +158,11 @@ else
   echo "  – skipped (vendor/ not fetched)"
 fi
 
+echo "smoke: check-mermaid.cjs warns on a diagram too big to read, without failing it"
+mkdir -p "$TMP/mm"
+{ printf '```mermaid\nflowchart LR\n'; for i in $(seq 1 14); do printf '  N%s["step %s"] --> N%s["step %s"]\n' "$i" "$i" "$((i+1))" "$((i+1))"; done; printf '```\n'; } > "$TMP/mm/wide.md"
+out=$(node scripts/check-mermaid.cjs "$TMP/mm/wide.md" 2>&1); code=$?
+if [ "$code" -eq 0 ] && printf '%s' "$out" | grep -q 'oversized' && printf '%s' "$out" | grep -q 'wide.md:1'; then echo "  ✓ a 15-node LR flowchart parses but is flagged with its file:line"; else echo "  ✗ expected exit 0 with an oversized warning, got $code: $out"; fail=1; fi
+
 echo "smoke: $([ "$fail" -eq 0 ] && echo PASS || echo FAIL)"
 [ "$fail" -eq 0 ]

@@ -696,7 +696,7 @@ The suite is weighted toward the parts that can do damage, not the parts that ar
 | `file-guard.test.sh` | 50 | The hook that stops the agent rewriting its own policy files (`settings.json`, the hooks) and the credential stores beside them — file tools and shell writes blocked, reads and ordinary files untouched, a deny audited without the command text |
 | `kb-pipeline.test.sh` | 27 | `kb-pipeline.sh` spends real tokens over other people's repos — behind stubbed `claude` and `provenlens`, so a scan already done is never redone and `--dry-run` runs nothing |
 | `schedule.test.sh` | 24 | Edits your **crontab** — behind a stubbed `crontab`, so the real one is never touched |
-| `smoke.test.sh` | 23 | The bundled Node tools (`render-html`, `build-map`, the provenlens graph, `check-mermaid`) still produce output from real input, the map's CSP stays nonce-only, and a vendored bundle is used only when its hash matches |
+| `smoke.test.sh` | 24 | The bundled Node tools (`render-html`, `build-map`, the provenlens graph, `check-mermaid`) still produce output from real input, the map's CSP stays nonce-only, and a vendored bundle is used only when its hash matches |
 | `migrate-sessions.test.sh` | 21 | Renames a folder full of your past work |
 | `webview-markdown.test.cjs` | 18 | The panel renders model output as HTML; pins escaping and that only `http(s)` links become links |
 | `onboard.test.sh` | 14 | Writes into **other people's repos** (`.gitignore`, `CLAUDE.md`) |
