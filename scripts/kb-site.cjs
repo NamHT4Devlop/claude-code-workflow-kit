@@ -305,7 +305,8 @@ a.graphlink:hover{color:var(--fg);border-color:var(--accent)}
    (grey cluster boxes, near-black nodes, edge labels lost in the background), and it scopes its own
    CSS by svg id, so the overrides below need !important to land. */
 figure.dg{margin:1.4em 0;background:#0b1020;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-figure.dg .dgbar{display:flex;justify-content:flex-end;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line);background:var(--panel)}
+figure.dg .dgbar{display:flex;justify-content:flex-end;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--line);background:var(--panel)}
+figure.dg .dgbar .dgnote{margin-right:auto;color:var(--dim);font-size:11.5px}
 figure.dg .dgbar button{background:var(--panel2);border:1px solid var(--line);color:var(--dim);border-radius:6px;padding:2px 9px;font:inherit;font-size:11.5px;cursor:pointer}
 figure.dg .dgbar button:hover{color:var(--fg);border-color:var(--accent)}
 /* align-items:flex-start matters: the default stretch squashes a tall diagram to the panel's
@@ -472,12 +473,53 @@ function drawDiagrams(host) {
     bar.appendChild(fit); bar.appendChild(exp);
     const body = document.createElement('div'); body.className = 'dgbody fit';
     d.replaceWith(fig); body.appendChild(d); fig.appendChild(bar); fig.appendChild(body);
-    fit.onclick = () => { body.classList.toggle('fit'); fit.classList.toggle('on', body.classList.contains('fit')); };
+    fit.onclick = () => { body.classList.toggle('fit'); fit.classList.toggle('on', body.classList.contains('fit')); sizeDiagram(fig); };
     exp.onclick = () => openZoom(d);
   });
   const nodes = host.querySelectorAll('.mermaid');
   if (!nodes.length) return;
-  try { mermaid.run({ nodes }).then(function () { recolourDiagrams(host); }).catch(function () {}); } catch (e) { /* a bad diagram must not blank the page */ }
+  try { mermaid.run({ nodes }).then(function () { recolourDiagrams(host); unfitUnreadable(host); }).catch(function () {}); } catch (e) { /* a bad diagram must not blank the page */ }
+}
+
+// Fit-to-width is right up to a point and wrong past it. A 3200px-wide ER diagram squeezed into a
+// 460px column renders at 14%, where the column names are a grey smear — the reader sees a picture
+// of a diagram rather than a diagram. Past the threshold the figure opens at natural size and
+// scrolls instead, and the bar says what happened so nobody thinks the page is broken.
+var FIT_FLOOR = 0.55;
+/** The width of the diagram as mermaid laid it out, from its viewBox. 0 when it cannot be read. */
+function naturalWidth(svg) {
+  // NOTE: no backslash escapes in this regex — the whole page is emitted from a template literal,
+  // where /\s+/ would arrive in the browser as /s+/ and silently match nothing.
+  var n = parseFloat((svg.getAttribute('viewBox') || '').split(/[ ,]+/)[2]);
+  return n > 0 ? n : 0;
+}
+/** Mermaid writes width="100%" on the svg. Inside a shrink-to-fit flex item that percentage has
+ *  nothing to resolve against, so the browser falls back to the SVG default of 300px and a diagram
+ *  shown "at full size" comes out smaller than the fitted one. Give it the pixel width instead. */
+function sizeDiagram(fig) {
+  var body = fig.querySelector('.dgbody'), svg = fig.querySelector('svg');
+  if (!body || !svg) return;
+  var natural = naturalWidth(svg);
+  if (body.classList.contains('fit')) { svg.style.width = ''; svg.style.maxWidth = ''; }
+  else if (natural) { svg.style.width = natural + 'px'; svg.style.maxWidth = 'none'; }
+}
+function unfitUnreadable(host) {
+  host.querySelectorAll('figure.dg').forEach(function (fig) {
+    var body = fig.querySelector('.dgbody'), svg = fig.querySelector('svg');
+    if (!body || !svg || !body.classList.contains('fit')) return;
+    var natural = naturalWidth(svg);
+    var room = body.clientWidth - 36;                      // the frame's padding
+    if (!natural || !room || natural <= room) return;      // it already fits: leave it fitted
+    var pct = room / natural;
+    if (pct >= FIT_FLOOR) return;
+    body.classList.remove('fit');
+    sizeDiagram(fig);
+    var btn = fig.querySelector('.dgbar button'); if (btn) btn.classList.remove('on');
+    var note = document.createElement('span');
+    note.className = 'dgnote';
+    note.textContent = 'shown at full size — fitting it here would be ' + Math.round(pct * 100) + '%';
+    fig.querySelector('.dgbar').insertBefore(note, fig.querySelector('.dgbar').firstChild);
+  });
 }
 
 // The owner segment of a remote URL (github.com/acme/x → acme), used only to name the organisation in

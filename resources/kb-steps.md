@@ -22,6 +22,9 @@
 >    of at most 10 nodes, `TD` otherwise, because a wide diagram becomes a strip the reader has
 >    to scroll; keep node labels to about eight words (the detail goes in the step table);
 >    keep a `stateDiagram-v2` to about 15 states and a `sequenceDiagram` to about 8 participants.
+>    An `erDiagram` is the one that gets away from you: mermaid places entities side by side, so
+>    eleven of them render 3,222px wide — past any screen. Keep it to about 8 entities, one diagram
+>    per aggregate, with a small overview naming the aggregates when there are more.
 >    `check-mermaid.cjs` warns on diagrams over these sizes.
 
 > 8. **Structure claims come from the call graph where one exists.** With a `.provenlens/` index

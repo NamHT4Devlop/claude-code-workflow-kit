@@ -733,7 +733,20 @@ function recolourDiagrams(host) {
     svg.querySelectorAll('.messageLine0, .messageLine1').forEach(function (l, i) { l.style.stroke = PAL[i % PAL.length]; l.style.strokeWidth = '1.6px'; });
   });
 }
-(function(){var tries=0;var t=setInterval(function(){var all=document.querySelectorAll('.mermaid');var done=Array.prototype.every.call(all,function(m){return m.querySelector('svg')||m.getAttribute('data-processed');});if(done||tries++>50){clearInterval(t);recolourDiagrams(document);}},200);})();
+// Fitting is right up to a point: a 3200px ER diagram inside a 460px column renders at 14%, where
+// the column names are a grey smear. Past that floor the diagram opens at its natural size and the
+// page scrolls instead — click still toggles back to fitted.
+function unfitUnreadable(){
+  document.querySelectorAll('.mermaid').forEach(function(m){
+    var svg=m.querySelector('svg'); if(!svg||m.classList.contains('natural'))return;
+    var natural=parseFloat((svg.getAttribute('viewBox')||'').split(/\\s+/)[2]);
+    var room=m.clientWidth-32;
+    if(!natural||!room||natural<=room||room/natural>=0.55)return;
+    m.classList.add('natural');
+    m.setAttribute('data-note','shown at full size — fitting it here would be '+Math.round(room/natural*100)+'%');
+  });
+}
+(function(){var tries=0;var t=setInterval(function(){var all=document.querySelectorAll('.mermaid');var done=Array.prototype.every.call(all,function(m){return m.querySelector('svg')||m.getAttribute('data-processed');});if(done||tries++>50){clearInterval(t);recolourDiagrams(document);unfitUnreadable();}},200);})();
 mermaid.initialize({startOnLoad:true,theme:'dark',securityLevel:'strict',
   flowchart:{useMaxWidth:true},sequence:{useMaxWidth:true},er:{useMaxWidth:true},gantt:{useMaxWidth:true},
   // The stock dark theme still paints sequence message labels and some edge text almost black —
@@ -792,6 +805,7 @@ img{max-width:100%;height:auto;background:#fff;padding:6px;border-radius:8px}
 .mermaid svg{max-width:100%!important;height:auto!important;cursor:zoom-in}
 .mermaid.natural svg{max-width:none!important;cursor:zoom-out}
 .mermaid::after{content:'click: actual size / fit';display:block;color:#6b7280;font-size:11px;margin-top:6px}
+.mermaid[data-note]::after{content:attr(data-note) ' · click: fit to width'}
 /* Mermaid scopes its styles by the SVG id, so its own (often dark) text colours beat any theme
    variable we pass. Pin them here with !important — this is what keeps sequence message labels,
    actor names and edge labels readable on the dark card. */

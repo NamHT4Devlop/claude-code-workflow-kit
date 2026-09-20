@@ -179,6 +179,15 @@ function sizeWarning(src) {
     for (const m of src.matchAll(/^\s*(participant|actor)\s+([A-Za-z0-9_]+)/gm)) parts.add(m[2]);
     for (const m of src.matchAll(/^\s*([A-Za-z0-9_]+)\s*(->>|-->>|->|-->|-x|--x|-\)|--\))\s*([A-Za-z0-9_]+)/gm)) { parts.add(m[1]); parts.add(m[3]); }
     if (parts.size > 9) return `sequence diagram with ${parts.size} participants — split by phase`;
+  } else if (type === 'erDiagram') {
+    // Mermaid lays entities side by side and each attribute block is wide, so an ER grows
+    // horizontally far faster than a flowchart: eleven entities measured 3,222px, which no screen
+    // shows at a readable scale. One ER per aggregate plus a small overview reads; this does not.
+    const ents = new Set();
+    for (const m of src.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*\{/gm)) ents.add(m[1]);
+    for (const m of src.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s+[|}o][o|{}]*--[o|{}]+\s+([A-Za-z_][A-Za-z0-9_]*)/gm)) { ents.add(m[1]); ents.add(m[2]); }
+    if (ents.size > 12) return `ER diagram with ${ents.size} entities — split it, one per aggregate (it renders wider than any screen)`;
+    if (ents.size > 8) return `ER diagram with ${ents.size} entities — consider splitting by aggregate`;
   }
   return '';
 }

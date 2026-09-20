@@ -136,6 +136,15 @@ for repo in "$@"; do
   run mkdir -p "$dest"
   run rm -rf "$dest/knowledge-base"
   run cp -R "$kb" "$dest/knowledge-base"
+  # A repo's knowledge-base/ usually holds its OWN generated viewer (index.html), built by whichever
+  # version of kb-site.cjs that repo last ran. Copied in, it shadows the hub's fresh page for anyone
+  # opening projects/<name>/knowledge-base/ — carrying that version's CSS and its links back into the
+  # repo's cwk-sessions/, which the hub does not have. The hub builds one current viewer for every
+  # project, so the stale copy is dropped instead of shipped.
+  if [ "$DRY" = 0 ] && [ -f "$dest/knowledge-base/index.html" ] \
+     && grep -q 'content="cwk kb-site"' "$dest/knowledge-base/index.html" 2>/dev/null; then
+    rm -f "$dest/knowledge-base/index.html"
+  fi
   # the KB's own _meta.yml travels inside the copy too — redact the remote URL there as well
   if [ "$DRY" = 0 ] && [ -f "$dest/knowledge-base/_meta.yml" ]; then
     sed -E 's#(https?://)[^/@]+@#\1#g' "$dest/knowledge-base/_meta.yml" > "$dest/knowledge-base/_meta.yml.tmp" \

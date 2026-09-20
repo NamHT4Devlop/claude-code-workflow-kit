@@ -14,6 +14,30 @@ noted per release when it changed.
 
 ---
 
+## [3.10.1] — 2026-09-20
+
+### Fixed
+- **A diagram is no longer fitted past the point of being readable.** Fit-to-width squeezed mall's
+  ER diagram (3,222px of entities) into a 457px column — 14%, where the column names are a grey
+  smear. A diagram that would fit below 55% now opens at full size and scrolls, and the frame says
+  `shown at full size — fitting it here would be 14%`.
+- **"Full size" really is full size.** Mermaid writes `width="100%"` on the svg; inside a
+  shrink-to-fit flex item that percentage resolves against nothing and the browser fell back to the
+  SVG default of **300px**, so an unfitted diagram came out *smaller* than a fitted one. The pixel
+  width from the viewBox is now set explicitly.
+- **A regex lost its escape.** The page is emitted from a template literal, where `/\s+/` arrives in
+  the browser as `/s+/` — the viewBox never split and the new rule silently did nothing. Same class
+  of bug as the `\b` that became a backspace in 3.8.x; both regexes now avoid backslashes.
+- **The hub no longer ships a stale viewer.** `kb-export.sh` copied each repo's own generated
+  `knowledge-base/index.html`, built by whatever kb-site version that repo last ran. It shadowed the
+  hub's current page — with the old CSS and links into a `cwk-sessions/` the hub does not carry.
+
+### Added
+- `check-mermaid.cjs` and golden rule 7b now cover `erDiagram`: warn above 8 entities, split above
+  12. It was the one diagram type with no size ceiling, and the one that broke the page.
+
+---
+
 ## [3.10.0] — 2026-09-20
 
 ### Added
