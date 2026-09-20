@@ -72,8 +72,14 @@ passes X", "this breaks Y" — establish it before writing it:
 - **Library behaviour** is a claim: read the library's source for the pinned version if it is on disk,
   otherwise write `(library default, not verified)`.
 - **Business rules** come from `knowledge-base/13-business-rules.md` by id when a KB exists.
-- **What the index cannot see:** tests that call by URL or route, SQL and mapper files, templates and
-  string-built calls. Grep for those after the provenlens lookup, and label them grep-depth.
+- **A bound file has callers.** A MyBatis mapper XML, a route annotation, a Camel route, a queue or a
+  topic name is resolved by a provenlens binding plugin, so `provenlens affected <the xml file>` names
+  the service and controller methods the change reaches — a mapper change is never "just XML", and the
+  endpoints it reaches belong in the finding. Read the statement and the Java method together: the
+  parameters the SQL interpolates come from the caller.
+- **What the index still cannot see:** tests that call by URL or route, templates, SQL built as a
+  string in code, and mapper files for frameworks with no plugin. Grep for those after the provenlens
+  lookup, and label them grep-depth.
 
 Use the traps in `review-traps.md` for the file's language and framework. Do not report what the
 compiler, the type checker, the formatter or the project's linters already report, unless the diff

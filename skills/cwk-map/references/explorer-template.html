@@ -70,7 +70,7 @@
   <button id="back" title="Previous symbol">← Back</button>
   <button id="d1" class="on" title="Direct callers and callees">Depth 1</button>
   <button id="d2" title="Two hops each way">Depth 2</button>
-  <button id="struct" title="Also draw extends / implements / implemented-by">Types</button>
+  <button id="struct" title="Also draw extends / implements (framework bindings are always drawn)">Types</button>
   <button id="fit">Fit</button>
   <span id="meta"></span>
 </div>
@@ -101,11 +101,21 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp
 const fmt = n => Number(n).toLocaleString('en-US');
 
 let D, K, N;                       // data, kind strings, symbol count
-let OUT, IN, UNRES, PARENT, KIDS;  // adjacency built once
+let OUT, IN, UNRES, PARENT, KIDS, BIND;  // adjacency built once
 let depth = 1, showTypes = false, current = -1;
 const trail = [];
 const CALLISH = new Set(['calls', 'instantiates']);
 const TYPEISH = new Set(['extends', 'implements', 'implemented-by']);
+// A framework binding is neither a call nor a type relation: a MyBatis mapper method runs a
+// `<select>` in an XML file, a controller answers a route, a listener reads a queue. Nothing in the
+// source text links the two, so these are drawn and listed on their own terms instead of sitting
+// with `extends`/`implements` behind a toggle — in a Spring/MyBatis repo it is the first question asked.
+const isBinding = e => /^binding:/.test(K[D.edges[e][4]] || '');
+/** What each plugin resolved, said plainly. */
+const BINDWORD = { mybatis: 'runs the SQL', http: 'answers the route', kafka: 'reads the topic',
+  sqs: 'reads the queue', camel: 'is wired by the route', springevent: 'handles the event',
+  graphql: 'resolves the field', grpc: 'serves the RPC', flyway: 'is the migration', text: 'referenced by' };
+const bindPlugin = e => (K[D.edges[e][4]] || '').replace(/^binding:/, '');
 
 // ---------- load ----------
 (async () => {
@@ -128,7 +138,8 @@ const TYPEISH = new Set(['extends', 'implements', 'implemented-by']);
     + (D.generatedAt ? ` · built ${D.generatedAt.slice(0, 10)}` : '');
   $('legend').innerHTML = LAYERS.filter(l => l.id !== 'domain' && l.id !== 'external')
     .map(l => `<span><span class="dot" style="background:${l.color}"></span>${esc(l.label)}</span>`).join('')
-    + '<span style="color:var(--muted)">— dashed edge = inferred (confidence &lt; 1)</span>';
+    + '<span style="color:var(--muted)">— dashed edge = inferred (confidence &lt; 1)</span>'
+    + ((D.bindings || []).length ? '<span><span class="dot" style="background:#f7a34f"></span>framework binding (route · SQL · queue)</span>' : '');
   showHotspots();
   const want = decodeURIComponent((location.hash.match(/sym=([^&]+)/) || [])[1] || '');
   const start = want ? D.syms.findIndex(x => x[1] === want) : -1;
@@ -141,6 +152,9 @@ function index() {
   D.edges.forEach((e, i) => { OUT[e[0]].push(i); IN[e[1]].push(i); });
   UNRES = Array.from({ length: N }, () => []);
   D.unresolved.forEach((u, i) => UNRES[u[0]].push(i));
+  // [symIdx, plugin, role, key, detail, line] — absent from maps built before 3.10.0.
+  BIND = Array.from({ length: N }, () => []);
+  (D.bindings || []).forEach((b, i) => BIND[b[0]].push(i));
   // Declared-in, by line containment inside one file: the one rule that holds for Java, Ruby
   // and TypeScript alike, where qualified-name conventions differ.
   PARENT = new Int32Array(N).fill(-1); KIDS = Array.from({ length: N }, () => []);
@@ -218,6 +232,9 @@ function runSearch() {
     const [name, fqn] = S(i); const n = name.toLowerCase();
     let sc = n === q ? 0 : n.startsWith(q) ? 1 : n.includes(q) ? 2 : fqn.toLowerCase().includes(q) ? 3
            : fileOf(i)[0].toLowerCase().includes(q) ? 4 : -1;
+    // An endpoint, a queue name or a topic is how people name the code they are looking for, and
+    // none of them appear in a symbol name: `/admin/login` has to find UmsAdminController#login.
+    if (sc < 0 && BIND[i].some(b => (D.bindings[b][3] + ' ' + D.bindings[b][4]).toLowerCase().includes(q))) sc = 2.5;
     if (sc < 0) continue;
     if (kindOf(i) === 'file' || kindOf(i) === 'field') sc += 0.5;
     hits.push([sc, -callersOf(i).length, i]);
@@ -241,6 +258,7 @@ const cy = cytoscape({
       'target-arrow-shape': 'triangle', 'arrow-scale': 0.8, 'curve-style': 'bezier', 'opacity': 0.8 } },
     { selector: 'edge[?inferred]', style: { 'line-style': 'dashed' } },
     { selector: 'edge[type="type"]', style: { 'line-color': '#e74c3c', 'target-arrow-color': '#e74c3c' } },
+    { selector: 'edge[type="binding"]', style: { 'line-color': '#f7a34f', 'target-arrow-color': '#f7a34f', 'width': 2 } },
     { selector: 'edge[type="declares"]', style: { 'line-color': '#6b7a99', 'target-arrow-color': '#6b7a99', 'line-style': 'dotted', 'opacity': 0.75 } },
     { selector: 'node:selected', style: { 'border-color': '#7c9cff', 'border-width': 3 } },
   ],
@@ -262,9 +280,9 @@ function draw(c) {
   // draw a single lonely dot, and a symbol nothing calls (an entry point, dead code) did the same.
   // In both cases fall back to the structural view: the parent it lives in and the members it holds.
   const CONTAINER = new Set(['class', 'interface', 'module', 'enum', 'record', 'struct', 'trait', 'object', 'file', 'namespace', 'package']);
-  const callNeighbours = [...IN[c], ...OUT[c]].filter(e => CALLISH.has(K[D.edges[e][2]])).length;
+  const callNeighbours = [...IN[c], ...OUT[c]].filter(e => CALLISH.has(K[D.edges[e][2]]) || isBinding(e)).length;
   const structural = CONTAINER.has(kindOf(c)) || callNeighbours === 0;
-  const accept = e => CALLISH.has(K[D.edges[e][2]]) || (showTypes && TYPEISH.has(K[D.edges[e][2]]));
+  const accept = e => CALLISH.has(K[D.edges[e][2]]) || isBinding(e) || (showTypes && TYPEISH.has(K[D.edges[e][2]]));
   const side = new Map([[c, 0]]); const dist = new Map([[c, 0]]); const usedEdges = new Set();
   let truncated = 0;
   for (const dir of [-1, 1]) {
@@ -321,7 +339,7 @@ function draw(c) {
   for (const e of usedEdges) {
     const [a, b, k, conf] = D.edges[e];
     els.push({ group: 'edges', data: { id: 'e' + e, source: String(a), target: String(b),
-      inferred: conf < 1, type: TYPEISH.has(K[k]) ? 'type' : 'call' } });
+      inferred: conf < 1 && !isBinding(e), type: isBinding(e) ? 'binding' : TYPEISH.has(K[k]) ? 'type' : 'call' } });
   }
   structEdges.forEach(([a, b], i) => {
     if (!side.has(a) || !side.has(b)) return;
@@ -355,6 +373,17 @@ function showDetails(i) {
     + `<span class="chip" title="${fmt(outs.length)} call sites">${fmt(nOut)} callees · ${fmt(outs.length)} call sites</span>`;
   if (miss.length) h += `<span class="chip bad">${miss.length} unresolved</span>`;
   if (test) h += `<span class="chip warn">test code</span>`;
+  // The route, queue or topic this symbol is bound to — what people actually call it by. A class-level
+  // prefix and the method's own annotation can produce the same string twice; show it once.
+  const shown = new Set();
+  for (const b of BIND[i]) {
+    const [, plugin, role, key, detail] = D.bindings[b];
+    if (plugin === 'mybatis') continue;                       // covered by the binding section below
+    const label = detail || key;
+    if (shown.has(label)) continue;
+    shown.add(label);
+    h += `<span class="chip" title="${esc(plugin)} · ${esc(role)}">⚡ ${esc(label)}</span>`;
+  }
   h += `<div class="fqn">${esc(fqn)}</div>`;
   if (sig) h += `<div class="fqn" style="color:var(--muted)">${esc(sig)}</div>`;
   if (PARENT[i] >= 0) h += `<div class="note">Declared in ${nav(PARENT[i])} <span class="via">${esc(K[S(PARENT[i])[2]])}</span></div>`;
@@ -386,7 +415,17 @@ function showDetails(i) {
   const kids = KIDS[i];
   if (kids.length) h += sec('Members', kids.length, kids.map(k => `<li><span class="ln">L${S(k)[4]}</span>${nav(k)} <span class="via">${esc(kindOf(k))} · ${callersOf(k).length} callers</span></li>`), kids.length <= 40);
 
-  const types = [...IN[i], ...OUT[i]].filter(e => TYPEISH.has(K[D.edges[e][2]]));
+  // Framework bindings, before the type relations: for a mapper method this is the SQL that runs,
+  // and it is the one thing a call graph alone can never show.
+  const binds = [...IN[i], ...OUT[i]].filter(isBinding);
+  if (binds.length) h += sec('Framework binding — what actually runs', binds.length, binds.map(e => {
+    const [a, b] = D.edges[e]; const o = a === i ? b : a; const p = bindPlugin(e);
+    const word = a === i ? (BINDWORD[p] || 'is bound to') : 'is the implementation for';
+    return `<li>${word} ${nav(o)}<span class="via">${esc(p)} · conf ${D.edges[e][3]}</span>`
+      + `<div class="sub">${esc(S(o)[6] || kindOf(o))} — ${esc(loc(o))}</div></li>`; }), true, '',
+    'Resolved by a provenlens binding plugin, not by the compiler: a string in XML, an annotation or a config file. Open the other end to read it.');
+
+  const types = [...IN[i], ...OUT[i]].filter(e => TYPEISH.has(K[D.edges[e][2]]) && !isBinding(e));
   if (types.length) h += sec('Type relations', types.length, types.map(e => { const [a, b] = D.edges[e]; const o = a === i ? b : a;
     return `<li>${a === i ? 'this' : nav(a)} <span class="via">${esc(K[D.edges[e][2]])}</span> ${b === i ? 'this' : nav(b)}<div class="sub">${esc(loc(o))}</div></li>`; }), false);
 

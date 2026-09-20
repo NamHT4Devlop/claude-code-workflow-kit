@@ -112,6 +112,19 @@ function buildFullIndex(root) {
       unresolved.push([a, r.name, r.receiver || '', r.line || 0, r.external ? 1 : 0, code(r.reason), r.owner || '']);
     }
 
+    // Framework string-bindings: the HTTP route a controller answers, the queue a listener reads,
+    // the SQL a MyBatis mapper method runs. These are not calls, so they are not edges, and a page
+    // without them cannot answer "which endpoint is this?" — the first question anyone asks.
+    // [symIdx, plugin, role, key, detail, line]
+    const bindings = [];
+    for (const b of db.prepare(
+      'SELECT symbol_id, plugin, role, key, detail, line FROM bindings WHERE symbol_id IS NOT NULL',
+    ).iterate()) {
+      const s = symIdx.get(b.symbol_id);
+      if (s === undefined) continue;
+      bindings.push([s, b.plugin, b.role, b.key, b.detail || '', b.line || 0]);
+    }
+
     // Source, keyed by file index. Read from disk rather than the index, which does not keep it.
     const source = {};
     let skippedSource = 0;
@@ -140,6 +153,7 @@ function buildFullIndex(root) {
       resolution: statusResolution(root),
       droppedEdges,
       skippedSource,
+      bindings: bindings.length,
     };
 
     return {
@@ -151,6 +165,7 @@ function buildFullIndex(root) {
         syms,
         edges,
         unresolved,
+        bindings,
         source,
         stats,
         generatedAt: new Date().toISOString(),

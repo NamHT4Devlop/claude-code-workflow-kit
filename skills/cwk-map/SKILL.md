@@ -74,6 +74,18 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
    blast radius), the architecture layers present, and any obvious coupling concern. Tell the
    user that clicking a node in the viewer shows its "Used by / Depends on".
 
+## Framework bindings in the explorer (full-index page)
+When the page is built from the full index, the things a call graph structurally cannot see are drawn
+in **orange** and listed first in the panel, under **Framework binding — what actually runs**:
+- a MyBatis mapper method links to the `<select>`/`<update>` it runs, and that statement is a node of
+  its own — click it to read the SQL, with the callers of the mapper method as its blast radius;
+- a controller method carries its route as a `⚡ @RequestMapping POST /admin/login` chip, and the
+  **search box matches route, queue and topic strings**, so `/admin/login` finds the controller;
+- Kafka, SQS, Camel, Spring events, GraphQL, gRPC and Flyway appear the same way.
+
+Say so when the repo has them: on a Spring/MyBatis codebase "which SQL does this endpoint run" is the
+first question asked, and it is the one answer a plain call graph cannot give.
+
 ## What the viewer gives the user
 - Zoom/pan; **click a node** → highlights neighbors + a details panel (file, type, layer,
   degree, used-by, depends-on, methods, fields); **double-click** → focus/zoom.

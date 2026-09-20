@@ -14,6 +14,25 @@ noted per release when it changed.
 
 ---
 
+## [3.10.0] — 2026-09-20
+
+### Added
+- **The code graph shows what a call graph cannot see.** Framework string-bindings — the MyBatis
+  statement a mapper method runs, the route a controller answers, the queue a listener reads — are
+  now exported from the index and drawn in orange, always, instead of hiding behind the `Types`
+  toggle beside `extends`/`implements`. The detail panel lists them first, under **Framework
+  binding — what actually runs**; an `<update id="delivery">` is a node of its own, so clicking it
+  shows the SQL and the endpoints that reach it.
+- **Search matches route, queue and topic strings.** `/admin/login` now finds
+  `UmsAdminController#login`, which no symbol name could have matched.
+
+### Fixed
+- The review protocol said the index cannot see "SQL and mapper files". For MyBatis it can:
+  `provenlens affected <mapper.xml>` names the service and controller methods the statement
+  reaches. Reviewers were being told to label an answer grep-depth when a resolved one existed.
+
+---
+
 ## [3.9.1] — 2026-09-20
 
 ### Fixed
