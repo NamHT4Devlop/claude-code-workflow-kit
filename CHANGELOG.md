@@ -14,6 +14,42 @@ noted per release when it changed.
 
 ---
 
+## [3.11.0] — 2026-09-20
+
+### Added
+- **The code graph has its picture back, standing on the whole index.** 3.3.0 replaced the drawn
+  graph with an explorer that finds any symbol — and lost the other question, "what does this system
+  look like": every click redrew the canvas around one symbol, so nothing stayed where it was, while
+  `SKILL.md` still promised that a click "highlights neighbors". The full-index page now opens on a
+  **Map**: the busiest neighbourhoods of every layer, drawn once, force-laid and coloured by layer,
+  as the old viewer drew them. A click lights the node up where it stands and fades what it does not
+  touch; nothing is redrawn and nothing moves. A double-click pulls in the neighbours not drawn yet
+  and settles only the new nodes — every node already placed is locked first. **Hubs**, **Re-layout**
+  and the click-to-hide layer legend are back too. The 3.3.0 drawing is one button away as **Trace**,
+  where a click still re-centres; switching back restores the map exactly as it was left.
+- **What the old picture could not do.** It was a 400-node export, so on mall `paySuccess` was not
+  on the page at all. The map is a view of the whole index: search reaches all 18,683 symbols and
+  brings the one chosen onto the map beside what it touches (113 ms), the panel lists every caller
+  whether or not it is drawn, a node is sized by its real degree rather than by what happens to be
+  shown, and the corner note says how much is drawn — `160 of 18,683 symbols` — and, for the
+  selected node, `338 of 388 neighbours are not drawn`.
+- **The seed is taken layer by layer.** Ranked by degree alone one layer takes the whole budget: in
+  mall a generated `addCriterion` repeats across seventy classes with hundreds of callers each, and
+  no controller or service would make the cut — which is what the old export showed (379 of 403
+  nodes were entity fields). Round-robin over the layers gives presentation 40, business 23,
+  data 77, config 11 and infrastructure 9, led by `PmsProductServiceImpl.update` and
+  `OmsPortalOrderServiceImpl.generateOrder`. Building it takes 0.2 s on that repository.
+- The map is fitted into the canvas the panels leave free. `cy.fit` centres on the whole canvas,
+  which put the top of the picture under the toolbar and its left edge under the result list.
+- `#sym=<qualified name>` opens on that symbol in either view; `&view=trace` asks for Trace.
+
+### Tests
+- `smoke.test.sh` pins what makes a map click a map click: nothing on the select/expand/add path
+  removes an element, `settle()` locks the nodes already placed, and a node click does not move the
+  camera.
+
+---
+
 ## [3.10.5] — 2026-09-20
 
 ### Added

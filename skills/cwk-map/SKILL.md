@@ -93,6 +93,17 @@ first question asked, and it is the one answer a plain call graph cannot give.
   **Fit** and **Re-layout**. Edges are directional; `extends` (red), `implements` (dashed),
   `injects` (green) are visually distinct.
 
+The full-index page has **two views of the same index**, switched by the **Map** / **Trace** buttons:
+- **Map** (what opens): the picture above — the busiest neighbourhoods of every layer, drawn once and
+  force-laid. A click lights the node up where it stands and fades what it does not touch; nothing is
+  redrawn and nothing moves. **Double-click** pulls in the neighbours not drawn yet, settling only the
+  new nodes. Search reaches every symbol in the index and brings it onto the map; the note in the
+  corner always says how much of the index is drawn and how many of a node's neighbours are not.
+- **Trace**: one symbol at a time, callers on the left and callees on the right, depth 1 or 2. Here a
+  click re-centres the drawing on the node — the view for following a call chain.
+Both share the search box, the detail panel (every caller and callee, drawn or not), **← Back** and
+the layer legend. `#sym=<qualified name>` opens on that symbol; add `&view=trace` to open it in Trace.
+
 ## Notes
 - Knowledge Base enrichment is automatic: in `all`/`domain` mode the analyzer also pulls
   `knowledge-base/*.md` as domain nodes, so the KB shows beside the code when present.

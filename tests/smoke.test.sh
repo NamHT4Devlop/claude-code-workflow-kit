@@ -75,6 +75,32 @@ for ph in __PROJECT__ __LAYERS__ __GRAPH_DATA__; do
   if grep -q "$ph" skills/cwk-map/references/explorer-template.html; then echo "  ✓ $ph"; else echo "  ✗ $ph missing"; fail=1; fi
 done
 
+echo "smoke: a click on the map lights a node up in place — it never redraws"
+# The whole-index explorer redrew the canvas around whatever was clicked, so nothing stayed where it
+# was and the picture of the system was gone after one click. The Map view is the old viewer's
+# manners on the whole index; this pins what makes it that: nothing on the click path removes an
+# element, adding neighbours locks every node already placed, and only a Trace click moves the camera.
+why=$(node -e '
+  const s = require("fs").readFileSync("skills/cwk-map/references/explorer-template.html", "utf8");
+  const body = name => {
+    const i = s.indexOf("function " + name + "("); if (i < 0) return null;
+    let d = 0; const j = s.indexOf("{", i);
+    for (let k = j; k < s.length; k++) { if (s[k] === "{") d++; else if (s[k] === "}" && --d === 0) return s.slice(j, k + 1); }
+    return null;
+  };
+  const bad = [];
+  for (const f of ["mapSelect", "mapExpand", "mapAdd", "settle"]) {
+    const b = body(f);
+    if (!b) bad.push(f + "() is gone"); else if (/\.remove\(/.test(b)) bad.push(f + "() removes elements");
+  }
+  if (!/old\.lock\(\)/.test(body("settle") || "")) bad.push("settle() does not lock the nodes already placed");
+  if (!/id="vmap"/.test(s) || !/id="vtrace"/.test(s)) bad.push("the Map / Trace buttons are gone");
+  if (!s.includes("cy.on(\x27tap\x27, \x27node\x27, e => focus(+e.target.id(), true, false));")) bad.push("a node click moves the camera");
+  process.stdout.write(bad.join("; "));
+' 2>&1)
+if [ -z "$why" ]; then echo "  ✓ select, expand and add never remove an element; settle locks what is placed; a click keeps the camera"
+else echo "  ✗ $why"; fail=1; fi
+
 echo "smoke: markdown renderer keeps wrapped prose and numbered steps whole"
 # Docs are wrapped at ~100 columns. Rendering each line as its own <p> cut sentences in half, and a
 # code block inside a numbered step restarted the numbering at 1.

@@ -620,8 +620,9 @@ diagram found (5,913px) was never flagged because its nodes sit side by side rat
 `measure-diagrams` renders each one and reports `file:line → width × height`, sorted widest first —
 the only honest answer, because only a browser knows how wide a label is.
 
-Each project also carries a **⛓ Code graph** link: the `/cwk-map` page, with its own per-node search
-over the resolved call graph. It is linked rather than inlined, so this page keeps its "email it and
+Each project also carries a **⛓ Code graph** link: the `/cwk-map` page — a drawn **Map** of the
+busiest neighbourhoods where a click lights a node up in place, a **Trace** view that follows one
+symbol's callers and callees, and a search over every symbol in the resolved call graph. It is linked rather than inlined, so this page keeps its "email it and
 it opens" property while the graph stays one click away. The hub's copy carries **symbols, edges and
 call-site lines only**: the source text a full-index page embeds is stripped on export
 (`scripts/strip-map-source.cjs`, run by `kb-export.sh` unless you pass `--with-source`, which warns),
@@ -704,7 +705,7 @@ The suite is weighted toward the parts that can do damage, not the parts that ar
 | `file-guard.test.sh` | 50 | The hook that stops the agent rewriting its own policy files (`settings.json`, the hooks) and the credential stores beside them — file tools and shell writes blocked, reads and ordinary files untouched, a deny audited without the command text |
 | `kb-pipeline.test.sh` | 27 | `kb-pipeline.sh` spends real tokens over other people's repos — behind stubbed `claude` and `provenlens`, so a scan already done is never redone and `--dry-run` runs nothing |
 | `schedule.test.sh` | 24 | Edits your **crontab** — behind a stubbed `crontab`, so the real one is never touched |
-| `smoke.test.sh` | 24 | The bundled Node tools (`render-html`, `build-map`, the provenlens graph, `check-mermaid`) still produce output from real input, the map's CSP stays nonce-only, and a vendored bundle is used only when its hash matches |
+| `smoke.test.sh` | 25 | The bundled Node tools (`render-html`, `build-map`, the provenlens graph, `check-mermaid`) still produce output from real input, the map's CSP stays nonce-only, a click on the code map never redraws it, and a vendored bundle is used only when its hash matches |
 | `migrate-sessions.test.sh` | 21 | Renames a folder full of your past work |
 | `webview-markdown.test.cjs` | 18 | The panel renders model output as HTML; pins escaping and that only `http(s)` links become links |
 | `onboard.test.sh` | 14 | Writes into **other people's repos** (`.gitignore`, `CLAUDE.md`) |

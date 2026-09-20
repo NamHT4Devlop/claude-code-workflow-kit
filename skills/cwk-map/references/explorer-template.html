@@ -57,20 +57,26 @@
   .note{color:var(--muted);font-size:11px;margin-top:4px}
   #loading{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px;z-index:50}
   #trunc{position:absolute;bottom:64px;right:12px;color:var(--warn);font-size:11px;z-index:10;max-width:340px;text-align:right}
+  body[data-view="map"] .trace-only, body[data-view="trace"] .map-only{display:none}
+  #legend span[data-layer]{cursor:pointer} #legend span.off{opacity:.35;text-decoration:line-through}
   @media (max-width:900px){ #side{display:none} #legend{left:12px;max-width:calc(100% - 24px)} #details{top:auto;bottom:12px;max-height:55%} }
 </style>
 </head>
-<body>
+<body data-view="map">
 <div id="cy"></div>
 <div id="loading">Unpacking the index…</div>
 
 <div id="top" class="panel">
   <h1>🕸 __PROJECT__</h1>
   <input id="search" placeholder="Search every symbol — name, qualified name or file path…" autocomplete="off" spellcheck="false">
+  <button id="vmap" class="on" title="The whole picture: the busiest neighbourhoods of every layer, drawn once. Click a node to light up what it touches; double-click to pull in the neighbours not drawn yet.">Map</button>
+  <button id="vtrace" title="One symbol at a time: callers on the left, callees on the right. Click a node to re-centre on it.">Trace</button>
   <button id="back" title="Previous symbol">← Back</button>
-  <button id="d1" class="on" title="Direct callers and callees">Depth 1</button>
-  <button id="d2" title="Two hops each way">Depth 2</button>
-  <button id="struct" title="Also draw extends / implements (framework bindings are always drawn)">Types</button>
+  <button id="d1" class="on trace-only" title="Direct callers and callees">Depth 1</button>
+  <button id="d2" class="trace-only" title="Two hops each way">Depth 2</button>
+  <button id="struct" class="trace-only" title="Also draw extends / implements (framework bindings are always drawn)">Types</button>
+  <button id="hubs" class="map-only" title="Light up the most connected symbols on the map">Hubs</button>
+  <button id="relayout" class="map-only" title="Lay the map out again">Re-layout</button>
   <button id="fit">Fit</button>
   <span id="meta"></span>
 </div>
@@ -106,6 +112,8 @@ let depth = 1, showTypes = false, current = -1;
 const trail = [];
 const CALLISH = new Set(['calls', 'instantiates']);
 const TYPEISH = new Set(['extends', 'implements', 'implemented-by']);
+/** Kinds that declare members rather than make calls. */
+const CONTAINER = new Set(['class', 'interface', 'module', 'enum', 'record', 'struct', 'trait', 'object', 'file', 'namespace', 'package']);
 // A framework binding is neither a call nor a type relation: a MyBatis mapper method runs a
 // `<select>` in an XML file, a controller answers a route, a listener reads a queue. Nothing in the
 // source text links the two, so these are drawn and listed on their own terms instead of sitting
@@ -129,7 +137,6 @@ const bindPlugin = e => (K[D.edges[e][4]] || '').replace(/^binding:/, '');
     return;
   }
   index();
-  $('loading').remove();
   const s = D.stats;
   $('meta').textContent = `${fmt(s.symbols)} symbols · ${fmt(s.edges)} edges · ${fmt(s.files)} files · `
     + (s.resolution != null ? `${s.resolution}% of in-repo calls resolved · ` : '')
@@ -140,13 +147,16 @@ const bindPlugin = e => (K[D.edges[e][4]] || '').replace(/^binding:/, '');
     + (D.generatedAt ? ` · built ${D.generatedAt.slice(0, 10)}` : '')
     + (D.kit ? ` · cwk ${D.kit}` : '');
   $('legend').innerHTML = LAYERS.filter(l => l.id !== 'domain' && l.id !== 'external')
-    .map(l => `<span><span class="dot" style="background:${l.color}"></span>${esc(l.label)}</span>`).join('')
+    .map(l => `<span data-layer="${esc(l.id)}" title="Click to hide or show this layer"><span class="dot" style="background:${l.color}"></span>${esc(l.label)}</span>`).join('')
     + '<span style="color:var(--muted)">— dashed edge = inferred (confidence &lt; 1)</span>'
     + ((D.bindings || []).length ? '<span><span class="dot" style="background:#f7a34f"></span>framework binding (route · SQL · queue)</span>' : '');
   showHotspots();
   const want = decodeURIComponent((location.hash.match(/sym=([^&]+)/) || [])[1] || '');
   const start = want ? D.syms.findIndex(x => x[1] === want) : -1;
-  focus(start >= 0 ? start : (HOT[0] ?? 0), false);
+  // A link that names a view gets it. Otherwise the map: the picture of the system is what a reader
+  // asks for first, and a link to one symbol is answered on it just as well.
+  try { setView(/[#&]view=trace\b/.test(location.hash) ? 'trace' : 'map', start); }
+  finally { $('loading').remove(); }
 })();
 
 function index() {
@@ -257,6 +267,10 @@ const cy = cytoscape({
       'border-width': 1, 'border-color': '#0b0d12', 'text-max-width': 220, 'text-wrap': 'ellipsis' } },
     { selector: 'node[?center]', style: { 'width': 26, 'height': 26, 'border-width': 3, 'border-color': '#fff', 'font-size': 12, 'font-weight': 700 } },
     { selector: 'node[side<0]', style: { 'text-halign': 'left', 'text-margin-x': -6 } },
+    // Map view: the label sits under the node, and the node is sized by how connected the symbol is
+    // in the WHOLE index, not among what happens to be drawn — a small dot is a small symbol.
+    { selector: 'node[?m]', style: { 'text-valign': 'bottom', 'text-halign': 'center', 'text-margin-x': 0, 'text-margin-y': 3,
+      'font-size': 9, 'text-max-width': 120, 'width': 'data(w)', 'height': 'data(w)' } },
     { selector: 'edge', style: { 'width': 1.2, 'line-color': '#4a5263', 'target-arrow-color': '#4a5263',
       'target-arrow-shape': 'triangle', 'arrow-scale': 0.8, 'curve-style': 'bezier', 'opacity': 0.8 } },
     { selector: 'edge[?inferred]', style: { 'line-style': 'dashed' } },
@@ -264,17 +278,27 @@ const cy = cytoscape({
     { selector: 'edge[type="binding"]', style: { 'line-color': '#f7a34f', 'target-arrow-color': '#f7a34f', 'width': 2 } },
     { selector: 'edge[type="declares"]', style: { 'line-color': '#6b7a99', 'target-arrow-color': '#6b7a99', 'line-style': 'dotted', 'opacity': 0.75 } },
     { selector: 'node:selected', style: { 'border-color': '#7c9cff', 'border-width': 3 } },
+    { selector: '.faded', style: { 'opacity': 0.07 } },
+    { selector: '.hi', style: { 'opacity': 1, 'border-width': 3, 'border-color': '#fff' } },
+    { selector: '.hiedge', style: { 'opacity': 0.95, 'width': 2 } },
   ],
 });
-cy.on('tap', 'node', e => focus(+e.target.id()));
+// One handler, two manners. In Trace a click re-centres the drawing on the node. In Map it is the
+// old viewer's click: the node lights up where it stands, everything it does not touch fades, and
+// nothing moves — a double-click pulls in the neighbours the map has not drawn, a click on the
+// background lets go.
+cy.on('tap', 'node', e => focus(+e.target.id(), true, false));
+cy.on('dbltap', 'node', e => { if (view === 'map') mapExpand(+e.target.id()); });
+cy.on('tap', e => { if (e.target === cy && view === 'map') { clearHi(); $('details').style.display = 'none'; mapNote(-1); } });
 
 const MAX_DRAWN = 260;
-function focus(i, push = true) {
+function focus(i, push = true, centre = true) {
   if (i < 0 || i >= N) return;
   if (push && current >= 0 && current !== i) trail.push(current);
   current = i;
-  try { window.history.replaceState(null, '', '#sym=' + encodeURIComponent(S(i)[1])); } catch {}
-  draw(i); showDetails(i);
+  try { window.history.replaceState(null, '', '#sym=' + encodeURIComponent(S(i)[1]) + (view === 'trace' ? '&view=trace' : '')); } catch {}
+  if (view === 'map') mapSelect(i, centre); else draw(i);
+  showDetails(i);
   document.querySelectorAll('.res.sel').forEach(r => r.classList.remove('sel'));
   const r = document.querySelector(`.res[data-sym="${i}"]`); if (r) r.classList.add('sel');
 }
@@ -282,7 +306,6 @@ function draw(c) {
   // A class, module or file does not *call* anything — it declares members. Centring one used to
   // draw a single lonely dot, and a symbol nothing calls (an entry point, dead code) did the same.
   // In both cases fall back to the structural view: the parent it lives in and the members it holds.
-  const CONTAINER = new Set(['class', 'interface', 'module', 'enum', 'record', 'struct', 'trait', 'object', 'file', 'namespace', 'package']);
   const callNeighbours = [...IN[c], ...OUT[c]].filter(e => CALLISH.has(K[D.edges[e][2]]) || isBinding(e)).length;
   const structural = CONTAINER.has(kindOf(c)) || callNeighbours === 0;
   const accept = e => CALLISH.has(K[D.edges[e][2]]) || isBinding(e) || (showTypes && TYPEISH.has(K[D.edges[e][2]]));
@@ -337,7 +360,7 @@ function draw(c) {
     ids.forEach((n, k) => els.push({ group: 'nodes', position: {
         x: hopX.get(s) + Math.sign(s) * Math.floor(k / ROWS) * SUB, y: ((k % ROWS) - (rows - 1) / 2) * 30 },
       data: { id: String(n), label: S(n)[0] + (n === c ? '' : '  ' + fileOf(n)[0].split('/').pop() + ':' + S(n)[4]),
-              color: LCOLOR[layerOf(n)] || '#7f8c8d', center: n === c, side: s } }));
+              color: LCOLOR[layerOf(n)] || '#7f8c8d', layer: layerOf(n), center: n === c, side: s } }));
   }
   for (const e of usedEdges) {
     const [a, b, k, conf] = D.edges[e];
@@ -350,6 +373,7 @@ function draw(c) {
   });
   cy.batch(() => { cy.elements().remove(); cy.add(els); });
   cy.layout({ name: 'preset' }).run();
+  applyLayers();
   cy.fit(undefined, 60);
   const callers = uniq(callersOf(c).map(e => D.edges[e][0])), callees = uniq(calleesOf(c).map(e => D.edges[e][1]));
   const notes = [];
@@ -359,6 +383,147 @@ function draw(c) {
     : `${esc(S(c)[0])} is a ${esc(kindOf(c))}: the dotted links are what it declares. Click a member to follow its calls.`);
   else if (structural) notes.push(`${esc(S(c)[0])} has no resolved call and declares nothing the index can see.`);
   $('trunc').textContent = notes.join(' ');
+}
+
+// ---------- map view ----------
+// The whole-index explorer answered "where is X" and lost "what does this system look like": every
+// click redrew the canvas around one symbol, so nothing ever stayed where it was. The map is the
+// old viewer's picture — drawn once, force-laid, coloured by layer, a click lights a node up in
+// place — standing on the whole index instead of a 400-node export. That difference is the point:
+// search reaches every symbol and brings it onto the map, the panel lists every caller whether or
+// not it is drawn, and a node is sized by its real degree rather than by what happens to be shown.
+const MAP_SEED = 160, MAP_MAX = 600, PER_HUB = 10, PER_EXPAND = 40;
+const COSE = { name: 'cose', animate: false, nodeRepulsion: 9000, idealEdgeLength: 90, gravity: 0.3, numIter: 1200 };
+let view = '', mapSnap = null;
+const onMap = new Set(), mapEdges = new Set(), hiddenLayers = new Set(), DEG = [];
+/** Unique callers plus unique callees, over the whole index. */
+const degree = i => DEG[i] ?? (DEG[i] = uniq(callersOf(i).map(e => D.edges[e][0])) + uniq(calleesOf(i).map(e => D.edges[e][1])));
+const mapEdgeOk = e => CALLISH.has(K[D.edges[e][2]]) || isBinding(e) || TYPEISH.has(K[D.edges[e][2]]);
+/** Every symbol one edge away, busiest first. */
+function neighboursOf(i) {
+  const out = new Set();
+  for (const e of OUT[i]) if (mapEdgeOk(e) && D.edges[e][1] !== i) out.add(D.edges[e][1]);
+  for (const e of IN[i]) if (mapEdgeOk(e) && D.edges[e][0] !== i) out.add(D.edges[e][0]);
+  return [...out].sort((a, b) => degree(b) - degree(a) || a - b);
+}
+// `save` names nothing on a map of a hundred classes; `OrderService.save` does.
+const mapLabel = i => (PARENT[i] >= 0 && CONTAINER.has(kindOf(PARENT[i])) && kindOf(PARENT[i]) !== 'file' ? S(PARENT[i])[0] + '.' : '') + S(i)[0];
+const clearHi = () => cy.elements().removeClass('faded hi hiedge');
+/** Fits the map into the canvas the panels leave free: `cy.fit` centres on the whole canvas, which
+ *  put the top of the picture under the toolbar and its left edge under the result list. */
+function fitFree() {
+  const bb = cy.elements().boundingBox();
+  const box = id => { const el = $(id); return el && getComputedStyle(el).display !== 'none' ? el.getBoundingClientRect() : null; };
+  const top = box('top'), side = box('side'), legend = box('legend');
+  const x0 = (side ? side.right : 0) + 30, y0 = (top ? top.bottom : 0) + 30;
+  const x1 = cy.width() - 30, y1 = (legend ? legend.top : cy.height()) - 30;
+  if (!bb.w || !bb.h || x1 - x0 < 120 || y1 - y0 < 120) return cy.fit(undefined, 40);
+  const zoom = Math.min((x1 - x0) / bb.w, (y1 - y0) / bb.h, 2);
+  cy.viewport({ zoom, pan: { x: (x0 + x1) / 2 - zoom * (bb.x1 + bb.x2) / 2, y: (y0 + y1) / 2 - zoom * (bb.y1 + bb.y2) / 2 } });
+}
+const applyLayers = () => cy.nodes().forEach(n => n.style('display', hiddenLayers.has(n.data('layer')) && !n.data('center') ? 'none' : 'element'));
+
+/** Puts symbols on the map near `near`, with every edge that joins them to what is already there. */
+function mapAdd(ids, near) {
+  const fresh = [];
+  for (const i of ids) { if (onMap.has(i)) continue; if (onMap.size >= MAP_MAX) break; onMap.add(i); fresh.push(i); }
+  if (!fresh.length) return fresh;
+  const els = fresh.map((i, k) => {
+    // A ring around the anchor, not a pile on top of it: the layout below only has to settle them.
+    const a = (2 * Math.PI * k) / fresh.length, r = 90 + (k % 3) * 45;
+    return { group: 'nodes', position: { x: near.x + Math.cos(a) * r, y: near.y + Math.sin(a) * r },
+      data: { id: String(i), label: mapLabel(i), color: LCOLOR[layerOf(i)] || '#7f8c8d', layer: layerOf(i), m: 1, w: 16 + Math.min(degree(i), 20) * 1.4 } };
+  });
+  for (const i of fresh) for (const e of [...OUT[i], ...IN[i]]) {
+    const [a, b, k, conf] = D.edges[e];
+    if (a === b || !mapEdgeOk(e) || !onMap.has(a) || !onMap.has(b)) continue;
+    const type = isBinding(e) ? 'binding' : TYPEISH.has(K[k]) ? 'type' : 'call';
+    // One line per pair and kind: twenty call sites between two methods are one relationship here,
+    // and the panel lists the twenty.
+    const id = `m${a}_${b}_${type}`; if (mapEdges.has(id)) continue; mapEdges.add(id);
+    els.push({ group: 'edges', data: { id, source: String(a), target: String(b), type, inferred: conf < 1 && type === 'call' } });
+  }
+  cy.add(els);
+  return fresh;
+}
+/** Settles newly added nodes without moving a single node that was already placed. */
+function settle(fresh) {
+  if (!fresh.length) return;
+  const old = cy.nodes().filter(n => !fresh.includes(+n.id()));
+  old.lock();
+  try { cy.layout({ ...COSE, randomize: false, fit: false, numIter: 400 }).run(); } finally { old.unlock(); }
+  applyLayers();
+}
+function buildMap() {
+  // Hubs with their best-connected neighbours, so the picture is made of neighbourhoods rather than
+  // unrelated dots — taken layer by layer in turn, because ranked by degree alone one layer takes
+  // everything: in mall a generated `addCriterion` repeats across seventy classes with hundreds of
+  // callers each, and no controller or service would make the cut.
+  const byLayer = new Map();
+  for (let i = 0; i < N; i++) {
+    const k = kindOf(i); if (k === 'field' || k === 'file' || fileOf(i)[2] || !degree(i)) continue;
+    const l = layerOf(i); if (!byLayer.has(l)) byLayer.set(l, []); byLayer.get(l).push(i);
+  }
+  const queues = [...byLayer.values()].map(a => a.sort((x, y) => degree(y) - degree(x) || x - y));
+  const pick = new Set();
+  for (let turn = 0; pick.size < MAP_SEED && queues.some(q => q.length); turn++) {
+    const q = queues[turn % queues.length]; const hub = q.shift(); if (hub == null || pick.has(hub)) continue;
+    pick.add(hub);
+    for (const n of neighboursOf(hub).filter(n => !fileOf(n)[2] && kindOf(n) !== 'field').slice(0, PER_HUB)) { if (pick.size >= MAP_SEED) break; pick.add(n); }
+  }
+  // A deterministic start — the same page opens the same way twice — on a spiral with each layer's
+  // symbols side by side, which the force layout then only has to relax.
+  const order = [...pick].sort((a, b) => layerOf(a).localeCompare(layerOf(b)) || a - b);
+  cy.batch(() => order.forEach((i, k) => mapAdd([i], { x: Math.cos(k * 2.39996) * 40 * Math.sqrt(k), y: Math.sin(k * 2.39996) * 40 * Math.sqrt(k) })));
+  cy.layout({ ...COSE, randomize: false, fit: false }).run();
+  fitFree();
+}
+function showMap() {
+  cy.elements().remove();
+  if (mapSnap) { cy.add(mapSnap.els); cy.viewport({ zoom: mapSnap.zoom, pan: mapSnap.pan }); } else buildMap();
+  applyLayers();
+}
+function mapSelect(i, centre) {
+  if (!onMap.has(i)) {
+    // Beside something it touches if anything it touches is drawn; otherwise in the middle of the view.
+    const anchor = neighboursOf(i).find(n => onMap.has(n));
+    const near = anchor != null ? cy.getElementById(String(anchor)).position()
+      : { x: (cy.width() / 2 - cy.pan().x) / cy.zoom(), y: (cy.height() / 2 - cy.pan().y) / cy.zoom() };
+    settle(mapAdd([i, ...neighboursOf(i).slice(0, PER_HUB)], { ...near }));
+  }
+  const n = cy.getElementById(String(i));
+  clearHi();
+  if (n.length) {
+    const hood = n.closedNeighborhood();
+    cy.elements().addClass('faded'); hood.removeClass('faded'); hood.nodes().addClass('hi'); hood.edges().addClass('hiedge');
+    if (centre) cy.animate({ center: { eles: n }, zoom: Math.max(cy.zoom(), 0.8) }, { duration: 250 });
+  }
+  mapNote(i);
+}
+function mapExpand(i) {
+  const missing = neighboursOf(i).filter(n => !onMap.has(n));
+  if (!missing.length) return;
+  settle(mapAdd(missing.slice(0, PER_EXPAND), { ...cy.getElementById(String(i)).position() }));
+  mapSelect(i, false);
+}
+/** What the picture leaves out, said on the picture. */
+function mapNote(i) {
+  const base = `Map: ${fmt(onMap.size)} of ${fmt(N)} symbols — the busiest neighbourhoods of each layer. Search reaches every symbol and brings it here.`;
+  if (i == null || i < 0) { $('trunc').textContent = base + ' Click a node to light up what it touches.'; return; }
+  if (!onMap.has(i)) { $('trunc').textContent = `The map is full (${fmt(MAP_MAX)} symbols), so ${S(i)[0]} is not drawn. The panel has everything about it; Trace draws it.`; return; }
+  const all = neighboursOf(i), missing = all.filter(n => !onMap.has(n)).length;
+  $('trunc').textContent = missing
+    ? `${fmt(missing)} of ${fmt(all.length)} neighbours of ${S(i)[0]} are not drawn — double-click it to pull ${missing > PER_EXPAND ? 'the busiest ' + PER_EXPAND : 'them'} in. The panel lists them all.`
+    : `Every neighbour of ${S(i)[0]} is drawn (${fmt(all.length)}).`;
+}
+function setView(v, sym = current) {
+  if (v === view) return;
+  if (view === 'map') mapSnap = { els: cy.elements().jsons(), zoom: cy.zoom(), pan: { ...cy.pan() } };
+  view = v; document.body.dataset.view = v;
+  $('vmap').classList.toggle('on', v === 'map'); $('vtrace').classList.toggle('on', v === 'trace');
+  if (v === 'trace') return focus(sym >= 0 ? sym : (HOT[0] ?? 0), false);
+  showMap();
+  if (sym >= 0) focus(sym, false); else { $('details').style.display = 'none'; clearHi(); mapNote(-1); }
 }
 
 // ---------- details ----------
@@ -490,11 +655,26 @@ document.addEventListener('click', e => {
   focus(+t.dataset.sym);
 });
 $('back').addEventListener('click', () => { if (trail.length) focus(trail.pop(), false); });
-$('fit').addEventListener('click', () => cy.fit(undefined, 60));
-const setDepth = d => { depth = d; $('d1').classList.toggle('on', d === 1); $('d2').classList.toggle('on', d === 2); if (current >= 0) draw(current); };
+$('fit').addEventListener('click', () => (view === 'map' ? fitFree() : cy.fit(undefined, 60)));
+const setDepth = d => { depth = d; $('d1').classList.toggle('on', d === 1); $('d2').classList.toggle('on', d === 2); if (view === 'trace' && current >= 0) draw(current); };
 $('d1').addEventListener('click', () => setDepth(1));
 $('d2').addEventListener('click', () => setDepth(2));
-$('struct').addEventListener('click', () => { showTypes = !showTypes; $('struct').classList.toggle('on', showTypes); if (current >= 0) draw(current); });
+$('struct').addEventListener('click', () => { showTypes = !showTypes; $('struct').classList.toggle('on', showTypes); if (view === 'trace' && current >= 0) draw(current); });
+$('vmap').addEventListener('click', () => setView('map'));
+$('vtrace').addEventListener('click', () => setView('trace'));
+$('relayout').addEventListener('click', () => { const l = cy.layout({ ...COSE, animate: true, randomize: false, fit: false, numIter: 1000 }); l.one('layoutstop', fitFree); l.run(); });
+$('hubs').addEventListener('click', () => {
+  clearHi();
+  const top = cy.nodes().sort((a, b) => degree(+b.id()) - degree(+a.id())).slice(0, 12);
+  cy.elements().addClass('faded'); top.removeClass('faded').addClass('hi'); top.connectedEdges().removeClass('faded').addClass('hiedge');
+});
+$('legend').addEventListener('click', e => {
+  const t = e.target.closest('[data-layer]'); if (!t) return;
+  const id = t.dataset.layer; if (!hiddenLayers.delete(id)) hiddenLayers.add(id);
+  t.classList.toggle('off', hiddenLayers.has(id)); applyLayers();
+});
+// Closing the panel lets go of the node, as a click on the background does.
+$('dclose').addEventListener('click', () => { if (view === 'map') { clearHi(); mapNote(-1); } });
 
 // ---------- details panel: drag, resize, minimise ----------
 let expandDetails = () => {};
