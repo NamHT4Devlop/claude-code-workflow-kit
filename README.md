@@ -31,7 +31,7 @@ claude-code-workflow-kit/
 │   └── cwk-document/       #   business↔code doc
 ├── agents/                  # 7 specialist sub-agents (planning + review)
 ├── resources/               # review-skills-universal.md, kb-steps.md
-├── hooks/                   # git-guard.sh + hooks.json (PreToolUse git guardrail)
+├── hooks/                   # file-guard.sh + hooks.json (PreToolUse: policy files stay read-only)
 ├── scripts/                 # personal-install.sh, onboard-project.sh, sync-bundles.sh
 ├── docs/                    # setup guides (HTML) + skill-anatomy.md (the standard skills follow)
 │                           #   + build-flow.md (the /cwk-build pipeline, step by step, with diagrams)
@@ -52,16 +52,16 @@ read-only specialists the build/review steps fan out to in parallel.
   recent version — if `/plugin` is unknown, update Claude Code first (`claude update` or
   reinstall from the official docs).
 - **git** installed (`git --version`) — needed to clone this repo and used by `rescan`/`review`.
-- **jq** installed (`jq --version`) — the git-guard hook reads each command as JSON through it.
-  `brew install jq` / `apt install jq`. **Without jq the guard refuses every command rather than
+- **jq** installed (`jq --version`) — the file-guard hook reads each tool call as JSON through it.
+  `brew install jq` / `apt install jq`. **Without jq the guard refuses every call rather than
   letting them through** — it fails closed by design, so a missing jq shows up immediately instead
-  of silently disabling the whitelist.
+  of silently disabling the guard.
 - **Access to this repository.** It is **public**, so anyone can clone it — no special access
   needed. The plugin itself needs **no API key** — it runs on your existing Claude Code.
 - Paths below use `~/.claude` (macOS/Linux). On **Windows** use `%USERPROFILE%\.claude`
   (PowerShell: `$HOME\.claude`).
 - **Windows, read this first.** Option A (plugin) works natively — it is all typed inside
-  Claude Code. The shell scripts in `scripts/` and the `hooks/git-guard.sh` hook are **bash**,
+  Claude Code. The shell scripts in `scripts/` and the `hooks/file-guard.sh` hook are **bash**,
   so they need **Git Bash** (ships with Git for Windows) or **WSL**. If you want a pure
   PowerShell install, use **Option B** below — it is plain file copying and needs no bash.
   There is no PowerShell port of `personal-install.sh`: it creates symlinks and merges
@@ -110,7 +110,7 @@ After install, commands are namespaced by the plugin (type `/` to see them):
 `/cwk:scan`, `/cwk:rescan`, `/cwk:build`, `/cwk:fix-bug`, `/cwk:review`, `/cwk:ask`,
 `/cwk:plan`, `/cwk:map`, `/cwk:system-map`, `/cwk:document`, `/cwk:help`.
 The 30 skills and 7 sub-agents load automatically (skills also activate from plain English), and the
-**git-guard hook ships with the plugin** (`hooks/hooks.json`) so it's active right after install.
+**file-guard hook ships with the plugin** (`hooks/hooks.json`) so it's active right after install.
 (The personal symlink install — Option C — exposes the same commands as `/cwk-build`, etc.)
 
 > **Team install:** commit/host this repo, then each teammate runs the two `/plugin` commands
@@ -158,7 +158,7 @@ Copy-Item -Recurse -Force <PLUGIN_DIR>\commands\* $HOME\.claude\commands\
 Copy-Item -Recurse -Force <PLUGIN_DIR>\agents\*   $HOME\.claude\agents\
 ```
 
-> The **git-guard hook is not installed by this route** on any platform — Option A ships it with the
+> The **file-guard hook is not installed by this route** on any platform — Option A ships it with the
 > plugin, Option C installs it via the script. On Windows without bash the hook cannot run at all;
 > rely on Claude Code's own permission prompts instead, and know that is a weaker guarantee.
 
@@ -203,9 +203,9 @@ git config --global core.excludesfile ~/.gitignore_global
 
 Rolling the kit out to a team, or getting it past a security review? Read
 **[`docs/company-setup-guide.html`](docs/company-setup-guide.html)** first. Part A is for the
-security team: what the kit is and is not, deploying `hooks/git-guard.sh` + `hooks/file-guard.sh`
-as policy from **managed settings** (root-owned, with the company's own `ALLOW_OWNERS`/`ALLOW_HOSTS`),
-a baseline `permissions.deny`, the permission mode per role, GitHub Enterprise Server / proxies /
+security team: what the kit is and is not, deploying `hooks/file-guard.sh` as policy from **managed
+settings** (root-owned), a baseline `permissions.deny` (which is also where git is restricted, if you
+want it restricted — the kit ships no git guard since 4.0.0), the permission mode per role, GitHub Enterprise Server / proxies /
 offline `vendor/`, Windows limits, KB **data classification** (`_meta.yml`, default `internal`),
 repository hygiene, the **audit trail** (`~/.claude/cwk-audit.jsonl`, shipped to a SIEM), KB
 freshness and depth, and a checklist to tick. Part B is the engineer's install. The one-line
@@ -224,7 +224,7 @@ summary is in [SECURITY.md](SECURITY.md#recommended-enterprise-hardening).
 ## Upgrading from 2.x (`namht-*` → `cwk-*`)
 
 Version 3.0.0 dropped the personal prefix. Commands are `/cwk:build` (plugin) or `/cwk-build`
-(personal), the artifact folder is `cwk-sessions/`, the hook is `hooks/cwk-git-guard.sh`. After
+(personal), the artifact folder is `cwk-sessions/`, the hook was `hooks/cwk-git-guard.sh` (retired in 4.0.0). After
 `git pull`: reinstall (Option A: uninstall `namht`, re-add the marketplace, install `cwk`; Option C:
 rerun `scripts/personal-install.sh`), run `scripts/migrate-sessions.sh <repo>` in each repo that has
 a `namht-sessions/`, add `cwk-sessions/` to `~/.gitignore_global`, and rename the hook in
@@ -575,8 +575,9 @@ step whose output exists.
 > `/cwk-map`) still degrade. `--permission-mode bypassPermissions` makes every step run — it also
 > permits any Bash command and network access, so use it only in a workspace you trust. The VS Code
 > panel defaults to `acceptEdits` too (and to a read-only tool allowlist in its `readonly` mode);
-> `bypassPermissions` there is opt-in and warned about. The git-guard hook applies in every mode, as
-> defence in depth, not a sandbox.
+> `bypassPermissions` there is opt-in and warned about. The file-guard hook applies in every mode, as
+> defence in depth, not a sandbox — and it does not restrict git, so under `bypassPermissions` a
+> destructive git command runs unasked.
 
 **2. Collect them into one hub repo, namespaced by project:**
 
@@ -700,7 +701,6 @@ The suite is weighted toward the parts that can do damage, not the parts that ar
 
 | Suite | Cases | Why it exists |
 |---|---:|---|
-| `git-guard.test.sh` | 148 | Every deny rule, every bypass ever found (each reproduced live before it was fixed: config redirects, `GIT_*`, `gh` writes, interpreter strings), every false positive ever reported, and the bare-`push`-resolved-from-cwd path against real fixture repos |
 | `kb-hub.test.sh` | 125 | Export/import move real Knowledge Bases between repos; also pins the page generator's escaping and CSP |
 | `file-guard.test.sh` | 50 | The hook that stops the agent rewriting its own policy files (`settings.json`, the hooks) and the credential stores beside them — file tools and shell writes blocked, reads and ordinary files untouched, a deny audited without the command text |
 | `kb-pipeline.test.sh` | 27 | `kb-pipeline.sh` spends real tokens over other people's repos — behind stubbed `claude` and `provenlens`, so a scan already done is never redone and `--dry-run` runs nothing |
@@ -709,7 +709,7 @@ The suite is weighted toward the parts that can do damage, not the parts that ar
 | `migrate-sessions.test.sh` | 21 | Renames a folder full of your past work |
 | `webview-markdown.test.cjs` | 18 | The panel renders model output as HTML; pins escaping and that only `http(s)` links become links |
 | `onboard.test.sh` | 14 | Writes into **other people's repos** (`.gitignore`, `CLAUDE.md`) |
-| `personal-install.test.sh` | 13 | The one script that **deletes** from `~/.claude` — including that a foreign symlink survives an uninstall |
+| `personal-install.test.sh` | 14 | The one script that **deletes** from `~/.claude` — including that a foreign symlink survives an uninstall |
 | `i18n.test.cjs` | 5 | Catches a card reworded out of its translation, and status text the host sends in English |
 | `consistency.test.sh` | 18 groups | Commands ↔ skills ↔ extension ↔ catalog ↔ counts ↔ the skill-anatomy trailer ↔ version sync (plugin, marketplace, changelog, README) ↔ zero footprint (no personal paths, e-mails or invisible characters ship) ↔ hooks wiring ↔ SHA-pinned Actions ↔ this table's own counts (each suite is re-run to check them) |
 
@@ -737,19 +737,10 @@ See **[SECURITY.md](SECURITY.md)** for the full audit. In short:
 - **Change discipline** is built into `cwk-build`/`cwk-review`: scope-locked, minimal diff,
   no drive-by refactors, verify-and-rollback (don't leave the build broken), confirm before
   destructive/outward actions, never touch secrets.
-- **Git guardrail (defence in depth):** a PreToolUse hook (`hooks/git-guard.sh`) + `permissions.deny`
-  allow read/sync-in git (fetch, pull, status, log, diff, show, blame, add, commit, `config --get`, …)
-  **plus `push` and `gh` writes only against a whitelisted personal repository** (`ALLOW_OWNER_RE`,
-  default `NamHT4Devlop/*`). It **blocks** push to any other (team/org) remote, `gh` writes there
-  (`pr merge/comment/review`, `issue create`, `repo delete`, `api` writes), config that can retarget
-  git (`-c remote.*`, `url.*.insteadOf`, `branch.*.pushRemote`, `alias.*`, `core.sshCommand`, …),
-  `GIT_*` overrides anywhere in the command, git or gh hidden in `sh -c`/`python -c` strings, and
-  destructive local git (`reset --hard`, `clean -f`, `checkout --`, `rebase`, `branch -D`, …) — with
-  shell quoting honoured and heredoc bodies ignored, so a commit message that mentions `git push`
-  is not a push. It is a guardrail for the agent's Bash tool, not a security boundary: it cannot see
-  inside a script it is asked to run, and nothing stops a tool other than Bash from editing the hook
-  itself. A company that needs it enforced installs it read-only from managed settings. See
-  [SECURITY.md](SECURITY.md#git-guardrail-hard-blocked-readsync-in-only).
+- **Git is not restricted by the kit** (since 4.0.0, when the git-guard hook was removed). The skills
+  tell the agent not to push during a build, not to run destructive git and to undo only with
+  `git stash` / `git apply -R`, but nothing enforces that. To restrict git, use Claude Code's own
+  `permissions.deny` — see [SECURITY.md](SECURITY.md#git--not-restricted-by-this-kit-since-400).
 - The real data-egress is the AI agent reading code (inherent to any AI assistant), fine under a
   company **Team/Enterprise** Claude plan. `knowledge-base/` and `cwk-sessions/`
   are gitignored machine-wide.

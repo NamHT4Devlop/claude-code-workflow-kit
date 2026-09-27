@@ -260,7 +260,7 @@ function renderForm(a, values) {
   const root = mount(); root.appendChild(nav());
   root.appendChild(el('h2', null, a.icon + '  ' + a.title));
   root.appendChild(el('p', 'muted', a.desc));
-  if (a.edits) root.appendChild(el('div', 'warn', '⚠ This changes code (auto-approve). Review the diff in Source Control afterwards; git-guard still blocks dangerous git.'));
+  if (a.edits) root.appendChild(el('div', 'warn', '⚠ This changes code (auto-approve). Review the diff in Source Control afterwards — nothing in the kit blocks git.'));
   const inputs = {};
   const mdl = modelSelect(values && values.__model != null ? values.__model : defaultModel);
   const collect = () => { const vals = {}; Object.keys(inputs).forEach(k => { const i = inputs[k]; vals[k] = i.type === 'checkbox' ? (i.checked ? 'yes' : '') : i.value.trim(); }); return vals; };

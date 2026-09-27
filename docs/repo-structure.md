@@ -1,7 +1,7 @@
 # claude-code-workflow-kit — repository structure
 
 The folder layout and file names of the kit, and what each area is for. **Structure only — no file
-contents.** Generated from `git ls-files` at commit `de28b7c`, 242 tracked files.
+contents.** Generated from `git ls-files` at commit `de28b7c`, 240 tracked files.
 
 Read this to know where a thing lives before you go looking for it, or to recreate the same shape in
 another repository.
@@ -24,8 +24,8 @@ generated, never hand-edited.
 | `agents/` | Read-only sub-agents the build and review steps call in parallel | 7 |
 | `resources/` | Canonical copies of shared files, mirrored into skills by `scripts/sync-bundles.sh` | 9 |
 | `scripts/` | Installers, the KB pipeline, the hub builder, diagram tooling, this scaffold | 15 |
-| `hooks/` | PreToolUse guardrails and their registration | 3 |
-| `tests/` | Self-tests, run by `tests/run.sh` | 13 |
+| `hooks/` | The file-guard PreToolUse hook and its registration | 2 |
+| `tests/` | Self-tests, run by `tests/run.sh` | 12 |
 | `docs/` | Setup guides and the reference pages, including this one | 8 |
 | `vendor/` | Hash-pinned third-party bundles used offline | 4 |
 | `vscode-extension/` | Optional panel that drives the local `claude` CLI | 12 |
@@ -92,7 +92,6 @@ claude-code-workflow-kit/
 │   └── skills-catalog.html
 ├── hooks/
 │   ├── file-guard.sh
-│   ├── git-guard.sh
 │   └── hooks.json
 ├── resources/
 │   ├── check-mermaid.cjs
@@ -314,7 +313,6 @@ claude-code-workflow-kit/
 ├── tests/
 │   ├── consistency.test.sh
 │   ├── file-guard.test.sh
-│   ├── git-guard.test.sh
 │   ├── i18n.test.cjs
 │   ├── kb-hub.test.sh
 │   ├── kb-pipeline.test.sh
@@ -446,11 +444,11 @@ bash scaffold-cwk.sh                      # → ./claude-code-workflow-kit/
 bash scaffold-cwk.sh my-docs-project      # → ./my-docs-project/
 ```
 
-It produces **242 files in 76 directories**, and the paths were diffed against the real repository —
+It produces **240 files in 76 directories**, and the paths were diffed against the real repository —
 they match exactly.
 
 Nothing is overwritten. Re-running it after you have started filling files in reports
-`0 file(s) created, 242 already present` and leaves your work alone, so it is safe to run again when
+`0 file(s) created, 240 already present` and leaves your work alone, so it is safe to run again when
 the structure grows.
 
 To turn the result into a git repository:
@@ -461,7 +459,7 @@ git init -b main && git add -A && git commit -m "Scaffold: kit structure"
 ```
 
 Note that `git add` ignores empty files by default in the sense that it stores them as empty blobs —
-they are committed, but a reviewer sees 242 empty files. If you would rather commit only what you
+they are committed, but a reviewer sees 240 empty files. If you would rather commit only what you
 have written, fill the files first and commit in batches.
 
 ### Regenerating the script from a real repository

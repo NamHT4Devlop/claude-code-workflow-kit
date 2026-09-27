@@ -74,7 +74,6 @@ docs/setup-guide.html
 docs/skill-anatomy.md
 docs/skills-catalog.html
 hooks/file-guard.sh
-hooks/git-guard.sh
 hooks/hooks.json
 resources/check-mermaid.cjs
 resources/html-builder.js
@@ -232,7 +231,6 @@ skills/cwk-user-story/references/render-html.cjs
 skills/cwk-user-story/references/untrusted-input.md
 tests/consistency.test.sh
 tests/file-guard.test.sh
-tests/git-guard.test.sh
 tests/i18n.test.cjs
 tests/kb-hub.test.sh
 tests/kb-pipeline.test.sh

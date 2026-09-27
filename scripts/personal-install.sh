@@ -40,11 +40,12 @@ unlink_ours() {
 if [ "${1:-install}" = "uninstall" ]; then
   echo "▶  Uninstalling (personal)…"
   unlink_ours
-  for h in cwk-git-guard.sh namht-git-guard.sh; do   # the 2.x name too
+  # cwk-git-guard.sh / namht-git-guard.sh are links to a hook this kit no longer ships (removed in 4.0.0).
+  for h in cwk-file-guard.sh cwk-git-guard.sh namht-git-guard.sh; do
     [ -L "$DEST/hooks/$h" ] && rm -f "$DEST/hooks/$h" && echo "   - removed hooks/$h"
   done
   echo "✔  Done. Removed our symlinks from $DEST — your repos were never touched."
-  echo "   NOTE: the git-guard hook+deny entries in $DEST/settings.json are left as-is — remove them by hand if you want."
+  echo "   NOTE: any hook or permissions entries in $DEST/settings.json are left as-is — remove them by hand if you want."
   exit 0
 fi
 
@@ -61,26 +62,24 @@ for f in "$SRC"/commands/*.md; do [ -f "$f" ] && ln -sfn "$f"     "$DEST/command
 
 echo "   ✅ linked $n_s skills, $n_a agents, $n_c commands"
 
-# ── guard hooks: git-guard (git/gh policy) + file-guard (policy files and credentials stay read-only) ──
+# ── guard hook: file-guard (policy files and credentials stay read-only to the agent) ──
 mkdir -p "$DEST/hooks"
-ln -sfn "$SRC/hooks/git-guard.sh" "$DEST/hooks/cwk-git-guard.sh"
 ln -sfn "$SRC/hooks/file-guard.sh" "$DEST/hooks/cwk-file-guard.sh"
-echo "   ✅ linked hooks/cwk-git-guard.sh and hooks/cwk-file-guard.sh"
-# A 2.x install armed settings.json with hooks/namht-git-guard.sh. Removing that link would not
-# disarm anything visibly — a hook whose file is gone just stops running — so keep the old name
-# alive as an alias until settings.json names the new one.
-if [ -L "$DEST/hooks/namht-git-guard.sh" ]; then
-  ln -sfn "$SRC/hooks/git-guard.sh" "$DEST/hooks/namht-git-guard.sh"
-  echo "   ⚠  kept the 2.x alias hooks/namht-git-guard.sh — point settings.json at hooks/cwk-git-guard.sh, then uninstall/install once to drop it"
+echo "   ✅ linked hooks/cwk-file-guard.sh"
+# The git-guard hook was removed in 4.0.0. Its old links now point at nothing; drop them, and say so if
+# settings.json still names one — a registered hook whose file is gone fails on every Bash call.
+for h in cwk-git-guard.sh namht-git-guard.sh; do
+  [ -L "$DEST/hooks/$h" ] && rm -f "$DEST/hooks/$h" && echo "   - removed the retired link hooks/$h"
+done
+if [ -f "$DEST/settings.json" ] && grep -q 'git-guard' "$DEST/settings.json"; then
+  echo "   ⚠  $DEST/settings.json still registers the retired git-guard hook. Remove that entry:"
+  echo "        jq '.hooks.PreToolUse |= map(select(any(.hooks[]; .command | test(\"git-guard\")) | not))' \\"
+  echo "          $DEST/settings.json > /tmp/s.json && mv /tmp/s.json $DEST/settings.json"
 fi
-echo "   ⚠  To ARM the guards, add this to $DEST/settings.json (one time; see SECURITY.md for the full snippet):"
-echo '        hooks.PreToolUse += { "matcher":"Bash", "hooks":[{"type":"command",'
-echo "          \"command\":\"$DEST/hooks/cwk-git-guard.sh\",\"timeout\":10},{\"type\":\"command\","
+echo "   ⚠  To ARM the file guard, add this to $DEST/settings.json (one time; see SECURITY.md):"
+echo '        hooks.PreToolUse += { "matcher":"Bash|Edit|Write|MultiEdit|NotebookEdit", "hooks":[{"type":"command",'
 echo "          \"command\":\"$DEST/hooks/cwk-file-guard.sh\",\"timeout\":10}] }"
-echo '        hooks.PreToolUse += { "matcher":"Edit|Write|MultiEdit|NotebookEdit", "hooks":[{"type":"command",'
-echo "          \"command\":\"$DEST/hooks/cwk-file-guard.sh\",\"timeout\":10}] }"
-echo '        permissions.deny += "Bash(git reset --hard:*)", "Bash(git rebase:*)", … (see SECURITY.md)'
-echo "   A company deploys both hooks read-only from managed settings instead — see docs/company-setup-guide.html."
+echo "   A company deploys the hook read-only from managed settings instead — see docs/company-setup-guide.html."
 
 echo "✔  Done. Open Claude Code in any project and use /cwk-build, /cwk-ask, /cwk-review, …"
 echo "   Upgrading from 2.x? Rename each repo's namht-sessions/ with scripts/migrate-sessions.sh and add cwk-sessions/ to ~/.gitignore_global."

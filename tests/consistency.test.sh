@@ -247,7 +247,6 @@ for ag in agents/*.md; do
 done
 # the two escape hatches the audit found must not come back
 grep -qi "auto-send" skills/cwk-splunk-report/SKILL.md && { echo "  ✗ cwk-splunk-report has an auto-send escape hatch again"; bad=1; }
-grep -qi "trips the git-guard" skills/cwk-skillify/SKILL.md && { echo "  ✗ cwk-skillify explains how to get around the git-guard again"; bad=1; }
 [ "$bad" -eq 0 ] && echo "  ✓ every skill cites untrusted-input.md; every agent carries the prompt defence baseline" || fail=1
 
 # One version, four places. plugin.json is the source of truth; the marketplace entry, the newest

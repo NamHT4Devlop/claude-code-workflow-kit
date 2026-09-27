@@ -31,9 +31,10 @@
 # Steps that shell out — the HTML render, git reads, /cwk-map — still need Bash approval and will be
 # skipped or degrade under it. `--permission-mode bypassPermissions` is what makes every step run,
 # and is what the VS Code panel uses; it also permits ANY Bash command, writes outside the workspace
-# and network calls, so it belongs in a workspace you trust. The git-guard hook still applies in
-# either mode (PreToolUse runs before the permission check), but that is defence in depth, not a
-# sandbox. Whichever mode is in effect is printed in the plan before you confirm.
+# and network calls, so it belongs in a workspace you trust. The file-guard hook still applies in
+# either mode (PreToolUse runs before the permission check), but it guards policy and credential
+# files only: since 4.0.0 nothing in the kit restricts git, so under bypassPermissions a destructive
+# git command runs unasked. Whichever mode is in effect is printed in the plan before you confirm.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

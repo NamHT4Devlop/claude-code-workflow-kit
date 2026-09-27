@@ -50,15 +50,15 @@ user story / acceptance criteria the bug violated.
 - **Safety net — before the first edit.** `git status --porcelain` (ask the user to commit/stash their
   own work first); run the relevant gates once and record **which tests were already failing**; save
   `git diff HEAD > <session>/00-pre-change.patch`. To undo use ONLY `git stash push -u` or
-  `git apply -R <your diff>` — the git-guard denies `git restore`, `git checkout .`/`--`,
-  `git reset --hard`, `git clean -f`. A test red before you started is not your regression.
+  `git apply -R <your diff>` — never `git restore`, `git checkout .`/`--`, `git reset --hard`
+  or `git clean -f`, which throw away the user's uncommitted work along with yours. A test red before you started is not your regression.
 - **Cover the untested consumers, or say you didn't.** For every blast-radius consumer from Step 6 with
   **no covering test**, either add a `[REGRESSION]` test asserting its OLD behavior still holds, or run
   one independent `cwk-business-consistency-reviewer` sub-agent on the diff (give it the consumer
   list + KB rules, not your reasoning). List each consumer and how it was checked — "related tests
   passed" is not coverage of an untested consumer. If a gate cannot run, write `NOT RUN (<reason>)` and
   mark the hotfix **UNVERIFIED**.
-- **Never deploy/push.** Produce the fix + test locally; the human deploys. (git-guard blocks pushes.)
+- **Never deploy/push.** Produce the fix + test locally; the human deploys.
 
 ### provenlens (optional)
 `.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves

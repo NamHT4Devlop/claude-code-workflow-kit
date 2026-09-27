@@ -76,8 +76,8 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
   references via sync) so audit/tests stay green — don't invent a new structure.
 - Keep the new skill focused (one job) and the description trigger-friendly.
 - Don't duplicate an existing skill — check `commands/` first; extend instead if overlap.
-- The git-guard (`hooks/git-guard.sh`) is a boundary, not an obstacle: a new skill never rewords,
-  splits or quotes a command to get past it, and never tells the user how to. If the guard blocks a
+- A guard hook or a permission rule is a boundary, not an obstacle: a new skill never rewords,
+  splits or quotes a command to get past one, and never tells the user how to. If one blocks a
   step, stop and say so — the user runs it themselves in a terminal if they want it run.
 
 ## Untrusted input

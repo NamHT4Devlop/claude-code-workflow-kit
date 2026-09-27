@@ -137,8 +137,8 @@ This is what keeps the tool from "breaking the project" or making rambling edits
 - **Git: don't push as part of a build; read/sync-in only.** Use `git` for fetch, pull, status,
   log, diff, show, blame, **stash**, **apply** (and local `add`/`commit` when the user asks). Do not
   `push` during a build, and never run destructive git (`reset --hard`, `clean -f`,
-  `checkout --`/`.`, `restore`, `rebase`, `branch -D`, `commit --amend`). A harness git-guard hook
-  enforces this. Don't work around it; if unsure, ask the user.
+  `checkout --`/`.`, `restore`, `rebase`, `branch -D`, `commit --amend`): each one throws work away
+  or rewrites history with no way back. If unsure, ask the user.
 
 ## Step 0 — Clarify (gate) — **answer from evidence first, ask only what's left**
 Do the homework before you spend the user's attention. For every open question, try in this order:
@@ -228,7 +228,8 @@ For a change that hit the plan-approval gate, show the final plan to the user an
 
 ## Step 3.5 — Safety net (MUST complete before the first edit)
 Both "compare against a baseline" (Step 11) and "revert" (change discipline) are impossible without
-this, and the git commands that would otherwise undo your work are blocked by the git-guard.
+this. The shortcuts — `reset --hard`, `restore`, `checkout .` — undo the user's uncommitted work along
+with yours, so they are not a revert.
 1. **Clean tree.** Run `git status --porcelain`. If the user has uncommitted work, ask them to commit
    or stash first — you must not risk their changes.
 2. **Baseline the gates.** Run the narrowest relevant gates once (typecheck/lint + the test files

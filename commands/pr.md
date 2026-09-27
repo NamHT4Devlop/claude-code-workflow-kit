@@ -10,7 +10,6 @@ Use the **cwk-pr** skill.
 - **"review <PR number or URL>":** fetch the PR diff (`gh pr diff`) and run a two-phase review
   (quality checklist + business consistency vs KB) with blast radius.
 
-Never push/merge/create/comment on the remote unless I explicitly ask (the git-guard blocks
-remote-mutating git regardless).
+Never push/merge/create/comment on the remote unless I explicitly ask.
 
 Argument: $ARGUMENTS

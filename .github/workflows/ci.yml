@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
-      # tests/run.sh covers: bundle sync, git-guard (every deny rule and bypass), smoke,
+      # tests/run.sh covers: bundle sync, file-guard, smoke,
       # skill-name==folder, consistency (commands ↔ skills ↔ extension ↔ docs ↔ counts ↔ version
       # sync ↔ zero footprint ↔ hooks wiring ↔ SHA-pinned actions ↔ the README test table),
       # fixtures for every script that touches things outside the repo (migrate-sessions,

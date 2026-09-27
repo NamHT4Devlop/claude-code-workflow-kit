@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # file-guard.sh — Claude Code PreToolUse hook (Edit · Write · MultiEdit · NotebookEdit · Bash).
 #
-# The git-guard decides what git and gh may do. Nothing stopped the agent from editing the
-# git-guard itself, or settings.json, or ~/.gitconfig, and then doing whatever it liked. This hook
-# closes that: the files that define the policy, and the credential stores next to them, cannot be
-# written by the agent — not with Edit/Write, and not through a shell command.
+# The files that define what the agent may do, and the credential stores next to them, cannot be
+# written by the agent — not with Edit/Write, and not through a shell command. Without that, an agent
+# could edit settings.json or a hook and then do whatever it liked.
 #
 #   • Edit/Write/MultiEdit/NotebookEdit on a protected path  → BLOCKED
 #   • Bash that writes to a protected path                     → BLOCKED: any segment that names a
@@ -16,7 +15,10 @@
 # ~/.config/git/*, any .git/config and .git/hooks/*, ~/.ssh/*, ~/.aws/*, ~/.config/gh/*, ~/.netrc,
 # and the audit log.
 #
-# Same limits as the git-guard: it reads the text of one tool call. A script file it is asked to
+# git itself is not policed (see the `git)` case below): since 4.0.0 the kit restricts no git
+# command, so `git config` can still write ~/.gitconfig and .git/config.
+#
+# Its limit: it reads the text of one tool call. A script file it is asked to
 # run is opaque to it. Fails closed without jq.
 
 input=$(cat)
@@ -43,7 +45,7 @@ squash() {
 }
 HOME_DIR=$(squash "$HOME_DIR"); cwd=$(squash "$cwd"); [ -n "$SELF_DIR" ] && SELF_DIR=$(squash "$SELF_DIR")
 
-# ── audit log (shared shape with git-guard; never the command text) ─────────
+# ── audit log (one JSON line per deny; never the command text) ─────────────
 audit() { # <decision> <reason>
   local log=${CWK_AUDIT_LOG:-$HOME_DIR/.claude/cwk-audit.jsonl}
   [ "$log" = off ] && return 0
@@ -121,7 +123,7 @@ unq() {
   printf '%s' "$t"
 }
 
-# Quote-aware tokeniser, segments split on unquoted ; && || | & and newlines (same as git-guard).
+# Quote-aware tokeniser, segments split on unquoted ; && || | & and newlines.
 TOK=(); SEGOF=()
 tokenise() {
   local s=$1 i=0 n=${#1} ch cur="" q="" seg=0 have=0
@@ -199,7 +201,7 @@ while [ $i -lt $NTOK ]; do
     sed|gsed) for t in "${toks[@]}"; do case "$(unq "$t")" in -i*|--in-place*) deny "sed -i on protected file $hit";; esac; done; continue;;
     awk|gawk) for t in "${toks[@]}"; do case "$(unq "$t")" in -i|--in-place|inplace) deny "awk in-place on protected file $hit";; esac; done; continue;;
     find) for t in "${toks[@]}"; do case "$(unq "$t")" in -delete|-exec|-execdir|-ok|-okdir) deny "find $(unq "$t") under protected path $hit";; esac; done; continue;;
-    git) continue;;   # git's own writes are the git-guard's business
+    git) continue;;   # git is not policed here; the kit restricts no git command since 4.0.0
   esac
   deny "'$cmdword' on protected file $hit (only reads are allowed there)"
 done

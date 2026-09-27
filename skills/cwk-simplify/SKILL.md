@@ -84,8 +84,8 @@ reviewable. Optionally save `cwk-sessions/simplify/<area>-<date>.md`.
 - **Safety net — before the first edit.** Run `git status --porcelain` (ask the user to commit or stash
   their own work first); run the relevant gates once and record **which tests were already failing**;
   save `git diff HEAD > <session>/00-pre-change.patch`. To undo later use ONLY `git stash push -u` or
-  `git apply -R <your diff>` — the git-guard denies `git restore`, `git checkout .`/`--`,
-  `git reset --hard`, `git clean -f`. A test that was red before you started is not your regression.
+  `git apply -R <your diff>` — never `git restore`, `git checkout .`/`--`, `git reset --hard`
+  or `git clean -f`, which throw away the user's uncommitted work along with yours. A test that was red before you started is not your regression.
 - Change-discipline: scope-lock, verify + rollback, never touch secrets, confirm before destructive actions.
 
 ## Common rationalizations

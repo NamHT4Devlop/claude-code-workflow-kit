@@ -85,8 +85,8 @@ with per-step rollback, migration scripts, and the deprecation timeline.
   here, or via `/cwk-qa-integration` against a running app. **Never contract on a design document.**
 - **Safety net — before the first edit.** `git status --porcelain` (ask the user to commit/stash first)
   and save `git diff HEAD > <session>/00-pre-change.patch`. To undo use ONLY `git stash push -u` or
-  `git apply -R <your diff>` — the git-guard denies `git restore`, `git checkout .`/`--`,
-  `git reset --hard`, `git clean -f`. (Note this is separate from a **DB** rollback: every migration
+  `git apply -R <your diff>` — never `git restore`, `git checkout .`/`--`, `git reset --hard`
+  or `git clean -f`, which throw away the user's uncommitted work along with yours. (Note this is separate from a **DB** rollback: every migration
   step still needs its own reversible down-migration.)
 - Change-discipline: scope-lock, minimal diff, verify + rollback, never touch secrets, confirm outward/destructive actions.
 

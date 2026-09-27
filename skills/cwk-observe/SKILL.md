@@ -97,8 +97,8 @@ and example queries/dashboards it enables.
   log-parsing tests/dashboards still match any field name you changed.
 - **Safety net — before the first edit.** `git status --porcelain` (ask the user to commit/stash first)
   and save `git diff HEAD > <session>/00-pre-change.patch`. To undo use ONLY `git stash push -u` or
-  `git apply -R <your diff>` — the git-guard denies `git restore`, `git checkout .`/`--`,
-  `git reset --hard`, `git clean -f`.
+  `git apply -R <your diff>` — never `git restore`, `git checkout .`/`--`, `git reset --hard`
+  or `git clean -f`, which throw away the user's uncommitted work along with yours.
 - Change-discipline: minimal diff, verify + rollback, confirm outward actions, never touch secrets.
 
 ## Common rationalizations

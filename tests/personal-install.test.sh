@@ -22,7 +22,7 @@ repo_skills=$(ls -d skills/cwk-*/ | wc -l | tr -d ' ')
 check "every skill linked"        "$skills" "$repo_skills"
 check "commands carry the cwk- prefix" "$([ -e "$CWK_CLAUDE_DIR/commands/cwk-build.md" ] && echo yes || echo no)" yes
 check "links are symlinks, not copies"   "$([ -L "$CWK_CLAUDE_DIR/skills/cwk-build" ] && echo yes || echo no)" yes
-check "the guard hook is installed"      "$([ -e "$CWK_CLAUDE_DIR/hooks/cwk-git-guard.sh" ] && echo yes || echo no)" yes
+check "the file guard hook is installed" "$([ -e "$CWK_CLAUDE_DIR/hooks/cwk-file-guard.sh" ] && echo yes || echo no)" yes
 
 echo "personal-install: re-running is idempotent"
 before=$(find "$CWK_CLAUDE_DIR" -maxdepth 2 | sort | md5 2>/dev/null || find "$CWK_CLAUDE_DIR" -maxdepth 2 | sort | md5sum)
@@ -42,13 +42,18 @@ check "foreign symlink survived"  "$([ -L "$CWK_CLAUDE_DIR/skills/my-own-skill" 
 check "foreign target untouched"  "$([ -f "$TMP/elsewhere/my-own-skill/SKILL.md" ] && echo yes || echo no)" yes
 check "foreign real file survived" "$([ -f "$CWK_CLAUDE_DIR/commands/my-command.md" ] && echo yes || echo no)" yes
 
-echo "personal-install: a 2.x hook alias is kept alive on install and removed on uninstall"
-mkdir -p "$CWK_CLAUDE_DIR/hooks"; ln -sfn "$PWD/hooks/git-guard.sh" "$CWK_CLAUDE_DIR/hooks/namht-git-guard.sh"
-"$INSTALL" >/dev/null 2>&1
-check "new hook name linked"   "$([ -L "$CWK_CLAUDE_DIR/hooks/cwk-git-guard.sh" ] && echo yes || echo no)" yes
-check "2.x alias still resolves" "$([ -f "$CWK_CLAUDE_DIR/hooks/namht-git-guard.sh" ] && echo yes || echo no)" yes
+echo "personal-install: links to the retired git-guard hook are removed, and a stale registration is reported"
+mkdir -p "$CWK_CLAUDE_DIR/hooks"
+ln -sfn "$TMP/retired.sh" "$CWK_CLAUDE_DIR/hooks/cwk-git-guard.sh"
+ln -sfn "$TMP/retired.sh" "$CWK_CLAUDE_DIR/hooks/namht-git-guard.sh"
+printf '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"x/cwk-git-guard.sh"}]}]}}' > "$CWK_CLAUDE_DIR/settings.json"
+out=$("$INSTALL" 2>&1)
+check "cwk-git-guard link removed"   "$([ -L "$CWK_CLAUDE_DIR/hooks/cwk-git-guard.sh" ] && echo yes || echo no)" no
+check "namht-git-guard link removed" "$([ -L "$CWK_CLAUDE_DIR/hooks/namht-git-guard.sh" ] && echo yes || echo no)" no
+check "stale registration reported"  "$(printf '%s' "$out" | grep -c 'still registers the retired git-guard')" 1
+rm -f "$CWK_CLAUDE_DIR/settings.json"
 "$INSTALL" uninstall >/dev/null 2>&1
-check "2.x alias removed on uninstall" "$([ -e "$CWK_CLAUDE_DIR/hooks/namht-git-guard.sh" ] && echo yes || echo no)" no
+check "file guard link removed on uninstall" "$([ -L "$CWK_CLAUDE_DIR/hooks/cwk-file-guard.sh" ] && echo yes || echo no)" no
 
 echo "personal-install: the real ~/.claude was never a target"
 check "override honoured" "$(printf '%s' "$CWK_CLAUDE_DIR" | grep -c "^$TMP")" 1

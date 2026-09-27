@@ -53,7 +53,7 @@ The two phases below say *what* the review must cover; the protocol says how to 
      - else on a **feature branch** (current ≠ default) → review the branch vs default:
        `git diff <default>...HEAD` (everything the branch introduced since it diverged) + `git log <default>..HEAD`;
      - else (clean tree, on the default branch) → ask what to review, or default to the last commit (`git show HEAD`).
-  All of the above are **read-only** git/`gh` (allowed by the git-guard).
+  All of the above are **read-only** git/`gh`.
 - **Checklist**: load `knowledge-base/review-skills.md` from the repo if present (it has
   the universal checklist + project-specific **Section 14** — highest priority). If absent,
   use the bundled `references/review-skills-universal.md`. Mention which source you used and

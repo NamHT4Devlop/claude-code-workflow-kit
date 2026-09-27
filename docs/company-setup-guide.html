@@ -135,40 +135,33 @@ grep -rnE "child_process|execSync|spawn|\beval\(|new Function|http\.|https\.|fet
 bash tests/run.sh          <span class="cmt"># every guard rule and every script that writes outside the repo is pinned by a test</span></code></pre></div>
 
   <!-- A2 -->
-  <h2 id="a2">A2. Deploying the guards as policy</h2>
-  <p>Two PreToolUse hooks ship with the kit. Installed by an engineer in their own <code>~/.claude/settings.json</code>
-  they are a habit; installed by you from <b>managed settings</b>, with the hook files owned by root/admin, they are
+  <h2 id="a2">A2. Deploying the file guard as policy</h2>
+  <p>One PreToolUse hook ships with the kit. Installed by an engineer in their own <code>~/.claude/settings.json</code>
+  it is a habit; installed by you from <b>managed settings</b>, with the hook file owned by root/admin, it is
   policy the user and the agent cannot remove.</p>
   <table>
     <thead><tr><th>Hook</th><th>Matcher</th><th>What it does</th></tr></thead>
     <tbody>
-      <tr><td><code>hooks/git-guard.sh</code></td><td><code>Bash</code></td><td>Allows read/sync-in git (<code>fetch · pull · status · log · diff · add · commit …</code>) and <code>gh</code> reads; <b>denies</b> <code>push</code> and <code>gh</code> writes to any repository outside the whitelist, every way of retargeting git (<code>remote</code>, <code>-c</code>/<code>config</code> outside a key allowlist, <code>GIT_*=</code>, <code>url.*.insteadOf</code>), git/gh hidden in <code>sh -c</code>/<code>python -c</code> strings, and destructive local git (<code>reset --hard</code>, <code>clean -f</code>, <code>rebase</code>, <code>branch -D</code>, <code>commit --amend</code> …). Fails closed without <code>jq</code>.</td></tr>
-      <tr><td><code>hooks/file-guard.sh</code></td><td><code>Edit|Write|MultiEdit|NotebookEdit</code> and <code>Bash</code></td><td>Blocks Edit/Write and shell writes to <code>settings.json</code>, the hooks, <code>~/.gitconfig</code>, <code>.git/config</code>, <code>~/.ssh</code>, <code>~/.aws</code> (and <code>~/.config/gh</code>, <code>~/.netrc</code>, the audit log). Reads stay allowed. Fails closed without <code>jq</code>.</td></tr>
+      <tr><td><code>hooks/file-guard.sh</code></td><td><code>Edit|Write|MultiEdit|NotebookEdit</code> and <code>Bash</code></td><td>Blocks Edit/Write and shell writes to <code>settings.json</code>, the hooks, <code>~/.gitconfig</code>, <code>.git/config</code>, <code>~/.ssh</code>, <code>~/.aws</code> (and <code>~/.config/gh</code>, <code>~/.netrc</code>, the audit log). Reads stay allowed. git commands are not inspected. Fails closed without <code>jq</code>.</td></tr>
     </tbody>
   </table>
+  <div class="box danger"><div class="ti">⚠️ The kit does not restrict git (since 4.0.0)</div>
+    Up to 3.x the kit shipped a git guard that limited pushes to a whitelist and refused destructive git. It was removed.
+    The agent may now run any git or <code>gh</code> command its permission mode allows — <code>push</code> to any remote,
+    <code>push --force</code>, <code>reset --hard</code>, <code>rebase</code>. If your policy needs git restricted, do it with the
+    <code>permissions.deny</code> rules in step 2: those are enforced by Claude Code itself, not by this kit.</div>
 
   <div class="step"><div class="num">1</div><div class="body">
-    <h3>Install the hook files read-only, owned by root/admin</h3>
+    <h3>Install the hook file read-only, owned by root/admin</h3>
     <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># macOS / Linux — from a reviewed checkout of the kit, pinned to a tag</span>
 sudo mkdir -p /usr/local/lib/cwk
-sudo install -o root -g wheel -m 0755 hooks/git-guard.sh  /usr/local/lib/cwk/git-guard.sh    <span class="cmt"># Linux: -g root</span>
-sudo install -o root -g wheel -m 0755 hooks/file-guard.sh /usr/local/lib/cwk/file-guard.sh
+sudo install -o root -g wheel -m 0755 hooks/file-guard.sh /usr/local/lib/cwk/file-guard.sh   <span class="cmt"># Linux: -g root</span>
 ls -l /usr/local/lib/cwk/                       <span class="cmt"># -rwxr-xr-x root … — nobody but root can rewrite the policy</span>
-which jq || echo "install jq: both hooks deny everything without it"</code></pre></div>
+which jq || echo "install jq: the hook denies everything without it"</code></pre></div>
   </div></div>
 
   <div class="step"><div class="num">2</div><div class="body">
-    <h3>Set the company whitelist in the root-owned copy</h3>
-    <p>The whitelist lives <b>inside</b> <code>git-guard.sh</code> on purpose — an environment variable would be one more
-    thing the agent could set. Edit the two lines at the top of the copy you just installed
-    (they compose <code>ALLOW_OWNER_RE</code> and <code>ALLOW_GH_REPO_RE</code>):</p>
-    <div class="cb"><button class="copy">Copy</button><pre><code>ALLOW_OWNERS='acme-org|acme-platform'       <span class="cmt"># GitHub orgs/users the agent may push to (regex alternatives)</span>
-ALLOW_HOSTS='github\.com|ghe\.acme\.example'  <span class="cmt"># github.com and/or your GitHub Enterprise host</span>
-<span class="cmt"># strictest: ALLOW_OWNERS='__NONE__' — the agent pushes nowhere; engineers push from their own terminal</span></code></pre></div>
-  </div></div>
-
-  <div class="step"><div class="num">3</div><div class="body">
-    <h3>Wire both hooks and the deny list from managed settings</h3>
+    <h3>Wire the hook and the deny list from managed settings</h3>
     <p>Path per OS: <code>/Library/Application Support/ClaudeCode/managed-settings.json</code> (macOS) ·
     <code>/etc/claude-code/managed-settings.json</code> (Linux/WSL) · <code>C:\Program Files\ClaudeCode\managed-settings.json</code>
     (Windows). Claude Code applies this file above every user, project and <code>--settings</code> value; hooks and
@@ -176,10 +169,6 @@ ALLOW_HOSTS='github\.com|ghe\.acme\.example'  <span class="cmt"># github.com and
     <div class="cb"><button class="copy">Copy</button><pre><code>{
   "permissions": {
     "deny": [
-      "Bash(git remote add:*)", "Bash(git remote set-url:*)", "Bash(git remote remove:*)",
-      "Bash(git reset --hard:*)", "Bash(git clean -f:*)", "Bash(git rebase:*)",
-      "Bash(git commit --amend:*)", "Bash(git restore:*)", "Bash(git branch -D:*)",
-      "Bash(git send-email:*)",
       "Read(~/.ssh/**)", "Read(~/.aws/**)", "Read(**/.env)", "Read(**/.env.*)",
       "Bash(curl *| sh*)", "Bash(curl *| bash*)", "Bash(wget *| sh*)", "Bash(sudo:*)",
       "WebFetch"
@@ -187,35 +176,18 @@ ALLOW_HOSTS='github\.com|ghe\.acme\.example'  <span class="cmt"># github.com and
   },
   "hooks": {
     "PreToolUse": [
-      { "matcher": "Bash", "hooks": [
-        { "type": "command", "command": "/usr/local/lib/cwk/git-guard.sh",  "timeout": 10 },
-        { "type": "command", "command": "/usr/local/lib/cwk/file-guard.sh", "timeout": 10 } ] },
-      { "matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [
+      { "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit", "hooks": [
         { "type": "command", "command": "/usr/local/lib/cwk/file-guard.sh", "timeout": 10 } ] }
     ]
   }
 }</code></pre></div>
-    <p class="muted">There is deliberately no blanket <code>Bash(git push:*)</code> deny: the hook decides a push by its
-    <i>target</i>, so pushes to the whitelisted org still work. Verify on a machine after a Claude Code restart:</p>
-    <div class="cb"><button class="copy">Copy</button><pre><code>printf '{"tool_name":"Bash","tool_input":{"command":"git push https://github.com/some-other-org/x"}}' | /usr/local/lib/cwk/git-guard.sh
-<span class="cmt"># → {"hookSpecificOutput":{…"permissionDecision":"deny"…}}   (a push to the whitelisted org prints nothing = allowed)</span>
-printf '{"tool_name":"Write","tool_input":{"file_path":"%s/.claude/settings.json"}}' "$HOME" | /usr/local/lib/cwk/file-guard.sh
+    <p class="muted">To restrict git as well, add rules such as <code>"Bash(git push:*)"</code>, <code>"Bash(git reset --hard:*)"</code>,
+    <code>"Bash(git rebase:*)"</code>, <code>"Bash(git commit --amend:*)"</code>, <code>"Bash(git branch -D:*)"</code>,
+    <code>"Bash(git remote set-url:*)"</code> to <code>deny</code>. A deny rule matches command text, so it is all-or-nothing:
+    it cannot allow a push to one organisation and refuse another. Verify on a machine after a Claude Code restart:</p>
+    <div class="cb"><button class="copy">Copy</button><pre><code>printf '{"tool_name":"Write","tool_input":{"file_path":"%s/.claude/settings.json"}}' "$HOME" | /usr/local/lib/cwk/file-guard.sh
 <span class="cmt"># → …"permissionDecision":"deny"…</span></code></pre></div>
   </div></div>
-
-  <div class="box danger">
-    <div class="ti">⛔ What the guard cannot do — verbatim from <code>SECURITY.md</code></div>
-    <blockquote class="verbatim">Treat it as <b>best-effort defence in depth, not a security boundary</b>. What it cannot do, stated
-    plainly: it reads the text of one Bash command, so it cannot see inside a script file it is asked to run
-    (<code>bash deploy.sh</code>), a git alias or credential helper defined elsewhere, or a tool other than Bash — and
-    nothing in the hook stops the Edit or Write tool from changing the hook file or <code>settings.json</code>. An
-    organisation that needs the policy enforced installs the hook and its <code>settings.json</code> entries
-    <b>read-only from managed settings</b>, and keeps the whitelist there.</blockquote>
-    <p><code>file-guard.sh</code> closes the last clause (the file tools and shell writes to the policy files); the root-owned
-    install closes it again at the OS level. Nothing closes the first: a script file, a git alias, an MCP server or any tool
-    other than Bash remain outside what either hook can read. Branch protection on the team's repositories and the
-    engineer's own credentials scope are the controls that hold when the hook cannot.</p>
-  </div>
 
   <!-- A3 -->
   <h2 id="a3">A3. Baseline <code>permissions.deny</code> and permission mode per role</h2>
@@ -244,12 +216,11 @@ printf '{"tool_name":"Write","tool_input":{"file_path":"%s/.claude/settings.json
 
   <!-- A4 -->
   <h2 id="a4">A4. GitHub Enterprise Server, proxies, offline use</h2>
-  <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># 1) gh talks to your GHES host; the kit only ever calls gh read-only unless the hook allows the write</span>
+  <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># 1) gh talks to your GHES host; the skills call gh read-only unless someone asks for a write</span>
 gh auth login --hostname ghe.acme.example --git-protocol https
 gh auth status
 
-<span class="cmt"># 2) the git-guard must know the host, or every push there is "not whitelisted" (see A2 step 2)</span>
-ALLOW_HOSTS='ghe\.acme\.example'          <span class="cmt"># in the root-owned git-guard.sh; add github\.com only if you use both</span>
+<span class="cmt"># 2) nothing in the kit needs your host configured: it restricts no git command since 4.0.0</span>
 
 <span class="cmt"># 3) proxies — git, gh, npm and Node all honour these; set them in the shell profile or managed env</span>
 export HTTPS_PROXY=http://proxy.acme.example:3128
@@ -322,12 +293,11 @@ fi</code></pre></div>
       <tr><td><code>ts</code>, <code>user</code>, <code>host</code>, <code>cwd</code></td><td>ISO-8601 UTC time, <code>$USER</code>, <code>hostname -s</code>, working directory.</td></tr>
       <tr><td><code>action</code></td><td><code>kb.scan</code>, <code>kb.rescan</code>, <code>kb.export</code>, <code>kb.import</code>, <code>kb.pipeline</code>, <code>review</code>, <code>pr.review</code>, <code>pr.prepare</code>, <code>runbook</code>, <code>project.onboard</code>, <code>schedule.install</code>, <code>schedule.remove</code>.</td></tr>
       <tr><td>per action</td><td><code>repo</code> (origin, credentials stripped), <code>commit</code>, <code>depth</code>, <code>classification</code>, <code>hub</code>, <code>code_graph</code>, <code>pr</code>, <code>verdict</code>, <code>preset</code>, <code>cron</code>, …</td></tr>
-      <tr><td>hook lines</td><td>The two guards write to the <b>same file</b> with <code>guard: "git-guard" | "file-guard"</code>, <code>tool</code>, <code>decision: deny | allow</code>, and for the git-guard the <code>action</code> (<code>git push</code>, <code>gh pr merge</code> …) and its redacted <code>target</code>. Every deny is logged, and every <b>allowed outward action</b> (a push, a <code>gh</code> write) — so the trail shows what left the machine, not only what was refused.</td></tr>
+      <tr><td>hook lines</td><td>The file guard writes to the <b>same file</b> with <code>guard: "file-guard"</code>, <code>tool</code> and <code>decision: deny</code> for every refused write. Pushes and <code>gh</code> writes are not logged: the kit restricts no git command since 4.0.0.</td></tr>
     </tbody>
   </table>
   <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># example lines</span>
 {"ts":"2026-09-20T08:14:03Z","user":"nam","host":"mbp-nam","action":"kb.export","cwd":"/srv/work","repo":"https://ghe.acme.example/acme/billing.git","commit":"9f2c1ab","project":"billing","hub":"/srv/kb-hub","classification":"confidential","code_graph":"stripped"}
-{"ts":"2026-09-20T08:20:41Z","user":"nam","host":"mbp-nam","guard":"git-guard","tool":"Bash","decision":"deny","action":"","target":"push to a non-whitelisted remote: https://github.com/other-org/x","cwd":"/srv/work/billing"}
 
 <span class="cmt"># ship it to a SIEM — pick one</span>
 tail -F ~/.claude/cwk-audit.jsonl | logger -t cwk-audit               <span class="cmt"># → syslog → your collector (rsyslog/fluent-bit/Splunk UF)</span>
@@ -357,8 +327,8 @@ tail -F ~/.claude/cwk-audit.jsonl | logger -t cwk-audit               <span clas
     <li>Company Claude plan is <b>Team/Enterprise</b>; personal Pro/Max accounts are not used for company code.</li>
     <li>The kit is pinned to a reviewed <b>tag/commit</b>; <code>bash tests/run.sh</code> passes on that revision; updates go through the same review.</li>
     <li>The surface audit in <code>SECURITY.md</code> was reproduced (no <code>eval</code>, no dynamic <code>require</code>, no telemetry, no secrets).</li>
-    <li><code>hooks/git-guard.sh</code> and <code>hooks/file-guard.sh</code> are installed <b>root/admin-owned</b> and wired from <b>managed settings</b>; <code>jq</code> is present on every machine.</li>
-    <li><code>ALLOW_OWNERS</code>/<code>ALLOW_HOSTS</code> in the installed guard name only the company org (and GHES host), or <code>__NONE__</code>.</li>
+    <li><code>hooks/file-guard.sh</code> is installed <b>root/admin-owned</b> and wired from <b>managed settings</b>; <code>jq</code> is present on every machine.</li>
+    <li>If git must be restricted, the git rules are in the managed <code>permissions.deny</code> — the kit itself no longer restricts git.</li>
     <li>The baseline <code>permissions.deny</code> (A3) is in managed settings; <code>bypassPermissions</code> is not used on company machines.</li>
     <li>Permission mode per role is documented: engineers <code>acceptEdits</code>, readers the panel's <code>readonly</code> / CLI <code>plan</code>.</li>
     <li>Windows machines run the hooks under Git Bash/WSL, or are recorded as “deny list only”.</li>
@@ -398,7 +368,7 @@ git clone --branch v3.7.0 https://github.com/NamHT4Devlop/claude-code-workflow-k
   <p>This command creates <b>symlinks</b> for the skills/commands/agents into your personal <code>~/.claude</code> folder →
   usable in <b>every repo</b>, and stored in <b>no</b> repo (the team sees nothing).</p>
   <div class="cb"><button class="copy">Copy</button><pre><code>~/claude-code-workflow-kit/scripts/personal-install.sh</code></pre></div>
-  <p>It prints the number of skills/commands linked + a reminder of the git-guard config snippet (step B3).
+  <p>It prints the number of skills/commands linked + a reminder of the file guard config snippet (step B3).
   Because it's symlinked, later a <code>cd ~/claude-code-workflow-kit &amp;&amp; git pull</code> updates everything instantly.</p>
   <div class="box info"><div class="ti">💡</div> A skill auto-activates when you speak naturally (e.g. “review this file”), or type <code>/cwk-...</code> directly. No API key needed — it runs on your own Claude Code.</div>
 
@@ -416,40 +386,28 @@ git config --global core.excludesfile ~/.gitignore_global</code></pre></div>
   </div></div>
 
   <div class="step"><div class="num">B</div><div class="body">
-    <h3>git guard + file guard — read/sync only, no pushing to team repos, no rewriting the policy files</h3>
-    <p><code>personal-install.sh</code> has already placed the git guard at <code>~/.claude/hooks/cwk-git-guard.sh</code>.
-    Now “wire” it into Claude Code: open <code>~/.claude/settings.json</code> and add the block below (merge it in, don't delete what's there).
-    The file guard is referenced from the kit checkout so a <code>git pull</code> updates it:</p>
+    <h3>File guard — the agent cannot rewrite its own policy files</h3>
+    <p><code>personal-install.sh</code> has already placed the file guard at <code>~/.claude/hooks/cwk-file-guard.sh</code>.
+    Now “wire” it into Claude Code: open <code>~/.claude/settings.json</code> and add the block below (merge it in, don't delete what's there):</p>
     <div class="cb"><button class="copy">Copy</button><pre><code>{
   "permissions": {
     "deny": [
-      "Bash(git remote add:*)", "Bash(git remote set-url:*)", "Bash(git remote remove:*)",
-      "Bash(git reset --hard:*)", "Bash(git clean -f:*)", "Bash(git rebase:*)",
-      "Bash(git commit --amend:*)", "Bash(git restore:*)", "Bash(git branch -D:*)",
-      "Bash(git send-email:*)",
       "Read(~/.ssh/**)", "Read(~/.aws/**)", "Read(**/.env)", "Read(**/.env.*)",
       "Bash(curl *| sh*)", "Bash(curl *| bash*)", "Bash(wget *| sh*)", "Bash(sudo:*)", "WebFetch"
     ]
   },
   "hooks": {
     "PreToolUse": [
-      { "matcher": "Bash", "hooks": [
-        { "type": "command", "command": "~/.claude/hooks/cwk-git-guard.sh", "timeout": 10 },
-        { "type": "command", "command": "~/claude-code-workflow-kit/hooks/file-guard.sh", "timeout": 10 } ] },
-      { "matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [
-        { "type": "command", "command": "~/claude-code-workflow-kit/hooks/file-guard.sh", "timeout": 10 } ] }
+      { "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit", "hooks": [
+        { "type": "command", "command": "~/.claude/hooks/cwk-file-guard.sh", "timeout": 10 } ] }
     ]
   }
 }</code></pre></div>
-    <p>Result: allows <code>fetch · pull · status · log · diff · add · commit</code>; <b>hard-blocks</b> pushing to team repos + destructive commands (<code>reset --hard</code>, <code>rebase</code>…); blocks the agent from editing <code>settings.json</code>, the hooks, <code>~/.gitconfig</code>, <code>.git/config</code>, <code>~/.ssh</code>, <code>~/.aws</code>.</p>
-    <div class="box danger"><div class="ti">🎯 Tune the push whitelist for a company machine</div>
-      Open <code>~/claude-code-workflow-kit/hooks/git-guard.sh</code>, the <code>ALLOW_OWNERS</code> / <code>ALLOW_HOSTS</code> lines:
-      <ul style="margin:.4em 0">
-        <li>To let the AI push to <b>your personal repos</b>: change <code>NamHT4Devlop</code> to your personal GitHub username.</li>
-        <li><b>Safest (recommended at a company):</b> block the AI from pushing <i>anywhere</i> — set <code>ALLOW_OWNERS='__NONE__'</code>. When you need to push, run it yourself in a terminal.</li>
-        <li>GitHub Enterprise: add your host to <code>ALLOW_HOSTS</code> (A4).</li>
-      </ul>
-      A self-installed guard is a habit, not a policy: you (or the agent, before the file guard is armed) can edit it. Ask your security team for the managed-settings deployment in A2.
+    <p>Result: blocks the agent from editing <code>settings.json</code>, the hooks, <code>~/.gitconfig</code>, <code>.git/config</code>, <code>~/.ssh</code>, <code>~/.aws</code>.</p>
+    <div class="box danger"><div class="ti">⚠️ git is not restricted</div>
+      The kit restricts no git command since 4.0.0: the agent may push anywhere and run destructive git if its permission mode allows.
+      To restrict it, add rules such as <code>"Bash(git push:*)"</code> or <code>"Bash(git reset --hard:*)"</code> to <code>permissions.deny</code>
+      above. A self-installed setting is a habit, not a policy; ask your security team for the managed-settings deployment in A2.
     </div>
   </div></div>
   <div class="box warn"><div class="ti">🔁 Reload</div> After editing <code>settings.json</code>, open <span class="kbd">/hooks</span> once or restart Claude Code so the guards take effect.</div>
@@ -542,8 +500,8 @@ cd /path/to/your/repo &amp;&amp; provenlens init .</code></pre>
   <ul class="chk">
     <li>In Claude Code, type <span class="kbd">/</span> → you see the <code>/cwk-*</code> commands.</li>
     <li>Run <code>/cwk-help</code> → it lists commands + reports whether the repo has a KB.</li>
-    <li><span class="kbd">/hooks</span> lists <code>git-guard</code> and <code>file-guard</code> under PreToolUse.</li>
-    <li>git guard: <code>printf '{"tool_input":{"command":"git push https://github.com/some-org/x"}}' | ~/.claude/hooks/cwk-git-guard.sh</code> → outputs JSON <code>deny</code>.</li>
+    <li><span class="kbd">/hooks</span> lists <code>file-guard</code> under PreToolUse.</li>
+    <li>file guard: <code>printf '{"tool_name":"Write","tool_input":{"file_path":"%s/.claude/settings.json"}}' "$HOME" | ~/.claude/hooks/cwk-file-guard.sh</code> → outputs JSON <code>deny</code>.</li>
     <li>audit trail: after a <code>/cwk-scan</code> or an export, <code>tail -1 ~/.claude/cwk-audit.jsonl</code> shows the line.</li>
   </ul>
 
@@ -564,7 +522,7 @@ cd ~/claude-code-workflow-kit && git fetch --tags && git checkout v3.8.0 && bash
       <tr><td>A command says “no knowledge-base”</td><td>Run <code>/cwk-scan</code> once in that repo.</td></tr>
       <tr><td>The git guard isn't blocking</td><td>Open <span class="kbd">/hooks</span> or restart to load <code>settings.json</code>. On Windows: are you in Git Bash/WSL? (A5)</td></tr>
       <tr><td>Every command is denied with “jq is not installed”</td><td>Both guards fail closed without <code>jq</code>. Install it (<code>brew install jq</code> / <code>apt install jq</code>).</td></tr>
-      <tr><td>Push to the company org is denied</td><td>The org/host is not in <code>ALLOW_OWNERS</code>/<code>ALLOW_HOSTS</code> of the installed guard (A2 step 2, A4) — or that is the policy: push from your own terminal.</td></tr>
+      <tr><td>The agent's push is denied</td><td>The kit restricts no git since 4.0.0, so the refusal comes from a <code>permissions.deny</code> rule such as <code>Bash(git push:*)</code> in user or managed settings. If that is the policy, push from your own terminal.</td></tr>
       <tr><td><code>git clone</code> asks for a password</td><td>Public repo — clone the HTTPS URL (no auth), or set up an SSH key for the git@ URL.</td></tr>
       <tr><td>Map/HTML doesn't render diagrams</td><td>Needs Node; with <code>vendor/</code> present the page is offline. Run <code>scripts/fetch-vendor.sh --check</code>.</td></tr>
       <tr><td><code>kb-export.sh</code> refuses a project: “secret-looking strings”</td><td>A KB page quoted a token. Remove it at the source (and rotate the token); <code>--allow-secrets</code> only for a confirmed false positive.</td></tr>

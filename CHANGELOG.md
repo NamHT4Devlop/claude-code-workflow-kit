@@ -14,6 +14,41 @@ noted per release when it changed.
 
 ---
 
+## [4.0.0] — 2026-09-27
+
+### Removed
+- **The git guard.** `hooks/git-guard.sh` and its 148 tests are gone, with its registration in
+  `hooks/hooks.json`, its link in `personal-install.sh` and every instruction to install it. The kit
+  now places **no restriction of its own on git or `gh`**: whatever Claude Code's permission mode
+  allows, the agent may run — `push` to any remote, `push --force`, `reset --hard`, `rebase`,
+  `branch -D`, `gh` writes to any repository.
+
+### You have to do this after updating
+- **Remove the hook from `~/.claude/settings.json`** if you installed it by hand (personal install).
+  A registered hook whose file no longer exists fails on every Bash call. `personal-install.sh` now
+  detects it and prints the exact command; it also deletes the retired links
+  `~/.claude/hooks/cwk-git-guard.sh` and `namht-git-guard.sh`.
+- **Decide about your `permissions.deny` git rules.** Earlier setup guides told you to add ten of them
+  (`git reset --hard`, `git rebase`, `git branch -D`, …). They still block those commands; this release
+  does not touch them. Keep them if you want git restricted, remove them if you do not.
+
+### What still holds, and what no longer does
+- `hooks/file-guard.sh` is unchanged: the agent still cannot rewrite `settings.json`, the hooks, or the
+  credential stores. It never inspected git commands, and still does not, so `git config` can now
+  write `~/.gitconfig` and `.git/config` with nothing in the way.
+- The skills still *tell* the agent not to push during a build, not to run destructive git, and to
+  undo only with `git stash` or `git apply -R`. Every sentence that said a hook enforces this was
+  rewritten to give the real reason instead — those commands throw away the user's uncommitted work.
+  That is now an instruction the model follows, not a control that holds when it does not.
+- **Under `bypassPermissions`, a destructive git command runs without a prompt.** The VS Code
+  extension's warning, the pipeline script's comment and both setup guides now say so, instead of
+  the old reassurance that the git guard still applied.
+- To restrict git, use Claude Code's own `permissions.deny` (`Bash(git push:*)` and so on).
+  `SECURITY.md` has the list. A deny rule matches command text, so it is coarser than the retired
+  hook: it cannot allow a push to one owner and refuse another.
+
+---
+
 ## [3.11.0] — 2026-09-20
 
 ### Added

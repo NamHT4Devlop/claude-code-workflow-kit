@@ -30,7 +30,7 @@ verify it yourself.
 | Install scripts | `scripts/personal-install.sh`, `scripts/onboard-project.sh`, `scripts/sync-bundles.sh` | Symlink into `~/.claude`; write `.gitignore`/`CLAUDE.md`; copy bundled files |
 | Parity harness | `skills/cwk-rails-to-spring/references/shadow-parity.cjs` | **Outbound HTTP — only to the two user-supplied `--source`/`--target` URLs** (opt-in per run) |
 | VS Code extension | `vscode-extension/` (TypeScript, proprietary) | **Spawns the local `claude` CLI** (whitelisted skill commands); no network of its own |
-| Guard hooks | `hooks/git-guard.sh`, `hooks/file-guard.sh` | git/gh policy (push and gh writes only to the whitelist, config allowlist, no GIT_* overrides); the policy files and credential stores stay read-only to the agent |
+| Guard hook | `hooks/file-guard.sh` | the policy files and credential stores stay read-only to the agent. The kit restricts no git command since 4.0.0 |
 
 ## Executable-surface audit (verify it yourself)
 ```bash
@@ -111,125 +111,66 @@ declares a CSP whose `script-src` carries a nonce, and no external host is conta
 - All tool calls (Bash, Edit, installs) remain gated by Claude Code's permission system — the
   user approves them. Use an **untrusted workspace** until you trust a repo.
 
-## Git guardrail (hard-blocked, read/sync-in only)
+## Git — not restricted by this kit (since 4.0.0)
 
-> **Fail mode.** The hook parses the command with `jq`. If `jq` is absent it now **denies every
-> command** with a message naming the fix, instead of the previous behaviour — an empty parse read
-> as "not git", exit 0, allowed — which silently removed the guard on any machine without jq.
-> Verified with a PATH that hides only `jq`: a push to a non-whitelisted remote is refused.
+Up to 3.x the kit shipped `hooks/git-guard.sh`, a PreToolUse hook that limited pushes and `gh`
+writes to a whitelist of owners and hosts and refused destructive local git. **It was removed in
+4.0.0.** The kit now places no restriction of its own on git or `gh`: whatever Claude Code's
+permission mode allows, the agent may run — including `push` to any remote, `push --force`,
+`reset --hard`, `rebase`, `branch -D` and `gh` writes to any repository.
 
-A **PreToolUse hook** (`hooks/git-guard.sh`) + **`permissions.deny`** rules block git commands that
-touch the **remote** or **destroy local work**, enforced by the Claude Code harness rather than the
-model's goodwill — and PreToolUse runs *before* the permission-mode check, so a `deny` still holds
-under `--permission-mode bypassPermissions`.
+State the consequence plainly, because it is easy to assume otherwise:
 
-It removes heredoc bodies first (a commit message is prose, not a command; a body under an unquoted
-delimiter that contains `$(…)` is kept, because the shell would run it), tokenises the rest with
-shell quoting honoured, splits into segments on unquoted `; && || | &` and newlines, and resolves
-each segment's real subcommand, so a rule word inside an argument or a quoted string does not
-false-positive. A push's target is resolved from an explicit URL, `--repo=`, `git -C <dir>`, a
-`cd`/`pushd` in a **preceding** segment, or the session's working directory — and from nowhere
-else. `tests/git-guard.test.sh` pins every rule below plus each bypass that was found and closed,
-**139 cases**, including the bare-`push`-resolved-from-cwd path against real fixture repositories.
+- Under `--permission-mode bypassPermissions`, a destructive git command runs **without a prompt**.
+  Nothing in the kit stands in front of it.
+- The skills still *tell* the agent not to push during a build, not to run destructive git, and to
+  undo only with `git stash` or `git apply -R`. That is an instruction the model follows, not a
+  control that holds when it does not.
+- `hooks/file-guard.sh` (below) deliberately does not inspect git commands, so `git config` can
+  write `~/.gitconfig` and `.git/config` even though the file guard lists them as protected.
 
-**Third audit (v3.7.0).** A security audit reproduced seven live bypasses and four false positives;
-all are closed and pinned by tests:
-
-| Bypass | What it did |
-|---|---|
-| `git -c remote.origin.url=<team> push` | `-c` was only checked for `alias.*`; any other key, including the push target, went through |
-| `git config url.<team>.insteadOf <personal>`, `branch.*.pushRemote` | `config` was only checked for keys containing `remote.`; git has several other ways to redirect a push |
-| `export GIT_DIR=…; git push` | `GIT_*` was only checked as a prefix in the push's own segment |
-| `gh pr merge`, `gh repo delete`, `gh api -X DELETE` | `gh` was never inspected, so every GitHub write was open |
-| `python -c "os.system('git push …')"`, `sh -c "git push …"` | code handed to an interpreter was not read |
-
-Now: `-c` and `git config` writes are allowed only for an **allowlist** of harmless keys
-(`user.name`, `color.*`, `commit.gpgsign`, …; see `CONFIG_KEY_ALLOW_RE`), reads (`--get`, `--list`)
-are always allowed; `GIT_*=` is refused wherever it appears; `gh` writes are checked against the same
-whitelist as pushes, resolving the repository from `-R`, a URL, a `repos/{owner}/{repo}` api path or
-the session cwd, and account-level changes (`auth logout`, `alias set`, `api user/…` writes) are
-refused outright; an interpreter string that mentions git or gh is refused.
-
-**Second audit (v2.4.0).** A multi-agent review found and reproduced five live bypasses, all closed:
-
-| Bypass | What it did |
-|---|---|
-| `--repo=<url>` | git's documented no-positional form starts with `-`, so the target scan skipped it and the guard validated the local origin while git pushed elsewhere |
-| a trailing `cd` | the working directory was scraped from the **whole** command, so a `cd` running *after* the push chose which repo the push was validated against |
-| `config alias.*` | persisting an alias re-created the arbitrary-shell hazard that the transient `-c alias.*` rule already blocked |
-| shell grouping | `{ … }` and similar prefixes dropped git out of "command position", skipping the unknown-subcommand/alias check |
-| binary aliasing | assigning git to a shell variable and calling it through that variable matched no rule at all |
-
-Treat it as **best-effort defence in depth, not a security boundary**. What it cannot do, stated
-plainly: it reads the text of one Bash command, so it cannot see inside a script file it is asked to
-run (`bash deploy.sh`), a git alias or credential helper defined elsewhere, or a tool other than
-Bash — and nothing in the hook stops the Edit or Write tool from changing the hook file or
-`settings.json`. An organisation that needs the policy enforced installs the hook and its
-`settings.json` entries **read-only from managed settings**, and keeps the whitelist there.
-
-- **Allowed** (read / sync-in): `fetch`, `pull`, `status`, `log`, `diff`, `show`, `blame`,
-  `branch` (list), `add`, `commit`, `stash`, `merge`, `checkout <branch>`, `restore --staged`,
-  `config --get/--list`, `gh` reads (`pr view/diff`, `api` GET) — **plus `push` and `gh` writes
-  ONLY against a whitelisted personal repository** (default `github.com/NamHT4Devlop/*`; edit
-  `ALLOW_OWNER_RE` and `ALLOW_GH_REPO_RE` in `hooks/git-guard.sh`). The guard resolves the actual target — an explicit URL, a `--repo=` value,
-  the directory named by the segment's own `-C` option, a `cd`/`pushd` in a **preceding** segment, or
-  the remote configured in the session's working directory — and allows the push only if its owner is
-  whitelisted.
-- **Blocked**: `push` to **any non-whitelisted remote** (team/org repos) and `gh` writes there;
-  `remote add/set-url/remove/rename/set-head/set-branches/prune`, `send-email`, `svn dcommit`,
-  `p4 submit`; `-c`/`config` on any key outside the allowlist, `config --unset/--edit/…`; `GIT_*=`
-  anywhere; git or gh inside an interpreter string; `gh auth logout`, `gh alias set`, `gh extension
-  install`, account-level `gh api` writes; and destructive local: `reset --hard`, `clean -f`,
-  `checkout -- / . / -f / --force`, `restore` of the working tree, `branch -D`, `commit --amend`,
-  `rebase`, `filter-branch/filter-repo`, `reflog expire`, `gc --prune`, `update-ref -d`.
-
-**`hooks/file-guard.sh`** is the second hook, and the reason the first one can be trusted at all:
-it runs on `Edit`, `Write`, `MultiEdit`, `NotebookEdit` and `Bash`, and refuses any write to
-`~/.claude/settings*.json` and project `.claude/settings*.json`, `~/.claude/hooks/*`, the kit's own
-`hooks/` directory, the managed-settings locations, `~/.gitconfig`, `.git/config`, `.git/hooks/*`,
-`~/.ssh`, `~/.aws`, `~/.config/gh`, `~/.netrc` and the audit log — whether through a file tool, a
-shell redirection, `sed -i`, `cp`, `mv`, `rm`, `ln`, `chmod` or an interpreter. Reads (`cat`,
-`grep`, `jq`, `diff`, `ls`) are allowed. `tests/file-guard.test.sh` pins **50 cases**.
-
-Both hooks append a JSON line per deny, and the git-guard also per **allowed** push or `gh` write,
-to `${CWK_AUDIT_LOG:-~/.claude/cwk-audit.jsonl}` — decisions and redacted targets, never the
-command text. The whitelist is `ALLOW_OWNERS` / `ALLOW_HOSTS` at the top of `git-guard.sh` (regex
-alternatives; a GitHub Enterprise host goes in `ALLOW_HOSTS`); it is read from the file only,
-never from the environment, so an env var cannot widen it.
-
-Wire both into `~/.claude/settings.json` (the installer symlinks them to
-`~/.claude/hooks/cwk-git-guard.sh` and `~/.claude/hooks/cwk-file-guard.sh`; arm them once with this
-snippet — a company installs the same entries from managed settings instead, see
-`docs/company-setup-guide.html`):
+**If you want git restricted**, Claude Code's own `permissions.deny` does it without this kit, and
+unlike a hook it cannot be argued with by the model:
 
 ```jsonc
-{
-  "permissions": {
-    "deny": [
-      "Bash(git remote add:*)", "Bash(git remote set-url:*)", "Bash(git remote remove:*)",
-      "Bash(git reset --hard:*)", "Bash(git clean -f:*)", "Bash(git rebase:*)",
-      "Bash(git commit --amend:*)", "Bash(git restore:*)", "Bash(git branch -D:*)",
-      "Bash(git send-email:*)"
-    ]
-    // NOTE: no blanket "git push" deny here — the hook decides push by target owner (whitelist).
-  },
-  "hooks": {
-    "PreToolUse": [
-      { "matcher": "Bash", "hooks": [
-        { "type": "command", "command": "~/.claude/hooks/cwk-git-guard.sh",  "timeout": 10 },
-        { "type": "command", "command": "~/.claude/hooks/cwk-file-guard.sh", "timeout": 10 } ] },
-      { "matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [
-        { "type": "command", "command": "~/.claude/hooks/cwk-file-guard.sh", "timeout": 10 } ] }
-    ]
-  }
-}
+{ "permissions": { "deny": [
+  "Bash(git push:*)", "Bash(git reset --hard:*)", "Bash(git clean -f:*)", "Bash(git rebase:*)",
+  "Bash(git commit --amend:*)", "Bash(git branch -D:*)", "Bash(git remote set-url:*)"
+] } }
 ```
 
-Verify (push to a team URL is denied, pull is allowed):
-`printf '{"tool_input":{"command":"git push https://github.com/some-org/repo"}}' | ~/.claude/hooks/cwk-git-guard.sh`
-→ `permissionDecision":"deny"`. A push to a whitelisted personal remote returns no output (allowed).
-Edit `ALLOW_OWNERS` / `ALLOW_HOSTS` / the rules in `hooks/git-guard.sh` to taste. (A settings change needs a
-Claude Code reload to go live; editing the hook script itself takes effect immediately.)
+A deny rule matches the command text, so it is coarser than the retired hook — it cannot allow a
+push to one owner and refuse it to another — but it is enforced by the harness, not by the kit.
+
+## File guard (policy and credential files stay read-only)
+
+`hooks/file-guard.sh` runs on `Edit`, `Write`, `MultiEdit`, `NotebookEdit` and `Bash`, and refuses
+any write to `~/.claude/settings*.json` and project `.claude/settings*.json`, `~/.claude/hooks/*`,
+the kit's own `hooks/` directory, the managed-settings locations, `~/.gitconfig`, `.git/config`,
+`.git/hooks/*`, `~/.ssh`, `~/.aws`, `~/.config/gh`, `~/.netrc` and the audit log — through a file
+tool, a shell redirection, `sed -i`, `cp`, `mv`, `rm`, `ln`, `chmod` or an interpreter. Reads
+(`cat`, `grep`, `jq`, `diff`, `ls`) are allowed. git commands are not inspected (see above).
+`tests/file-guard.test.sh` pins **50 cases**. It fails closed without `jq`.
+
+Treat it as **defence in depth, not a security boundary**: it reads the text of one tool call, so it
+cannot see inside a script file it is asked to run. An organisation that needs it enforced installs
+it read-only from managed settings.
+
+Each deny appends a JSON line to `${CWK_AUDIT_LOG:-~/.claude/cwk-audit.jsonl}` — the decision and
+the path, never the command text.
+
+The installer links it to `~/.claude/hooks/cwk-file-guard.sh`; arm it once in
+`~/.claude/settings.json`:
+
+```jsonc
+{ "hooks": { "PreToolUse": [
+  { "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit", "hooks": [
+    { "type": "command", "command": "~/.claude/hooks/cwk-file-guard.sh", "timeout": 10 } ] }
+] } }
+```
+
+Verify: `printf '{"tool_name":"Write","tool_input":{"file_path":"'"$HOME"'/.claude/settings.json"}}' | ~/.claude/hooks/cwk-file-guard.sh`
+→ `"permissionDecision":"deny"`. (A settings change needs a Claude Code reload to go live.)
 
 ## Recommended enterprise hardening
 
@@ -237,9 +178,9 @@ The full, concrete version — with the managed-settings JSON, the deny list, th
 checklist a security team can tick — is **`docs/company-setup-guide.html`, Part A**. In one line each:
 
 1. **What it is / is not** — prompts and short scripts; the model reading code is inherent to Claude Code, not added here; no telemetry; the only egress is cdnjs at view-time when `vendor/` is absent.
-2. **Guards as policy** — install `hooks/git-guard.sh` and `hooks/file-guard.sh` root/admin-owned and wire them from managed settings (`/Library/Application Support/ClaudeCode/managed-settings.json`, `/etc/claude-code/managed-settings.json`, `C:\Program Files\ClaudeCode\managed-settings.json`); set `ALLOW_OWNERS`/`ALLOW_HOSTS` in that copy; the limits in the guardrail section above still apply.
-3. **Baseline `permissions.deny`** — the git rules plus `Read(~/.ssh/**)`, `Read(~/.aws/**)`, `Read(**/.env)`, `Read(**/.env.*)`, `Bash(curl *| sh*)`, `Bash(curl *| bash*)`, `Bash(wget *| sh*)`, `Bash(sudo:*)`, `WebFetch`; engineers run `--permission-mode acceptEdits`, readers the panel's `readonly` mode; never `bypassPermissions` on a company machine.
-4. **GitHub Enterprise Server** — `gh auth login --hostname`, the host in `ALLOW_HOSTS`, `HTTPS_PROXY`/`NO_PROXY`, and `vendor/` (verified by `scripts/fetch-vendor.sh --check`) for offline use.
+2. **File guard as policy** — install `hooks/file-guard.sh` root/admin-owned and wire it from managed settings (`/Library/Application Support/ClaudeCode/managed-settings.json`, `/etc/claude-code/managed-settings.json`, `C:\Program Files\ClaudeCode\managed-settings.json`); the limits in the file-guard section above apply.
+3. **Baseline `permissions.deny`** — git rules if you want git restricted (the kit ships no git guard), plus `Read(~/.ssh/**)`, `Read(~/.aws/**)`, `Read(**/.env)`, `Read(**/.env.*)`, `Bash(curl *| sh*)`, `Bash(curl *| bash*)`, `Bash(wget *| sh*)`, `Bash(sudo:*)`, `WebFetch`; engineers run `--permission-mode acceptEdits`, readers the panel's `readonly` mode; never `bypassPermissions` on a company machine.
+4. **GitHub Enterprise Server** — `gh auth login --hostname`, `HTTPS_PROXY`/`NO_PROXY`, and `vendor/` (verified by `scripts/fetch-vendor.sh --check`) for offline use.
 5. **Windows** — the hooks are bash and run under Git Bash/WSL only; a Windows install without them has no guard, only the deny list.
 6. **Data classification** — every KB carries `classification: public | internal | confidential | restricted` (default `internal`) in `_meta.yml`; the export copies it and the hub page shows it as a badge and a banner; the export secret scan, source stripping (`--with-source` is opt-in) and "never publish a hub of a company repo" govern where KB content may go.
 7. **Repository hygiene** — the global gitignore protects one machine; put `knowledge-base/`, `cwk-sessions/`, `.provenlens/` in every team repo's `.gitignore` and refuse them in a pre-commit/CI check.

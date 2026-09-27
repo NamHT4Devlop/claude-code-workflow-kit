@@ -3,7 +3,7 @@
 # policy files (settings.json, the hooks) and the credential stores beside them.
 set -uo pipefail
 cd "$(dirname "$0")/.."
-GUARD=hooks/git-guard.sh; FG=hooks/file-guard.sh
+FG=hooks/file-guard.sh
 pass=0; fail=0
 export CWK_AUDIT_LOG=off
 
@@ -24,9 +24,9 @@ P=$FAKE/proj
 echo "file-guard: file tools on policy and credential files are blocked"
 denyf Write "$HOME/.claude/settings.json" "$P"
 denyf Edit  "~/.claude/settings.local.json" "$P"
-denyf Edit  "$HOME/.claude/hooks/cwk-git-guard.sh" "$P"
+denyf Edit  "$HOME/.claude/hooks/cwk-file-guard.sh" "$P"
 denyf Write "$HOME/.claude/hooks/new-hook.sh" "$P"
-denyf Edit  "hooks/git-guard.sh" "$PWD"                      # the kit's own hooks dir, relative path
+denyf Edit  "hooks/file-guard.sh" "$PWD"                      # the kit's own hooks dir, relative path
 denyf Write "$PWD/hooks/file-guard.sh" "$P"
 denyf Edit  ".claude/settings.json" "$P"                     # project-level settings
 denyf Write "$P/.claude/settings.local.json" "$P"
@@ -51,28 +51,28 @@ allowf Write "$P/docs/hooks/README.md" "$P"                   # a docs folder th
 echo "file-guard: shell writes to those files are blocked, reads are not"
 denyb 'echo "{}" > ~/.claude/settings.json' "$P"
 denyb 'cat patch.json >> "$HOME/.claude/settings.json"' "$P"
-denyb 'sed -i "" "s/deny/allow/" ~/.claude/hooks/cwk-git-guard.sh' "$P"
-denyb 'rm -f ~/.claude/hooks/cwk-git-guard.sh' "$P"
-denyb 'mv ~/.claude/hooks/cwk-git-guard.sh /tmp/x' "$P"
+denyb 'sed -i "" "s/deny/allow/" ~/.claude/hooks/cwk-file-guard.sh' "$P"
+denyb 'rm -f ~/.claude/hooks/cwk-file-guard.sh' "$P"
+denyb 'mv ~/.claude/hooks/cwk-file-guard.sh /tmp/x' "$P"
 denyb 'cp /tmp/x ~/.ssh/config' "$P"
-denyb 'chmod -x ~/.claude/hooks/cwk-git-guard.sh' "$P"
+denyb 'chmod -x ~/.claude/hooks/cwk-file-guard.sh' "$P"
 denyb 'python3 patch.py ~/.claude/settings.json' "$P"
 denyb 'jq ".hooks={}" ~/.claude/settings.json > ~/.claude/settings.json' "$P"
 denyb 'tee ~/.gitconfig < x' "$P"
 denyb 'cat x | tee .git/config' "$P"
 denyb 'ls x && truncate -s 0 ~/.claude/settings.json' "$P"
 denyb 'find ~/.claude/hooks -name "*.sh" -delete' "$P"
-denyb 'ln -sf /tmp/evil.sh ~/.claude/hooks/cwk-git-guard.sh' "$P"
-denyb "cd $PWD && cp /tmp/x hooks/git-guard.sh" "$P"
+denyb 'ln -sf /tmp/evil.sh ~/.claude/hooks/cwk-file-guard.sh' "$P"
+denyb "cd $PWD && cp /tmp/x hooks/file-guard.sh" "$P"
 allowb 'cat ~/.claude/settings.json' "$P"
 allowb 'jq .hooks ~/.claude/settings.json' "$P"
-allowb 'grep -n deny ~/.claude/hooks/cwk-git-guard.sh' "$P"
+allowb 'grep -n deny ~/.claude/hooks/cwk-file-guard.sh' "$P"
 allowb 'ls -la ~/.claude/hooks/' "$P"
-allowb 'diff hooks/git-guard.sh ~/.claude/hooks/cwk-git-guard.sh' "$PWD"
-allowb 'sed -n 1,20p ~/.claude/hooks/cwk-git-guard.sh' "$P"
+allowb 'diff hooks/file-guard.sh ~/.claude/hooks/cwk-file-guard.sh' "$PWD"
+allowb 'sed -n 1,20p ~/.claude/hooks/cwk-file-guard.sh' "$P"
 allowb 'bash tests/run.sh' "$PWD"
 allowb 'echo "settings.json is at ~/.claude/settings.json"' "$P"
-allowb 'git config --global user.name me' "$P"                # git's writes are the git-guard's business
+allowb 'git config --global user.name me' "$P"                # file-guard does not police git; the kit ships no git guard since 4.0.0
 allowb 'echo hi > src/out.txt' "$P"
 
 echo "file-guard: without jq it refuses rather than waves through"

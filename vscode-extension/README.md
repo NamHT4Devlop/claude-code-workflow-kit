@@ -27,7 +27,7 @@ tables, code); a **"📄 Report"** button opens the skill's saved HTML (with Mer
 > **"edits code"**. Two ways to run them:
 > - **▶ Run** — headless auto-approve. The run view shows a **Step timeline** and a **Files changed**
 >   panel: click a file to open it, or expand **diff** to see the exact old→new lines it wrote.
->   Review the final diff in Source Control too; the git-guard hook still blocks dangerous git.
+>   Review the final diff in Source Control too — nothing in the kit blocks git since 4.0.0.
 > - **⚡ Interactive (approve each edit)** — opens a terminal running `claude` interactively, so a
 >   developer **reviews each diff and approves / rejects / redoes** it (the official-panel experience),
 >   nothing written without an OK. Runs outside the panel (no cost chip there).
@@ -67,7 +67,8 @@ webview (cards + form)  --run{command,args}-->  extension host
 - Runs use `--permission-mode acceptEdits` by default (writes inside the workspace only; no
   arbitrary Bash, no network) — see `cwkUi.extraArgs`. In `readonly` mode the CLI gets
   `--permission-mode default` plus a read-only tool allowlist, whatever `extraArgs` says.
-- The **git-guard hook** still applies in every mode (PreToolUse runs before the permission check).
+- The **file-guard hook** still applies in every mode (PreToolUse runs before the permission check).
+  It protects the policy and credential files only; the kit restricts no git command since 4.0.0.
 
 ## Cost & tokens
 Each run shows a **cost chip** — the tokens used (`input→output`, plus **`… cached`** = KB context
@@ -110,9 +111,9 @@ fails the build if a card is reworded and leaves its translation stranded.
   such as `.env` outside the workspace, and network calls with no prompt — and a **prompt injection
   in a scanned repository** (a README, a comment, a test fixture) can drive all of it. Anthropic
   recommends that mode only in an isolated environment; the panel shows a warning once per session
-  when it is set. The git-guard hook still blocks dangerous/remote git in every mode (PreToolUse runs
-  before the permission check — verified by `tests/git-guard.test.sh`), but it is **defense-in-depth,
-  not a sandbox**.
+  when it is set. **Nothing in the kit restricts git** since 4.0.0, so in that mode a destructive or
+  remote git command (`push --force`, `reset --hard`) runs with no prompt. The file-guard hook still
+  protects the policy and credential files, but it is **defense-in-depth, not a sandbox**.
 - `cwkUi.mode` — `full` (default) or `readonly`. In **readonly** the host refuses **every path
   that could reach an edit**, not just the cards: the seven code-editing skills, the free-chat
   "Ask anything" card (a raw prompt can ask for anything), and **follow-ups** (a follow-up resumes
