@@ -36,7 +36,7 @@ description: >-
 | **Verification** | high-stakes only | Checkbox exit criteria. **"Seems right" is never enough.** |
 
 "High-stakes" means: it edits code, or someone will act on its conclusions
-(`build`, `fix-bug`, `migrate`, `rails-to-spring`, `review`, `drift`, `runbook`).
+(`build`, `fix-bug`, `migrate`, `rails-to-spring`, `review`, `drift`, `runbook`, `triage`).
 
 ## The three trailer sections
 

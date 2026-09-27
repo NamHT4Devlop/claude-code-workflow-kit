@@ -7,7 +7,7 @@ verify it yourself.
 ## TL;DR
 - The analyzer/renderer code is **pure local** (Node `fs` / `path` / `crypto` only). **No `eval`,
   no dynamic `require`, no telemetry, no secrets.** Safe to copy and run locally.
-- Exactly **three opt-in components touch the network or a local process** — each only at the
+- Exactly **four opt-in components touch the network or a local process** — each only at the
   user's explicit request, never in the background:
   1. `skills/cwk-rails-to-spring/references/shadow-parity.cjs` — sends HTTP requests **only to
      the two `--source`/`--target` endpoints the user passes on the command line** (a parity test
@@ -16,6 +16,9 @@ verify it yourself.
      (whitelisted commands only); it makes no network calls of its own.
   3. `cwk-splunk-report` (a prompt, not code) — instructs the agent to query Splunk / post to
      Slack using credentials from env/MCP, never hardcoded.
+  4. `cwk-triage` (a prompt, not code) — reads a Slack thread, Splunk and (optionally) Rally through
+     the connected MCP servers; it posts one reply into that thread or creates one Rally defect only
+     after the user's yes in the same turn.
 - Generated HTML can load Mermaid/Cytoscape from a CDN at view-time — **eliminated** when the
   bundled `vendor/` libraries are present (default in this repo → fully offline HTML).
 - It contains **no credentials**. Nothing phones home. There is no telemetry in this repo.
@@ -49,9 +52,9 @@ grep -rniE "api[_-]?key|secret|password|BEGIN (RSA|PRIVATE)|sk-|ghp_|AKIA[0-9A-Z
 #   → only the WORD "secret/token" in review checklists, no actual values.
 ```
 Findings (as audited): no `eval`/`Function`, no dynamic `require`, no hardcoded secrets, no
-telemetry. Process/network use is limited to the three opt-in components listed in the TL;DR
-(shadow-parity → user-supplied endpoints; the extension → local `claude` CLI; splunk-report →
-env/MCP credentials). `graph-builder.js`/`html-builder.js` are readable `tsc` output (not
+telemetry. Process/network use is limited to the four opt-in components listed in the TL;DR
+(shadow-parity → user-supplied endpoints; the extension → local `claude` CLI; splunk-report and
+triage → env/MCP credentials). `graph-builder.js`/`html-builder.js` are readable `tsc` output (not
 minified) — provenance: the author's own Auto Spec extension project.
 
 ## Scripts that write outside this repo

@@ -92,11 +92,11 @@
     fall back and label the output <code>grep-depth only</code>, so a reader always knows which one a finding
     rests on. See <code>docs/provenlens.md</code>.</p>
     <div class="facts">
-      <span class="fact"><b>30</b> skills</span>
-      <span class="fact"><b>7</b> edit code · <b>23</b> read-only</span>
+      <span class="fact"><b>31</b> skills</span>
+      <span class="fact"><b>7</b> edit code · <b>24</b> read-only</span>
       <span class="fact">Spec-driven</span>
       <span class="fact">Knowledge-Base grounded</span>
-      <span class="fact"><b>27</b> use <code>provenlens</code> when indexed</span>
+      <span class="fact"><b>28</b> use <code>provenlens</code> when indexed</span>
       <span class="fact">Dual-audience</span>
       <span class="fact">Verified, not asserted</span>
     </div>
@@ -147,6 +147,7 @@
 
       <tr class="group"><td colspan="3"><span class="ic">📊</span>Ops &amp; Docs — operate and share</td></tr>
       <tr><td class="c-name"><code class="name">cwk-splunk-report</code></td><td class="c-who"><span class="who">Dev / SRE / On-call</span></td><td class="c-desc"><span class="impact safe">Read-only</span>Queries Splunk for each application's errors over a chosen window, distils the noise into a single readable table, and delivers the digest straight to the Slack channel you point it at.</td></tr>
+      <tr><td class="c-name"><code class="name">cwk-triage</code></td><td class="c-who"><span class="who">Dev / SRE / On-call</span></td><td class="c-desc"><span class="impact safe">Read-only</span>Takes the Slack thread where someone reported a problem and answers what the thread is waiting for: what is happening, why, which change caused it, and what to do. It pulls the matching logs from Splunk, follows them into the code through the Knowledge Base, checks the thread's own theory against the evidence, and separates the commit that actually introduced the fault from whoever last touched the line. The answer comes back as a reply draft — and, if you want, a Rally defect — that goes nowhere until you say so.</td></tr>
       
 <tr><td class="c-name"><code class="name">cwk-drift</code></td><td class="c-who"><span class="who">Lead / EM / Architect</span></td><td class="c-desc"><span class="impact safe">Read-only</span>Answers the question nobody owns: does the documentation still describe the software? It audits the whole repository against the Knowledge Base and past plans, and reports four kinds of drift — entries that went stale, real behavior nobody wrote down, acceptance criteria that were promised but never shipped, and architecture rules the code quietly stopped following. Every finding is verified in the source, ranked by consequence, and routed to the skill that can fix it. Read-only by default; the opt-in <code>--fix-docs</code> mode will refresh the stale documentation for you — after showing you exactly what it would change and backing it up — but never your source code.</td></tr>      <tr><td class="c-name"><code class="name">cwk-runbook</code></td><td class="c-who"><span class="who">Dev / DevOps / On-call</span></td><td class="c-desc"><span class="impact safe">Read-only</span>A Knowledge Base explains how a system works; this writes the other document — the one you read while something is on fire. Health checks, deploy and rollback (including what a rollback will <em>not</em> undo), a playbook per failure the system can genuinely have, alert-to-action mapping and data recovery, all traced to real files. What only a person can know — owners, on-call, SLAs — is left as an explicit blank, because an invented escalation path is worse than none.</td></tr>
       <tr><td class="c-name"><code class="name">cwk-retro</code></td><td class="c-who"><span class="who">SM / EM / Lead</span></td><td class="c-desc"><span class="impact safe">Read-only</span>Reads the team's git history over a period and turns it into an honest retrospective — what shipped, what went well or hurt, and a short list of concrete actions for next time.</td></tr>

@@ -14,6 +14,40 @@ noted per release when it changed.
 
 ---
 
+## [4.1.0] — 2026-09-27
+
+### Added
+- **`/cwk-triage`** — incident triage from a Slack thread, read-only on code. It reads the whole
+  thread, pulls the matching logs from Splunk (the query plan is shown and confirmed first, bounded
+  windows only), maps stack frames and log-message templates to the code through the Knowledge Base,
+  classifies the problem with `cwk-fix-bug`'s classes, and states the root cause with a confidence
+  level (`confirmed` / `likely` / `hypothesis`). It then finds the change behind it with
+  `git log -L` / `-S` / `blame` checked against the onset and the deployed version, and labels it
+  **introduced by**, **exposed by**, **last modified in** or **not identified**. `blame` alone is never
+  called a cause.
+  - The output is a reply draft for the thread (TL;DR · issue · root cause · change · resolution ·
+    evidence · open questions) and, when a Rally MCP is connected, an optional Rally defect. It searches
+    for an existing defect first and uses only the fields the tool's schema offers.
+  - Nothing is posted or created without the user's yes in the same turn, and the reply goes only into
+    the given thread. People are named only as git records them, and only for a causal label;
+    `--no-names` drops the names.
+  - The report goes to `cwk-sessions/triage/`, with a journal row. For a code defect, the report is
+    the intake for `/cwk-fix-bug`.
+- The evidence protocol (`resources/provenlens-evidence.md` §5) gains a `triage` row: its reach
+  ledger is the incident scope, with each flow through the suspect marked seen failing, not failing or
+  not checked.
+- VS Code extension **v0.18.0**: a *Triage a Slack incident* card.
+
+### Changed
+- `tests/consistency.test.sh`: `cwk-triage` is high-stakes (it carries the rationalizations, red
+  flags and verification trailer) and carries the evidence protocol. It also checks that both
+  Slack-posting skills keep their "yes in the current turn" gate.
+- `docs/manual-setup-guide.html`: the copy-paste scaffold listed 27 skills and 28 commands under
+  "30" and "31"; it now lists all 31 skills and 32 commands, adding `drift`, `issues`, `runbook` and
+  `triage`.
+
+---
+
 ## [4.0.0] — 2026-09-27
 
 ### Removed

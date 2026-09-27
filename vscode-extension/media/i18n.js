@@ -42,6 +42,7 @@ const I18N_VI = {
   'Prepare / review PR': 'Chuẩn bị / review PR',
   'Docs vs reality check': 'Đối chiếu tài liệu với code',
   'Splunk error digest': 'Tổng hợp lỗi từ Splunk',
+  'Triage a Slack incident': 'Phân tích sự cố từ Slack',
   'Operational runbook': 'Runbook vận hành',
   'Export to PDF': 'Xuất ra PDF',
   'Create a new skill': 'Tạo skill mới',
@@ -101,6 +102,8 @@ const I18N_VI = {
     'Tìm chỗ Knowledge Base, kế hoạch và code đã lệch nhau — chỉ đọc.',
   'Per-app errors → table → Slack.':
     'Lỗi theo từng app → bảng → gửi Slack.',
+  'Slack thread → Splunk logs → root cause + the change behind it → reply draft.':
+    'Thread Slack → log Splunk → nguyên nhân gốc + thay đổi gây lỗi → bản nháp trả lời.',
   'What shipped + action items from git history.':
     'Đã ship gì + việc cần làm, lấy từ lịch sử git.',
   'Health checks, deploy/rollback and incident playbooks a teammate can follow at 2am.':
@@ -138,6 +141,8 @@ const I18N_VI = {
   'URL or path': 'URL hoặc đường dẫn',
   'PR# to review (blank = prepare from branch)': 'PR# cần review (bỏ trống = soạn từ nhánh)',
   'Also refresh the stale docs it finds (--fix-docs)': 'Cập nhật luôn tài liệu đã lỗi thời (--fix-docs)',
+  'Slack thread link': 'Link thread Slack',
+  'Splunk filter (blank = it asks)': 'Bộ lọc Splunk (bỏ trống = sẽ hỏi)',
   'index / env / app / window / Slack URL (blank = it asks)': 'index / môi trường / app / khoảng thời gian / URL Slack (bỏ trống = sẽ hỏi)',
   'Time window': 'Khoảng thời gian',
   'Service / scope (blank = it asks)': 'Service / phạm vi (bỏ trống = sẽ hỏi)',

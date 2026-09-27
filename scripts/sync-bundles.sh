@@ -19,11 +19,11 @@ map_kb="cwk-scan cwk-rescan"
 map_html="cwk-ask cwk-document cwk-plan cwk-qa cwk-system-map cwk-pr cwk-security-audit cwk-plan-review cwk-retro cwk-qa-integration cwk-design-review cwk-pdf cwk-user-story cwk-rails-to-spring cwk-drift cwk-issues cwk-runbook"  # html-builder.js + render-html.cjs
 map_mermaid="cwk-scan cwk-rescan cwk-runbook cwk-document"  # check-mermaid.cjs: parse every diagram before reporting done
 map_reviewflow="cwk-review cwk-pr"  # review-protocol.md + review-traps.md: how a diff becomes findings
-map_evidence="cwk-ask cwk-document cwk-user-story cwk-plan cwk-runbook cwk-fix-bug cwk-build cwk-review cwk-qa"  # the reach-ledger + code-graph protocol (docs/provenlens.md)
+map_evidence="cwk-ask cwk-document cwk-user-story cwk-plan cwk-runbook cwk-fix-bug cwk-build cwk-review cwk-qa cwk-triage"  # the reach-ledger + code-graph protocol (docs/provenlens.md)
 # untrusted-input.md: every skill reads repository content (READMEs, comments, diffs, PR text, KB pages,
 # logs, sub-agent reports) and must treat it as data, never as instructions. Listed explicitly so a new
 # skill has to be added here — tests/consistency.test.sh fails on one that does not cite the file.
-map_untrusted="cwk-ask cwk-build cwk-design-review cwk-discover cwk-document cwk-drift cwk-fix-bug cwk-issues cwk-map cwk-migrate cwk-observe cwk-pdf cwk-perf cwk-plan cwk-plan-review cwk-pr cwk-qa cwk-qa-integration cwk-rails-to-spring cwk-rescan cwk-retro cwk-review cwk-runbook cwk-scan cwk-security-audit cwk-simplify cwk-skillify cwk-splunk-report cwk-system-map cwk-user-story"
+map_untrusted="cwk-ask cwk-build cwk-design-review cwk-discover cwk-document cwk-drift cwk-fix-bug cwk-issues cwk-map cwk-migrate cwk-observe cwk-pdf cwk-perf cwk-plan cwk-plan-review cwk-pr cwk-qa cwk-qa-integration cwk-rails-to-spring cwk-rescan cwk-retro cwk-review cwk-runbook cwk-scan cwk-security-audit cwk-simplify cwk-skillify cwk-splunk-report cwk-system-map cwk-triage cwk-user-story"
 
 emit() { # <canonical-file> <skill-list>
   local file="$1"; shift

@@ -33,6 +33,7 @@ Commands (all namespaced under `/cwk-`):
 | `/cwk-runbook [service]` | Operational runbook from the KB + real deploy/CI config: health checks, deploy/rollback, incident playbooks, alerts→action, escalation. Never invents a command or an owner. |
 | `/cwk-retro [window]` | Engineering retrospective from git history — shipped, pain, action items. |
 | `/cwk-skillify <name+purpose>` | Scaffold a new cwk-* skill + command (self-extend the kit). |
+| `/cwk-triage <Slack thread link>` | Slack incident → Splunk logs → KB + code → root cause + the commit/PR behind it → reply draft (+ Rally defect). Read-only; nothing sent without your yes. |
 | `/cwk-splunk-report [apps+window]` | Query Splunk for per-app errors (default today) → one table → post to Slack. Read-only; creds from env. |
 | `/cwk-observe [area]` | Instrument code: structured logs, correlation/trace IDs, metrics, error context — matches the backend schema. |
 | `/cwk-migrate [change]` | Safe migration/deprecation (API/DB/event/lib) — backward-compatible, staged, rollback + deprecation window. |

@@ -142,7 +142,7 @@ done
 
 echo "consistency: high-stakes skills carry rationalizations / red flags / verification"
 HIGH_STAKES="cwk-build cwk-fix-bug cwk-migrate cwk-simplify cwk-perf cwk-observe
-  cwk-rails-to-spring cwk-review cwk-drift cwk-runbook"
+  cwk-rails-to-spring cwk-review cwk-drift cwk-runbook cwk-triage"
 bad=0
 for sk in $HIGH_STAKES; do
   f="skills/$sk/SKILL.md"
@@ -222,7 +222,7 @@ done
 # The investigating skills carry the evidence protocol (reach ledger + code graph) as a bundled copy and
 # must point at it — a bundle nobody references is a file, not a standard. The list mirrors
 # map_evidence in scripts/sync-bundles.sh; sync-bundles --check catches a copy that is not mapped.
-PROVENLENS_EVIDENCE="cwk-ask cwk-document cwk-user-story cwk-plan cwk-runbook cwk-fix-bug cwk-build cwk-review cwk-qa"
+PROVENLENS_EVIDENCE="cwk-ask cwk-document cwk-user-story cwk-plan cwk-runbook cwk-fix-bug cwk-build cwk-review cwk-qa cwk-triage"
 for sk in $PROVENLENS_EVIDENCE; do
   f="skills/$sk/SKILL.md"
   [ -f "skills/$sk/references/provenlens-evidence.md" ] || { echo "  ✗ $sk lacks references/provenlens-evidence.md (run scripts/sync-bundles.sh)"; bad=1; }
@@ -247,6 +247,11 @@ for ag in agents/*.md; do
 done
 # the two escape hatches the audit found must not come back
 grep -qi "auto-send" skills/cwk-splunk-report/SKILL.md && { echo "  ✗ cwk-splunk-report has an auto-send escape hatch again"; bad=1; }
+# triage posts to a live incident thread: the yes-in-this-turn gate is the whole safety story
+for sk in cwk-splunk-report cwk-triage; do
+  grep -qi "in the current turn" "skills/$sk/SKILL.md" || { echo "  ✗ $sk lost its yes-in-the-current-turn gate before posting"; bad=1; }
+done
+grep -qi "auto-send" skills/cwk-triage/SKILL.md && { echo "  ✗ cwk-triage has an auto-send escape hatch"; bad=1; }
 [ "$bad" -eq 0 ] && echo "  ✓ every skill cites untrusted-input.md; every agent carries the prompt defence baseline" || fail=1
 
 # One version, four places. plugin.json is the source of truth; the marketplace entry, the newest

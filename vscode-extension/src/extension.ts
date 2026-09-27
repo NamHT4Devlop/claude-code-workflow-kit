@@ -8,7 +8,7 @@ const ALLOWED = new Set([
   'cwk-discover', 'cwk-plan', 'cwk-plan-review', 'cwk-user-story',
   'cwk-build', 'cwk-fix-bug', 'cwk-migrate', 'cwk-simplify', 'cwk-perf', 'cwk-observe', 'cwk-rails-to-spring',
   'cwk-review', 'cwk-qa', 'cwk-qa-integration', 'cwk-security-audit', 'cwk-design-review', 'cwk-pr', 'cwk-drift',
-  'cwk-splunk-report', 'cwk-retro', 'cwk-pdf', 'cwk-skillify', 'cwk-issues', 'cwk-runbook',
+  'cwk-splunk-report', 'cwk-triage', 'cwk-retro', 'cwk-pdf', 'cwk-skillify', 'cwk-issues', 'cwk-runbook',
 ]);
 // The seven skills that modify source. In readonly mode the host refuses them outright, so hiding
 // the cards is a UI convenience rather than the actual control.

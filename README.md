@@ -19,8 +19,8 @@ claude-code-workflow-kit/
 ├── .claude-plugin/
 │   ├── plugin.json          # plugin manifest
 │   └── marketplace.json     # local marketplace (for one-command install)
-├── commands/                # 31 slash commands → /cwk:build (plugin) or /cwk-build (personal), …
-├── skills/                  # 30 skills (the methodology — also usable standalone)
+├── commands/                # 32 slash commands → /cwk:build (plugin) or /cwk-build (personal), …
+├── skills/                  # 31 skills (the methodology — also usable standalone)
 │   ├── cwk-build/          #   13-step pipeline   (+ bundled review checklist)
 │   ├── cwk-scan/           #   KB generation       (+ bundled kb-steps spec)
 │   ├── cwk-rescan/         #   incremental KB update
@@ -109,7 +109,7 @@ commands are typed into Claude Code, not your shell):
 After install, commands are namespaced by the plugin (type `/` to see them):
 `/cwk:scan`, `/cwk:rescan`, `/cwk:build`, `/cwk:fix-bug`, `/cwk:review`, `/cwk:ask`,
 `/cwk:plan`, `/cwk:map`, `/cwk:system-map`, `/cwk:document`, `/cwk:help`.
-The 30 skills and 7 sub-agents load automatically (skills also activate from plain English), and the
+The 31 skills and 7 sub-agents load automatically (skills also activate from plain English), and the
 **file-guard hook ships with the plugin** (`hooks/hooks.json`) so it's active right after install.
 (The personal symlink install — Option C — exposes the same commands as `/cwk-build`, etc.)
 
@@ -314,6 +314,7 @@ If you keep many repos under one parent folder (a "workspace"), follow this sepa
 | `/cwk-runbook [service]` | Turn the KB + the repo's real deploy/CI/error-handling config into an **operational runbook**: health checks, deploy and rollback (incl. what rollback does *not* undo), symptom→fix incident playbooks, alerts→action, data recovery. Marks what only a human knows instead of inventing it. |
 | `/cwk-skillify <name+purpose>` | Scaffold a new `cwk-*` skill + command following the conventions (self-extend the kit). |
 | `/cwk-splunk-report [apps + window]` | Query Splunk for per-app errors over a window (default today), aggregate into one table, and post it to Slack. Read-only on Splunk; credentials from env/MCP, never hardcoded. Needs network. |
+| `/cwk-triage <Slack thread link>` | Triage an incident reported in a Slack thread: pull the matching Splunk logs, map them to the code through the KB, classify it (code / config / data / flag / dependency / spec), find the root cause and the commit / PR that introduced it, and draft a reply — issue · root cause · change · fix — plus an optional Rally defect. Read-only on code; posts or creates nothing without your yes. Needs Slack + Splunk MCP. |
 | `/cwk-user-story <requirement or Slack link>` | Deep-investigate a requirement (or comprehend a Slack thread) → features + INVEST user stories with maximally granular Given/When/Then ACs. |
 | `/cwk-rails-to-spring <endpoint set>` | Contract-first port to another stack (e.g. Rails+GraphQL → Spring Boot/MyBatis) — golden-test parity per endpoint, strangler cutover. Edits code. |
 | `/cwk-observe [area]` | Instrument code for observability — structured logs, correlation/trace IDs (HTTP + SQS), metrics, error context; matches the backend field schema. Edits code. |
@@ -410,7 +411,7 @@ The Knowledge Base above is what the system **means**. [`provenlens`](https://gi
 is what it **does**: a pre-built graph of symbols and who-calls-what, so a skill can ask for the real
 callers of a symbol instead of grepping for its name.
 
-Nothing here requires it. **27 of the 30 skills** use it when a `.provenlens/` index is present and
+Nothing here requires it. **28 of the 31 skills** use it when a `.provenlens/` index is present and
 fall back to Grep/Glob when it is not — and when they fall back they say so, marking the output
 `⚠️ grep-depth only (no provenlens index)`. That sentence is the point: a caller list from grep and one
 from a resolved call graph are not the same claim, and an impact analysis that hides which one it

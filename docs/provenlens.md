@@ -145,8 +145,8 @@ fallback sentence cannot be quietly dropped from one skill:
 4. **Never launder a guess.** A grep hit is not a resolved call and must never be reported as one.
 5. **Cite the confidence** when a conclusion rests on an edge below `direct`.
 
-Nine skills go further — the ones whose output someone acts on without re-reading the code: `ask`,
-`document`, `user-story`, `plan`, `runbook`, `fix-bug`, `build`, `review`, `qa`. Each bundles
+Ten skills go further — the ones whose output someone acts on without re-reading the code: `ask`,
+`document`, `user-story`, `plan`, `runbook`, `fix-bug`, `build`, `review`, `qa`, `triage`. Each bundles
 `references/provenlens-evidence.md` and adds three required pieces to its output:
 
 6. **An evidence line** at the top — `provenlens · <resolution>% · <languages> · synced <date>`, or
@@ -161,10 +161,10 @@ Nine skills go further — the ones whose output someone acts on without re-read
 
 ## Which skills use it
 
-**Integrated (27):** `ask` `build` `design-review` `discover` `document` `drift` `fix-bug` `map`
+**Integrated (28):** `ask` `build` `design-review` `discover` `document` `drift` `fix-bug` `map`
 `migrate` `observe` `perf` `plan` `plan-review` `pr` `qa` `qa-integration` `rails-to-spring`
 `rescan` `retro` `review` `runbook` `scan` `security-audit` `simplify` `skillify` `system-map`
-`user-story`
+`triage` `user-story`
 
 **Deliberately not (3)** — they never reason about a call graph, and a block there would be noise:
 

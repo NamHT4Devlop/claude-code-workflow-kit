@@ -126,6 +126,7 @@
       <tr><td>Generated HTML loading a chart library</td><td>only at view-time, and only when <code>vendor/</code> is absent</td><td><code>cdnjs.cloudflare.com</code> (Mermaid / Cytoscape). With <code>vendor/</code> present — the default, SHA-256 pinned in <code>vendor/SHA256SUMS</code> — the page makes <b>zero</b> external requests. No data is sent either way.</td></tr>
       <tr><td><code>shadow-parity.cjs</code> (parity harness of <code>/cwk-rails-to-spring</code>)</td><td>only when a user runs it</td><td>the two <code>--source</code>/<code>--target</code> URLs on its command line</td></tr>
       <tr><td><code>/cwk-splunk-report</code> (a prompt)</td><td>only when a user runs it</td><td>Splunk / Slack through MCP or env credentials the company configured; nothing hardcoded</td></tr>
+      <tr><td><code>/cwk-triage</code> (a prompt)</td><td>only when a user runs it</td><td>reads Slack / Splunk / Rally through the MCP connectors the company configured; posts a Slack reply or creates a Rally defect only on the user's yes in that turn</td></tr>
       <tr><td>VS Code extension (optional)</td><td>on a button click</td><td>spawns the local <code>claude</code> CLI; no network of its own</td></tr>
     </tbody>
   </table>
@@ -482,6 +483,7 @@ cd /path/to/your/repo &amp;&amp; provenlens init .</code></pre>
       <tr><td><code>/cwk-observe</code></td><td>Structured logs + correlation IDs + metrics. <b>Edits code.</b></td></tr>
       <tr><td><code>/cwk-rails-to-spring</code></td><td>Contract-first stack port with golden-test parity. <b>Edits code.</b></td></tr>
       <tr><td><code>/cwk-splunk-report</code></td><td>Per-app Splunk error digest → Slack (network + env credentials).</td></tr>
+      <tr><td><code>/cwk-triage</code></td><td>Slack incident → Splunk logs → root cause + introducing change → reply draft / Rally defect. Read-only on code.</td></tr>
       <tr><td><code>/cwk-pdf</code></td><td>Export a report to PDF.</td></tr>
       <tr><td><code>/cwk-retro</code></td><td>Retrospective from git history.</td></tr>
       <tr><td><code>/cwk-skillify</code></td><td>Scaffold a new skill following the convention.</td></tr>
