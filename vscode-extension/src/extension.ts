@@ -26,6 +26,16 @@ const READONLY_TOOLS = [
   'mcp__provenlens__provenlens_affected', 'mcp__provenlens__provenlens_status',
   'mcp__provenlens__provenlens_why',
 ];
+// An allowlist alone is not a fence: --allowedTools ADDS to allow rules the user's own settings
+// already grant (a `Bash(touch:*)` there still runs), and the opened repository's
+// .claude/settings.json hooks still run. So read-only also denies the writing tools outright —
+// deny beats every allow — and switches hooks off for the run. The project's settings still load,
+// so its own permissions.deny rules and project-scoped skills keep working (verified headless: the
+// repo's SessionStart hook ran without disableAllHooks and did not with it). The kit's file-guard
+// hook is off too, which is fine here: nothing in this run can write.
+const READONLY_DENY = ['Bash', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'WebFetch', 'WebSearch'];
+const READONLY_ARGS = ['--permission-mode', 'default', '--allowedTools', READONLY_TOOLS.join(','),
+  '--disallowedTools', READONLY_DENY.join(','), '--settings', '{"disableAllHooks":true}'];
 // The models the UI offers. Anything the webview sends is checked against this before it reaches a
 // command line — an unvalidated value would be the only unquoted token in a shell-executed string.
 const MODELS = new Set(['', 'haiku', 'sonnet', 'opus']);
@@ -104,7 +114,7 @@ class SpecKitViewProvider implements vscode.WebviewViewProvider {
   // Bash, nor the filesystem, nor the network — the skill filter in refusedByReadonly() only
   // decides which prompts are sent; this decides what a prompt can DO. In full mode extraArgs
   // pass through, and bypassPermissions (however spelled) is announced once per session.
-  private static readonly PERM_FLAGS = new Set(['--permission-mode', '--allowedTools', '--allowed-tools', '--disallowedTools', '--disallowed-tools']);
+  private static readonly PERM_FLAGS = new Set(['--permission-mode', '--allowedTools', '--allowed-tools', '--disallowedTools', '--disallowed-tools', '--settings', '--setting-sources']);
   private static isBypass(args: string[]): boolean {
     return args.some((a, i) => a === '--dangerously-skip-permissions'
       || a === '--permission-mode=bypassPermissions'
@@ -117,10 +127,10 @@ class SpecKitViewProvider implements vscode.WebviewViewProvider {
       for (let i = 0; i < extraArgs.length; i++) {
         const a = extraArgs[i];
         if (SpecKitViewProvider.PERM_FLAGS.has(a)) { i++; continue; }                     // flag + its value
-        if (a === '--dangerously-skip-permissions' || /^--(permission-mode|allowedTools|allowed-tools|disallowedTools|disallowed-tools)=/.test(a)) continue;
+        if (a === '--dangerously-skip-permissions' || /^--(permission-mode|allowedTools|allowed-tools|disallowedTools|disallowed-tools|settings|setting-sources)=/.test(a)) continue;
         kept.push(a);
       }
-      return [...kept, '--permission-mode', 'default', '--allowedTools', READONLY_TOOLS.join(',')];
+      return [...kept, ...READONLY_ARGS];
     }
     if (!this.bypassWarned && SpecKitViewProvider.isBypass(extraArgs)) {
       this.bypassWarned = true;
@@ -147,7 +157,7 @@ class SpecKitViewProvider implements vscode.WebviewViewProvider {
 
   // A form field can hold a secret (the Slack webhook of cwk-splunk-report). History is written to
   // VS Code workspace storage in plaintext, so strip anything URL-shaped before persisting it.
-  private static readonly SECRET_RE = /(https?:\/\/\S+|xox[abposr]-[A-Za-z0-9-]+|gh[pousr]_[A-Za-z0-9]{16,}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/gi;
+  private static readonly SECRET_RE = /(https?:\/\/\S+|xox[abposr]-[A-Za-z0-9-]+|gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{20,}|[sr]k_live_[A-Za-z0-9]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_-]{35}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/gi;
   private scrubValues(values: any): any {
     if (!values || typeof values !== 'object') return values;
     const out: any = {};
@@ -317,7 +327,9 @@ class SpecKitViewProvider implements vscode.WebviewViewProvider {
       if (finalText) { st.result = finalText; this.post({ type: 'result', runId, text: finalText }); }
       const report = this.findReport(seen, finalText, cwd); st.report = report;
       this.post({ type: 'done', runId, code: cancelled ? 130 : (code ?? 1), report });
-      this.histPatch(runId, { status: st.status, result: finalText.slice(0, 24000), report, cost: st.cost || 0, tokens: st.usage, log: (st.log || '').slice(-40000) });
+      // History is persisted in plaintext; the model's text and tool inputs (a curl with a webhook URL)
+      // go through the same scrub as the prompt before they are stored.
+      this.histPatch(runId, { status: st.status, result: this.scrubText(finalText).slice(0, 24000), report, cost: st.cost || 0, tokens: st.usage, log: this.scrubText(st.log || '').slice(-40000) });
     });
   }
 
@@ -420,9 +432,23 @@ class SpecKitViewProvider implements vscode.WebviewViewProvider {
     // The terminal is interactive, so the CLI prompts for anything not pre-approved; in read-only
     // mode it still gets the same read-only allowlist as a headless run, so the tools that are
     // allowed run without a prompt and every other one asks the person at the keyboard.
-    const perm = this.cfg().mode === 'readonly' ? ` --permission-mode default --allowedTools ${q(READONLY_TOOLS.join(','))}` : '';
+    const readonly = this.cfg().mode === 'readonly';
+    const name = `Claude ⚡ ${String(m.title || command)}`;
+    if (process.platform === 'win32') {
+      // cmd.exe and PowerShell do not read POSIX single quotes — PowerShell rejects the line and cmd
+      // runs any `&` or `|` in the form text. Start the CLI itself instead of typing into a shell. An
+      // npm install is `claude.cmd`, which Windows still runs through cmd.exe, so cmd's special
+      // characters are taken out of the form text first; a native claude.exe gets it unchanged.
+      const viaCmd = !/\.exe$/i.test(claudePath);
+      const text = viaCmd ? prompt.replace(/[&|<>^%!"]/g, ' ') : prompt;
+      const args = [...(model ? ['--model', model] : []), ...(readonly ? READONLY_ARGS : []), text];
+      const term = vscode.window.createTerminal({ cwd, name, shellPath: claudePath, shellArgs: args });
+      term.show(true);
+      return;
+    }
+    const perm = readonly ? ' ' + READONLY_ARGS.map(q).join(' ') : '';
     const line = `${q(claudePath)}${model ? ' --model ' + q(model) : ''}${perm} ${q(prompt)}`;
-    const term = vscode.window.createTerminal({ cwd, name: `Claude ⚡ ${String(m.title || command)}` });
+    const term = vscode.window.createTerminal({ cwd, name });
     term.show(true);
     term.sendText(line, true);
   }

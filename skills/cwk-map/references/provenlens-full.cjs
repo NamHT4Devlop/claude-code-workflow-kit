@@ -32,10 +32,11 @@ function openIndex(root) {
   if (!fs.existsSync(file)) return { why: 'no .provenlens/index.db' };
   let DatabaseSync;
   try {
-    // Built into Node 22.5+. Loaded lazily so older Node still gets the export path.
+    // Built into Node 22.13+ and 23.4+ (22.5–22.12 only behind --experimental-sqlite). Loaded
+    // lazily so older Node still gets the export path.
     ({ DatabaseSync } = require('node:sqlite'));
   } catch {
-    return { why: `node:sqlite is unavailable in Node ${process.version} (needs 22.5+)` };
+    return { why: `node:sqlite is unavailable in Node ${process.version} (needs 22.13+ or 23.4+)` };
   }
   let db;
   try {
@@ -43,7 +44,15 @@ function openIndex(root) {
   } catch (err) {
     return { why: `cannot open the index read-only (${err.message})` };
   }
-  const version = (db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() || {}).value;
+  // A zero-byte, corrupt or pre-meta index opens fine and throws here ("no such table: meta",
+  // "file is not a database"). That is a reason to fall back, never a crash of /cwk-map.
+  let version;
+  try {
+    version = (db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get() || {}).value;
+  } catch (err) {
+    db.close();
+    return { why: `cannot read the index's schema version (${err.message}) — .provenlens/index.db is empty, corrupt or from an older provenlens` };
+  }
   if (!KNOWN_SCHEMAS.has(String(version))) {
     db.close();
     return { why: `index schema ${version} is not one this reader knows (${[...KNOWN_SCHEMAS].join(', ')})` };

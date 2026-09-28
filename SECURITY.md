@@ -7,18 +7,25 @@ verify it yourself.
 ## TL;DR
 - The analyzer/renderer code is **pure local** (Node `fs` / `path` / `crypto` only). **No `eval`,
   no dynamic `require`, no telemetry, no secrets.** Safe to copy and run locally.
-- Exactly **four opt-in components touch the network or a local process** — each only at the
-  user's explicit request, never in the background:
+- **Every network or process touchpoint is opt-in** — it runs only when you invoke it, never in
+  the background:
   1. `skills/cwk-rails-to-spring/references/shadow-parity.cjs` — sends HTTP requests **only to
      the two `--source`/`--target` endpoints the user passes on the command line** (a parity test
      harness). No other destinations, no telemetry.
   2. The optional **VS Code extension** (`vscode-extension/`) — spawns the **local `claude` CLI**
      (whitelisted commands only); it makes no network calls of its own.
-  3. `cwk-splunk-report` (a prompt, not code) — instructs the agent to query Splunk / post to
-     Slack using credentials from env/MCP, never hardcoded.
-  4. `cwk-triage` (a prompt, not code) — reads a Slack thread, Splunk and (optionally) Rally through
-     the connected MCP servers; it posts one reply into that thread or creates one Rally defect only
-     after the user's yes in the same turn.
+  3. `cwk-splunk-report` and `cwk-triage` (prompts, not code) — the agent queries Splunk and reads or
+     posts to Slack (triage: also Rally) through the connected MCP servers or env credentials, never
+     hardcoded; nothing is posted or created without the user's yes in that turn.
+  4. `scripts/kb-pipeline.sh` runs `claude -p` in the repos you name; `scripts/schedule.sh` writes
+     your crontab (after showing the change) so cron runs `claude -p` later.
+  5. `scripts/fetch-vendor.sh` downloads the pinned Mermaid/Cytoscape builds (`npm pack` / `curl`
+     from cdnjs) and checks them against `vendor/SHA256SUMS`.
+  6. `scripts/kb-export.sh` asks `gh` for the hub repository's visibility before writing.
+  7. Local processes only: `/cwk-map`, `scripts/onboard-project.sh` and `scripts/kb-pipeline.sh` run
+     the `provenlens` CLI; `/cwk-pdf` (`html-to-pdf.sh`) starts a headless Chrome or wkhtmltopdf;
+     `scripts/measure-diagrams.cjs` opens its report with `open` / `xdg-open`; the file-guard hook
+     runs `jq` on each tool call.
 - Generated HTML can load Mermaid/Cytoscape from a CDN at view-time — **eliminated** when the
   bundled `vendor/` libraries are present (default in this repo → fully offline HTML).
 - It contains **no credentials**. Nothing phones home. There is no telemetry in this repo.
@@ -37,12 +44,17 @@ verify it yourself.
 
 ## Executable-surface audit (verify it yourself)
 ```bash
-# 1) Shell-out / eval / network surface — the ONLY expected matches are:
+# 1) Shell-out / eval / network surface — the ONLY expected matches are the touchpoints in the TL;DR:
 #      - RegExp .exec(...) string matching (not process execution)
 #      - fetch( in skills/cwk-rails-to-spring/references/shadow-parity.cjs (user-supplied endpoints only)
-#      - child_process/spawn in vscode-extension/src/extension.ts (spawns the local claude CLI)
-grep -rnE "child_process|execSync|spawn|\beval\(|new Function|http\.|https\.|fetch\(|net\.|dns\." \
-  --include='*.js' --include='*.cjs' --include='*.sh' --include='*.ts' .
+#      - child_process/spawn in vscode-extension/src/extension.ts (the local claude CLI),
+#        skills/cwk-map/references/provenlens-*.cjs (the local provenlens CLI),
+#        scripts/measure-diagrams.cjs (open / xdg-open), resources/check-mermaid.cjs (a local parse worker)
+#      - curl / npm pack in scripts/fetch-vendor.sh, gh in scripts/kb-export.sh,
+#        claude -p in scripts/kb-pipeline.sh and scripts/schedule.sh, crontab in scripts/schedule.sh
+grep -rnE "child_process|execSync|spawn|\beval\(|new Function|http\.|https\.|fetch\(|net\.|dns\.|curl |npm pack|\bgh |crontab|claude -p|worker_threads" \
+  --include='*.js' --include='*.cjs' --include='*.sh' --include='*.ts' --exclude-dir=tests --exclude-dir=node_modules .
+#    (tests/ stubs these commands on purpose; they never reach the network)
 
 # 2) Real require()s are stdlib + local siblings only:
 grep -rnE "require\((['\"])" --include='*.js' --include='*.cjs' .   # fs, path, crypto, ./html-builder, ./graph-builder
@@ -52,9 +64,7 @@ grep -rniE "api[_-]?key|secret|password|BEGIN (RSA|PRIVATE)|sk-|ghp_|AKIA[0-9A-Z
 #   → only the WORD "secret/token" in review checklists, no actual values.
 ```
 Findings (as audited): no `eval`/`Function`, no dynamic `require`, no hardcoded secrets, no
-telemetry. Process/network use is limited to the four opt-in components listed in the TL;DR
-(shadow-parity → user-supplied endpoints; the extension → local `claude` CLI; splunk-report and
-triage → env/MCP credentials). `graph-builder.js`/`html-builder.js` are readable `tsc` output (not
+telemetry. Process/network use is limited to the opt-in touchpoints listed in the TL;DR. `graph-builder.js`/`html-builder.js` are readable `tsc` output (not
 minified) — provenance: the author's own Auto Spec extension project.
 
 ## Scripts that write outside this repo
@@ -65,14 +75,14 @@ invoke them.
 
 | Script | Writes to | Guards |
 |---|---|---|
-| `scripts/personal-install.sh` | `~/.claude/{skills,commands,agents,hooks}` — symlinks | Uninstall removes **only** links that resolve back into this repo; a foreign symlink survives. `CWK_CLAUDE_DIR` overrides the destination so the logic is testable. *(10 cases)* |
-| `scripts/onboard-project.sh` | a target repo's `.gitignore`, and `CLAUDE.md` if absent | Whole-line ignore matching (a near-miss line does not count as present); an existing `CLAUDE.md` — root or `.claude/` — is never overwritten. *(14 cases)* |
-| `scripts/schedule.sh` | your **crontab** | Only lines carrying its own end-anchored marker; prints the change and asks before writing; refuses to schedule any code-editing skill; escapes `%`, which cron would otherwise read as a newline. *(20 cases, behind a stubbed `crontab`)* |
-| `scripts/kb-export.sh` | a hub directory (the KB **and** `cwk-sessions/runbook/`) | Refuses to write into a repo it can see is **public** (a KB is a readable distillation of your source); refuses to overwrite a snapshot taken from a *different* repo with the same folder name; never commits or pushes. *(part of 32 cases)* |
-| `scripts/kb-import.sh` | a target repo's `knowledge-base/` | Refuses to overwrite an existing KB without `--force`, and keeps a timestamped backup when forced — `knowledge-base/` is gitignored, so git is not an undo here. Warns when the snapshot's commit is absent from that checkout. |
-| `scripts/kb-pipeline.sh` | nothing itself — it invokes `claude -p`, and the skills write `knowledge-base/`, `cwk-sessions/` and `.provenlens/` inside the repos you name | **Never clones**: a URL is rejected as a path, so it can only touch checkouts you already have. Prints the full plan with a per-repo step list, the permission mode in effect and a cost warning, and asks before the first token is spent (`--yes` to skip, `--dry-run` to print only). A step whose output exists is skipped unless `--force`. Defaults to `--permission-mode acceptEdits` rather than `bypassPermissions`: the safe mode is the default and the hammer is opt-in, named in the plan you confirm. *(19 cases, behind stubbed `claude`/`provenlens`)* |
-| `scripts/migrate-sessions.sh` | renames `spec-kit-sessions/` → `cwk-sessions/` in a repo | Never overwrites on merge; leaves anything it could not merge in place; `--dry-run`. *(15 cases)* |
-| `scripts/audit-log.sh` (and both hooks) | `${CWK_AUDIT_LOG:-~/.claude/cwk-audit.jsonl}`, created `0600` | Appends one JSON line per action or decision: timestamp, user, host, action, cwd, and the key=values the caller passes. Never command text, file contents or secrets; `user:pass@` is stripped from anything URL-shaped. `CWK_AUDIT_LOG=off` disables it; a failure to write never fails the caller. The hooks refuse to let the agent write the log file itself. |
+| `scripts/personal-install.sh` | `~/.claude/{skills,commands,agents,hooks}` — symlinks | Uninstall removes **only** links that resolve back into this repo; a foreign symlink survives. `CWK_CLAUDE_DIR` overrides the destination so the logic is testable. *(14 cases)* |
+| `scripts/onboard-project.sh` | a target repo's `.gitignore`, and `CLAUDE.md` if absent | Whole-line ignore matching (a near-miss line does not count as present); an existing `CLAUDE.md` — root or `.claude/` — is never overwritten. *(17 cases)* |
+| `scripts/schedule.sh` | your **crontab** | Only lines carrying its own end-anchored marker; prints the change and asks before writing; refuses to schedule any code-editing skill; escapes `%`, which cron would otherwise read as a newline. The job line quotes paths POSIX-style (dash-safe) and matches its own entries as plain text, so a path with `|` or `(` cannot touch another repo's job. A job may write only its own output (`knowledge-base/` for rescan, `cwk-sessions/`) and read git — never `acceptEdits`; it carries only the tool folders it needs, and a line over cron's 1000-byte command limit is refused. *(39 cases, behind a stubbed `crontab`)* |
+| `scripts/kb-export.sh` | a hub directory (the KB **and** `cwk-sessions/runbook/`) | Refuses to write into a repo it can see is **public** (a KB is a readable distillation of your source), warns on **internal**, and stops when a hub with a remote has a visibility `gh` cannot read unless `--allow-unverified-visibility`; scans every exported text file for secrets; refuses to overwrite a snapshot taken from a *different* repo with the same folder name; never commits or pushes. *(part of 167 cases)* |
+| `scripts/kb-import.sh` | a target repo's `knowledge-base/` | Refuses to overwrite an existing KB without `--force`, and keeps a timestamped backup under `cwk-sessions/kb-backups/` when forced — `knowledge-base/` is gitignored, so git is not an undo here. Warns when the snapshot's commit is absent from that checkout. |
+| `scripts/kb-pipeline.sh` | nothing itself — it invokes `claude -p`, and the skills write `knowledge-base/`, `cwk-sessions/` and `.provenlens/` inside the repos you name | **Never clones**: a URL is rejected as a path, so it can only touch checkouts you already have. Prints the full plan with a per-repo step list, the permission mode in effect and a cost warning, and asks before the first token is spent (`--yes` to skip, `--dry-run` to print only). A step whose output exists is skipped unless `--force`. Defaults to `--permission-mode acceptEdits` rather than `bypassPermissions`: the safe mode is the default and the hammer is opt-in, named in the plan you confirm. *(32 cases, behind stubbed `claude`/`provenlens`)* |
+| `scripts/migrate-sessions.sh` | renames `spec-kit-sessions/` → `cwk-sessions/` in a repo | Never overwrites on merge; leaves anything it could not merge in place; `--dry-run`. *(23 cases)* |
+| `scripts/audit-log.sh` (and the file-guard hook) | `${CWK_AUDIT_LOG:-~/.claude/cwk-audit.jsonl}`, created `0600` | Appends one JSON line per action or decision: timestamp, user, host, action, cwd, and the key=values the caller passes. Never command text, file contents or secrets; `user:pass@` is stripped from anything URL-shaped. `CWK_AUDIT_LOG=off` disables it; a failure to write never fails the caller. The hook refuses to let the agent write the log file itself. |
 
 `scripts/kb-site.cjs` and the other Node generators only read and write inside the directory you
 point them at. Their output is a self-contained HTML page: every document is JSON-escaped before it
@@ -129,8 +139,9 @@ State the consequence plainly, because it is easy to assume otherwise:
 - The skills still *tell* the agent not to push during a build, not to run destructive git, and to
   undo only with `git stash` or `git apply -R`. That is an instruction the model follows, not a
   control that holds when it does not.
-- `hooks/file-guard.sh` (below) deliberately does not inspect git commands, so `git config` can
-  write `~/.gitconfig` and `.git/config` even though the file guard lists them as protected.
+- `hooks/file-guard.sh` (below) does not restrict git as git: `git config` can still write
+  `~/.gitconfig` and `.git/config`. It only stops git from being the route around it for the other
+  protected files (`--work-tree`, `checkout`/`restore` of them, `config --file` onto them, …).
 
 **If you want git restricted**, Claude Code's own `permissions.deny` does it without this kit, and
 unlike a hook it cannot be argued with by the model:
@@ -149,11 +160,15 @@ push to one owner and refuse it to another — but it is enforced by the harness
 
 `hooks/file-guard.sh` runs on `Edit`, `Write`, `MultiEdit`, `NotebookEdit` and `Bash`, and refuses
 any write to `~/.claude/settings*.json` and project `.claude/settings*.json`, `~/.claude/hooks/*`,
-the kit's own `hooks/` directory, the managed-settings locations, `~/.gitconfig`, `.git/config`,
-`.git/hooks/*`, `~/.ssh`, `~/.aws`, `~/.config/gh`, `~/.netrc` and the audit log — through a file
-tool, a shell redirection, `sed -i`, `cp`, `mv`, `rm`, `ln`, `chmod` or an interpreter. Reads
-(`cat`, `grep`, `jq`, `diff`, `ls`) are allowed. git commands are not inspected (see above).
-`tests/file-guard.test.sh` pins **50 cases**. It fails closed without `jq`.
+`~/.claude.json` (MCP server commands), the kit's own `hooks/` directory, the managed-settings
+locations, `~/.gitconfig`, `.git/config`, `.git/hooks/*`, `~/.ssh`, `~/.aws`, `~/.config/gh`,
+`~/.netrc` and the audit log — through a file tool, a shell redirection, `sed -i`, `sort -o`,
+`yq -i`, `cp`, `mv`, `rm`, `ln`, `chmod`, `xargs` fed from a pipe that named one, a glob or `{a,b}`
+that expands to one, or an interpreter given the path. Removing or replacing a `.claude/` directory
+(rm, mv, a recursive copy or an extract into it) is blocked too. On macOS paths compare
+case-insensitively. Reads (`cat`, `grep`, `jq`, `diff`, `ls`) are allowed. git is limited only as
+described above. `tests/file-guard.test.sh` pins **383 cases**, including the everyday commands that
+must stay allowed and fast. It fails closed without `jq`.
 
 Treat it as **defence in depth, not a security boundary**: it reads the text of one tool call, so it
 cannot see inside a script file it is asked to run. An organisation that needs it enforced installs
@@ -180,15 +195,15 @@ Verify: `printf '{"tool_name":"Write","tool_input":{"file_path":"'"$HOME"'/.clau
 The full, concrete version — with the managed-settings JSON, the deny list, the SIEM one-liner and a
 checklist a security team can tick — is **`docs/company-setup-guide.html`, Part A**. In one line each:
 
-1. **What it is / is not** — prompts and short scripts; the model reading code is inherent to Claude Code, not added here; no telemetry; the only egress is cdnjs at view-time when `vendor/` is absent.
+1. **What it is / is not** — prompts and short scripts; the model reading code is inherent to Claude Code, not added here; no telemetry; the kit's own network and process use is the opt-in list in the TL;DR (cdnjs at view-time only when `vendor/` is absent).
 2. **File guard as policy** — install `hooks/file-guard.sh` root/admin-owned and wire it from managed settings (`/Library/Application Support/ClaudeCode/managed-settings.json`, `/etc/claude-code/managed-settings.json`, `C:\Program Files\ClaudeCode\managed-settings.json`); the limits in the file-guard section above apply.
 3. **Baseline `permissions.deny`** — git rules if you want git restricted (the kit ships no git guard), plus `Read(~/.ssh/**)`, `Read(~/.aws/**)`, `Read(**/.env)`, `Read(**/.env.*)`, `Bash(curl *| sh*)`, `Bash(curl *| bash*)`, `Bash(wget *| sh*)`, `Bash(sudo:*)`, `WebFetch`; engineers run `--permission-mode acceptEdits`, readers the panel's `readonly` mode; never `bypassPermissions` on a company machine.
 4. **GitHub Enterprise Server** — `gh auth login --hostname`, `HTTPS_PROXY`/`NO_PROXY`, and `vendor/` (verified by `scripts/fetch-vendor.sh --check`) for offline use.
 5. **Windows** — the hooks are bash and run under Git Bash/WSL only; a Windows install without them has no guard, only the deny list.
 6. **Data classification** — every KB carries `classification: public | internal | confidential | restricted` (default `internal`) in `_meta.yml`; the export copies it and the hub page shows it as a badge and a banner; the export secret scan, source stripping (`--with-source` is opt-in) and "never publish a hub of a company repo" govern where KB content may go.
 7. **Repository hygiene** — the global gitignore protects one machine; put `knowledge-base/`, `cwk-sessions/`, `.provenlens/` in every team repo's `.gitignore` and refuse them in a pre-commit/CI check.
-8. **Audit trail** — `scripts/audit-log.sh` and both hooks append JSON lines to `${CWK_AUDIT_LOG:-~/.claude/cwk-audit.jsonl}` (0600; never command text or secrets): scans, rescans, reviews, PR reviews, runbooks, exports, imports, pipelines, onboarding, schedules, every hook deny and every allowed push/`gh` write; ship it with `tail -F … | logger` or a cron copy.
+8. **Audit trail** — `scripts/audit-log.sh` and the file-guard hook append JSON lines to `${CWK_AUDIT_LOG:-~/.claude/cwk-audit.jsonl}` (0600; never command text or secrets): scans, rescans, reviews, PR reviews, runbooks, exports, imports, pipelines, onboarding, schedules and every hook deny; ship it with `tail -F … | logger` or a cron copy.
 9. **Freshness and depth** — trust a KB only at the `commit`/`generated` in its `_meta.yml`; `/cwk-rescan` on a schedule; `standard` depth samples layers over ~40 files, `deep` reads everything.
-10. **Checklist** — the guide ends with the list a security team ticks before approving; pin the kit to a reviewed tag and rerun `bash tests/run.sh` on each update.
+10. **Checklist** — the guide ends with the list a security team ticks before approving; pin the kit to a reviewed commit SHA (no release tags are published) and rerun `bash tests/run.sh` on each update.
 
 _Not a substitute for your own security review. This reflects the state of the repo at audit time._

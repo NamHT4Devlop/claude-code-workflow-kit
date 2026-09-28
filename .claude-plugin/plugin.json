@@ -1,7 +1,7 @@
 {
   "name": "cwk",
-  "version": "4.1.0",
-  "description": "Spec-driven dev workflow for Claude Code: plan → code → review → test → evidence, plus production bug hotfix, Knowledge Base scan, codebase Q&A, user stories, dependency map, cross-service system map, and business↔code docs. A native port of the author's private Auto Spec VS Code extension. Ships a read/sync-in-only git guard hook.",
+  "version": "5.0.0",
+  "description": "Spec-driven dev workflow for Claude Code: plan → code → review → test → evidence, plus production bug hotfix, Knowledge Base scan, codebase Q&A, user stories, dependency map, cross-service system map, and business↔code docs. A native port of the author's private Auto Spec VS Code extension. Ships a file-guard hook that keeps the agent from rewriting its own settings, hooks and credential files.",
   "author": {
     "name": "NamHT Labs"
   },

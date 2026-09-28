@@ -14,6 +14,201 @@ noted per release when it changed.
 
 ---
 
+## [5.0.0] — 2026-09-28
+
+A whole-kit review: six parallel reviews of the scripts, the Node generators, all 31 skills, the
+commands, agents, docs, the VS Code extension and CI. Each finding was re-checked in the source
+before it was fixed. The fixes themselves then went through an adversarial workflow review: six
+reviewers, and two independent refuters per finding. It confirmed 42 problems in the first round of
+fixes, and those were fixed too before release. MAJOR because four behaviours now stop where they
+used to carry on, and you may have to act on them.
+
+### You may have to do this after updating
+- **Parity runs with write cases** (`shadow-parity.cjs`): cases that write (a REST method other
+  than GET/HEAD/OPTIONS, or a GraphQL `mutation`) are no longer sent unless you pass
+  `--allow-writes`, and without it they count as failures. The same write sent to two services on one
+  shared database lands twice. Run write cases against separate or disposable databases. Mark a case
+  that is rejected before it writes (a validation error) with `"readOnly": true`.
+- **`kb-export.sh` / `kb-pipeline.sh` stop when the hub's visibility cannot be verified.** This
+  covers a hub with a git remote where `gh` is missing, is not logged in to your GitHub Enterprise
+  host, or faces a GitLab/Bitbucket remote. Check the remote is private, then pass
+  `--allow-unverified-visibility`. A hub with no remote gets a warning and exports.
+- **Scheduled jobs** (`schedule.sh`): re-add your `rescan` / `drift` jobs (`remove`, then `add`) to
+  get the new line. Old jobs ran in the headless default mode, which refuses every write, so they
+  produced nothing.
+  - Unattended runs still cannot use `provenlens`, `node` (diagram check, HTML render) or other Bash,
+    so they fall back to grep depth and Markdown only.
+  - The new line grants exactly the writes each job needs: `Edit`/`Write` under `knowledge-base/`
+    (rescan only) and `cwk-sessions/`, plus read-only git. It does **not** grant `acceptEdits`, which
+    would let an unattended run edit source. This was verified with a real headless run.
+  - It carries the folders of claude/node/git/jq/provenlens rather than your whole `PATH`. macOS cron
+    cuts a command at 1000 bytes, and a line longer than that is refused.
+  - Paths are quoted dash-safe.
+- **Editing skills need a clean tree, untracked files included** (`git stash push -u` parks them).
+  The reverse patch treats every untracked file as the agent's own, so starting with the user's
+  untracked files present could delete them on undo; the skills now refuse to start instead.
+- **`cwk-issues`** matches issues on a `cwk-source: <plan>#<story id>` marker in the body. Issues it
+  created before 5.0.0 carry no marker, so a re-run shows them as possible matches to confirm rather
+  than updating them.
+
+### Fixed — safety
+- **The code-editing skills could not undo files they created.** In `build`, `fix-bug`, `migrate`,
+  `simplify`, `perf` and `observe`, the reverse patch was `git diff`, which omits untracked files.
+  It is now `git diff --binary` plus `git diff --binary --no-index /dev/null <file>` for each new file,
+  so binary files and names longer than 255 bytes are included and the index is untouched. It is
+  saved to a real path under `cwk-sessions/…`. Both the capture and the undo run from
+  `git rev-parse --show-toplevel`, because from a subdirectory `git apply -R` silently changes
+  nothing. They pin `--src-prefix`/`--dst-prefix` so a user's `diff.noprefix` cannot break them. The
+  ignore rule is written to
+  `git rev-parse --git-path info/exclude`, so it also works in a worktree, where `.git` is a file.
+- **The kit's own session files were swept into the stash.** Each editing skill now puts
+  `cwk-sessions/` in `.git/info/exclude` first when nothing ignores it; otherwise those files failed
+  the clean-tree check and `git stash push -u` swept them away.
+- `cwk-build` still said "the guard denies" destructive git, a leftover from 4.0.0. Its untested-code
+  gate also missed brand-new files.
+- **`cwk-rails-to-spring` edited code with no safety net at all.** It now has the same baseline,
+  snapshot and allowed-undo rule as the others. `cwk-review`'s apply-fixes mode gained a revert that
+  cannot delete the work under review.
+- **`/cwk-build` treated a story pasted from Slack or a ticket as already approved**, which the skill
+  itself forbids. Now only criteria the user wrote or signed off skip the confirmation.
+- **file-guard** now closes the ways around it that a review found:
+  - case variants on macOS (`~/.Claude/Settings.json`);
+  - `rm`/`cp`/`tar` on a `.claude/` directory itself;
+  - a path fed through `xargs`;
+  - paths inside options (`-o<path>`, `--output-document=<path>`);
+  - `sort -o` and `yq -i`;
+  - globs (`settings.js?n`);
+  - `git --work-tree` / `config --file` / `checkout` on protected files;
+  - `cd hooks && rm …`.
+  
+  `~/.claude.json` (MCP server commands) is now protected. Git's own files and `git add`/`diff` of
+  project settings stay allowed, and so does naming a `.claude/` directory without replacing it
+  (`rsync --exclude .claude`, a copy out of it). The header now says what it is: a guard against
+  accidents and planted instructions, not a sandbox.
+  - It is also **faster than before**: no fork per token and byte-wise matching.
+    - A 200-line heredoc takes 0.4 s (was 3.5 s).
+    - A padded 1700-word command is denied in 0.28 s (was 2.4 s), well inside the 10 s hook timeout.
+  - A redirect is now judged by its **target**. Reading a protected file into `/tmp` or adding
+    `2>/dev/null` is no longer denied. Writing to a protected file through `x>f`, `1<>f` or `>|` is
+    denied, and so are quote- or escape-split names (`~/.cl'a'ude`, `$'\x2e'claude`), reserved-word
+    prefixes (`if …; then rm -rf ~/.claude; fi`), brace ranges and globs that expand to a protected
+    name, and `git --work-tree ~`.
+  - **Here-document bodies are data** (a file's contents, a commit message), not commands, unless
+    they are fed to something that runs them (bash, sh, python, node, eval, xargs, …) or the same
+    command runs a script (`cat > x.sh <<EOF … EOF; bash x.sh`). The old parser denied JSDoc
+    `/**` lines, Markdown tables mentioning `.claude/`, and long `git commit -m "$(cat <<'EOF' …)"`
+    bodies. On a 552-command corpus of everyday work the new hook denies nothing HEAD allowed, and 36
+    of HEAD's false denies are gone. A 425 KB heredoc takes 0.06 s (HEAD: minutes). Tested on macOS
+    (bash 3.2 and 5) and on Debian (mawk and gawk).
+  - 383 cases (was 50), covering both what must be blocked and the everyday commands that must stay
+    allowed and fast.
+- **The VS Code panel's readonly mode was weaker than it claimed.** An allow rule in the user's own
+  settings could still run a shell command, and the opened repository's `.claude/settings.json` hooks
+  still ran. Readonly now also passes `--disallowedTools Bash,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch`
+  and `--settings '{"disableAllHooks":true}'`. The repository's own `permissions.deny` rules and
+  project skills still load. Verified with real headless runs: the shell write and the repo hook both
+  no longer happen, a control run without the setting does run the hook, and `/cwk-help` still works.
+  - Saved run history is now scrubbed of secret-shaped strings.
+  - The webview's markdown escapes `"`.
+  - On Windows the ⚡ Interactive button starts the CLI directly instead of typing a POSIX-quoted line
+    into cmd/PowerShell. For an npm `claude.cmd`, which cmd.exe still parses, cmd's special characters
+    are removed from the form text.
+  - VS Code extension **v0.19.0**.
+- `kb-export.sh`:
+  - its secret scan now covers every exported text file (not only `.md`) and recognises
+    `github_pat_`, `sk_live_`, Google API keys and JWTs;
+  - it no longer overwrites a hand-written hub `README.md`;
+  - it no longer records a code graph it could not strip as `stripped`;
+  - it no longer dies silently on a `_meta.yml` without `exported_from:`.
+- `kb-import.sh --force` keeps its backup under `cwk-sessions/kb-backups/`. The old location was
+  not ignored, so it could be committed.
+- `triage`: stack-frame lines and `git log -L` / `blame` are now read at the **deployed** revision,
+  not at `HEAD`. The remote URL is printed without an embedded token, and the recorded SPL uses
+  placeholders for business ids. Linking or noting an existing Rally defect is gated like a create.
+
+### Fixed — correctness
+- `commands/fix-bug.md` had invalid YAML frontmatter, so Claude Code loaded the command with empty
+  metadata. `tests/consistency.test.sh` now parses every skill/command/agent frontmatter.
+- `cwk-rescan` diffed against `HEAD` by default, which sees only uncommitted edits. It now diffs
+  against `_meta.yml`'s `commit:`. It also gained a **scoped update** mode, which `cwk-drift
+  --fix-docs` uses (rescan could not act on a finding list), and mappings for dependency, config/CI,
+  error-handling and convention changes.
+- `cwk-issues` matched on a bare story id, but every plan numbers from `US-F1-001`, so it could
+  update another epic's ticket. It now matches on a source marker and copies AC ids verbatim.
+- `cwk-retro`: `--since=7d` means "the 7th of the month" to git, `git shortlog` without `HEAD` reads
+  stdin, and a date is not a revision. All three are fixed.
+- `shadow-parity.cjs` ignored per-case headers, so the auth-denied case still sent the token.
+- `onboard-project.sh` glued its pattern onto a `.gitignore` without a final newline (`.envcwk-sessions/`).
+- `kb-pipeline.sh`:
+  - a relative `--hub` landed inside the last repo;
+  - a missing option value looped forever.
+- `schedule.sh`:
+  - a path containing `|` could replace another repo's job;
+  - non-ASCII paths produced `$'…'`, which dash rejects.
+- `migrate-sessions.sh` printed a garbled reminder.
+- `fetch-vendor.sh` works with `sha256sum` when `shasum` is absent.
+- The Node generators:
+  - **`check-mermaid` hung** on an unquoted `<` in a label (`A[one<br/>two]`, `B{a < b?}`,
+    `List<Item>`), which stopped `/cwk-scan`, `rescan`, `document` and `runbook` from finishing. Each
+    parse now also runs under a deadline (`MM_TIMEOUT_MS`, default 10 s) and a hang exits 2 naming
+    the diagram. A capitalised ```` ```Mermaid ```` fence is checked too.
+  - **The HTML renderer mangled every snake_case name and URL**: it ran emphasis inside code spans
+    and links (`order_line_item_id` became `order<em>line</em>item_id`). Code spans now pair by
+    backtick-run length, like CommonMark. Every attribute value is escaped, which closes an injection
+    path that the first version of this fix opened. That was verified by fuzzing 4.5 M inputs.
+  - A fence with a non-word info string (```` ```c# ````, ```` ```js title=x ````) swallowed the rest
+    of the document.
+  - The template-literal `\s` trap was still present in two places, which broke per-edge colouring.
+  - The CDN cleanup deleted `https://cdnjs.cloudflare.com` from document text.
+  - **Sampled code maps leaked source excerpts into the KB hub.** `strip-map-source.cjs` now strips
+    them.
+  - An old or corrupt `.provenlens/index.db` crashed `/cwk-map` instead of falling back.
+  - `kb-site.cjs` took any repo with a `projects/` folder (Angular, many monorepos) for a hub.
+  - `html-to-pdf.sh` could report last week's PDF as success, and its first fix could delete the
+    input. It now renders to a temp file, publishes only on success, and refuses output == input by
+    inode.
+  - `PDF_LIGHT=1` left dark-theme colours (near-white text on white).
+  - `shadow-parity.cjs`:
+    - integers beyond 2^53 are now compared exactly;
+    - header names merge case-insensitively;
+    - a GraphQL document counts as a write when any of its operations is a mutation (fragment-first
+      and multi-operation documents included).
+- Skills and docs:
+  - `cwk-pr` hard-coded `origin/main` and required a reach ledger without bundling its protocol;
+  - `cwk-scan`'s quick depth contradicted "the business layer is never sampled";
+  - `cwk-map` described the wrong default path and the wrong `vendor/`;
+  - `cwk-system-map` claimed an ignore rule nothing adds, and had no monorepo branch;
+  - `ask`/`document` templates had no place for the required evidence line;
+  - `plan`/`user-story` made the reach ledger optional without an index;
+  - `plan` and `plan-review` had no no-KB fallback;
+  - the reviewer agents' diff-only reporting contract suppressed pre-existing defects in file and
+    whole-repo audits;
+  - the severity scale disagreed between the protocol and the matrix;
+  - legacy `namht-sessions/` was not read;
+  - `migrate`, `rails-to-spring` and `system-map` ran `provenlens init` without asking.
+- Docs:
+  - both plugin manifests still advertised the removed git guard;
+  - the company guide cloned a tag that does not exist and described the git guard in five places;
+  - the manual setup scaffold created 4 of the 9 `resources/` files, so `sync-bundles.sh` aborted;
+  - SECURITY.md's "exactly four components touch the network" was false (it now lists every
+    touchpoint) and its test counts were stale;
+  - README fixes: the Option B uninstall, the help-command collision, the `.provenlens/` global
+    ignore, the upgrade note, the build step count, and the "N of M skills" counts (now checked by
+    the test).
+
+### Changed
+- CI shellchecks the skill-bundled shell scripts too.
+- `tests/consistency.test.sh` now also checks:
+  - skill, command and agent frontmatter as YAML: unquoted `: `/` #`, unclosed quotes, stray
+    indicators, name == folder, and descriptions of 1024 characters or fewer;
+  - every "N of the M skills use provenlens" claim;
+  - the `/cwk-build` step count wherever it is quoted;
+  - that both launch paths of the VS Code panel apply the readonly arguments.
+- A rescan **scoped update** leaves `_meta.yml`'s `commit` and `generated` alone and records the
+  pages it fixed under a new `patched:` key (`resources/kb-steps.md`).
+
+---
+
 ## [4.1.0] — 2026-09-27
 
 ### Added

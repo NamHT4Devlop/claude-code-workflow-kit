@@ -28,11 +28,13 @@ fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` 
 is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- **`build-map.cjs` already does the choosing — you do not.** It calls
-  `references/provenlens-graph.cjs` first: with a `.provenlens/` index and `provenlens` on PATH it draws
-  the **resolved call graph** (edges are real calls, each labelled with its `via` and confidence);
-  otherwise it falls back to the regex scan and prints why on stderr. Read that line and repeat it
-  in your summary.
+- **`build-map.cjs` already does the choosing — you do not.** In order: (1) in `all` mode with a
+  `.provenlens/` index and Node ≥ 22.13 (for `node:sqlite`), the **whole-index explorer** — every
+  symbol and resolved call, drawn on demand; (2) otherwise, or with `PROVENLENS_FULL=0`, the
+  **sampled resolved graph** from `references/provenlens-graph.cjs` (~400 nodes around the hubs,
+  edges labelled with their `via` and confidence; needs `provenlens` on PATH); (3) otherwise the
+  **static regex scan**. Each fallback prints why on stderr. Read that line and repeat it in your
+  summary.
 - **The viewer says which one drew it** — the meta bar reads `provenlens (resolved call graph)` or
   `static import/inheritance scan`. Never describe a regex edge as a call.
 - **Uncovered languages are named, not hidden.** If the tree holds Python, Go, C#, PHP, Rust,
@@ -56,7 +58,7 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
    use that folder as the root (the analyzer scans the folder you point it at). Optional `mode`:
    `all` (default — files+classes+routes+KB), `files` (lighter, import graph only), `classes`,
    `routes`, `domain` (KB only).
-2. **Run the bundled generator with Node** (Node ≥18; v20+ ideal). Resolve this skill's
+2. **Run the bundled generator with Node** (Node ≥18; ≥ 22.13 for the whole-index explorer, which reads the index with `node:sqlite`). Resolve this skill's
    `references/` dir first (call it `$SKILL_DIR`): `${CLAUDE_PLUGIN_ROOT}/skills/cwk-map/references`
    if `CLAUDE_PLUGIN_ROOT` is set, else the `references/` folder next to this SKILL.md, else
    `$HOME/.claude/skills/cwk-map/references`:
@@ -105,13 +107,13 @@ Both share the search box, the detail panel (every caller and callee, drawn or n
 the layer legend. `#sym=<qualified name>` opens on that symbol; add `&view=trace` to open it in Trace.
 
 ## Notes
-- Knowledge Base enrichment is automatic: in `all`/`domain` mode the analyzer also pulls
-  `knowledge-base/*.md` as domain nodes, so the KB shows beside the code when present.
-- Large repos: if a graph exceeds ~1800 nodes the generator auto-switches to `files` mode for
-  readability; you can also pass `files` explicitly, or point it at a sub-module to drill in.
-- **Offline by default when vendored.** If the repo has `vendor/cytoscape.min.js`, the generator
-  **inlines** it so the HTML is fully self-contained — zero external network calls (enterprise /
-  air-gapped safe). Without `vendor/`, it falls back to a Cytoscape CDN link (needs internet).
+- Static scan only (path 3): in `all`/`domain` mode it also pulls `knowledge-base/*.md` as domain
+  nodes, and above ~1800 nodes it auto-switches to `files` mode; you can also pass `files`
+  explicitly, or point it at a sub-module to drill in.
+- **Offline by default when vendored.** If **the kit's own** `vendor/` holds the pinned
+  `cytoscape.min.js` (it does in this repo, SHA-256 checked), the generator **inlines** it so the
+  HTML is self-contained — zero external network calls. A scanned repo's `vendor/` is never used.
+  Without it, the page falls back to a Cytoscape CDN link (needs internet).
   Either way your graph data is embedded inline — no code leaves the machine.
 - Output lives under `cwk-sessions/maps/` which is gitignored, so nothing lands in a commit.
 - If the user instead wants a graph the AGENT can query (an agent-queryable index) rather than a human

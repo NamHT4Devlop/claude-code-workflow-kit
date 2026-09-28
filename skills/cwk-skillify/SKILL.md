@@ -18,8 +18,8 @@ and document it. Operate inside the `claude-code-workflow-kit` repo (the toolkit
 2. **Read [`docs/skill-anatomy.md`](../../docs/skill-anatomy.md) first** — it is the standard this
    step generates against: required sections in order, and the extra trailer
    (**Common rationalizations · Red flags · Verification**) that every high-stakes skill carries.
-   A skill that edits code, or whose conclusions someone will act on, MUST have that trailer;
-   `tests/consistency.test.sh` fails without it.
+   A skill that edits code, or whose conclusions someone will act on, MUST have that trailer — add
+   it to `HIGH_STAKES` in `tests/consistency.test.sh` so the test enforces it.
 3. **Create `skills/cwk-<name>/SKILL.md`** with frontmatter:
    - `name: cwk-<name>` (MUST equal the folder name), `description: >-` a 1–3 sentence trigger
      description (when to use + key verbs/aliases). Body = the methodology, grounded in the KB
@@ -27,8 +27,11 @@ and document it. Operate inside the `claude-code-workflow-kit` repo (the toolkit
      dual-audience output, change-discipline if it edits code.
 4. **Create `commands/<name>.md`** (UNPREFIXED filename) — thin entry: frontmatter `description` +
    `argument-hint`, body "Use the **cwk-<name>** skill to … $ARGUMENTS".
-5. **If it needs bundles** (HTML render / review checklist): add `cwk-<name>` to the right list in
-   `scripts/sync-bundles.sh` (`map_html` for the renderer, `map_review` for the checklist), then run
+5. **Bundles.** Every skill goes in `map_untrusted` in `scripts/sync-bundles.sh` and ends with an
+   `## Untrusted input` section that points at `references/untrusted-input.md` — the test fails any
+   skill without both. Add it to the other lists as it needs: `map_html` (the HTML renderer),
+   `map_review` (the review checklist), `map_evidence` (the reach-ledger protocol — then also to
+   `PROVENLENS_EVIDENCE` in the test), `map_mermaid` (the diagram checker). Then run
    `bash scripts/sync-bundles.sh`.
 6. **Register it in EVERY place a skill is listed.** Missing one is how the kit drifts — and
    `tests/consistency.test.sh` fails on each of these, so check them off before running it:
@@ -41,12 +44,24 @@ and document it. Operate inside the `claude-code-workflow-kit` repo (the toolkit
      and every field label (or list the term in `I18N_VI_SAME` if it stays English on purpose) —
      `tests/i18n.test.cjs` fails the suite otherwise.
    - `commands/help.md` → one table row.
-   - `README.md` → the command table row (and the skill/command counts near the top).
+   - `README.md` → the command table row, and every skill/command count (the tree near the top and
+     "The N skills and 7 sub-agents"; the "N of the M skills" provenlens line if it carries the block).
+   - `vscode-extension/README.md` → "all N skills", and the category list.
+   - `docs/setup-guide.html`, `docs/company-setup-guide.html` → the command tables (and the network
+     table in the company guide if it reaches Slack, Splunk or another service).
    - `docs/skills-catalog.html` → one `<tr>` with the **Edits code / Read-only** badge, and bump the
      `<b>N</b> skills` fact.
-   - `docs/manual-setup-guide.html` → the file counts shown in the copy-paste blocks.
-   - `CHANGELOG.md` → an entry under **Added** (MINOR bump; MAJOR only if users must act).
-7. **Install:** `bash scripts/personal-install.sh` (symlinks the new skill + command into `~/.claude`).
+   - `docs/manual-setup-guide.html` → the skill/command lists and counts in the copy-paste blocks.
+   - `docs/repo-structure.md` + `scripts/scaffold-cwk.sh` → regenerate from `git ls-files` (stage the
+     new files first).
+   - `tests/consistency.test.sh` → `HIGH_STAKES` if it edits code or someone acts on its output (the
+     trailer check only covers skills on that list); the provenlens opt-out list if it never reads a
+     call graph.
+   - `CHANGELOG.md` → an entry under **Added** (MINOR bump; MAJOR only if users must act), and the
+     same version in `.claude-plugin/plugin.json` and `marketplace.json` — the test compares all three.
+7. **Install** — only for the personal install (Option C): `bash scripts/personal-install.sh`
+   (symlinks the new skill + command into `~/.claude`). A plugin install picks it up on update; never
+   run both.
 8. **Verify:** `bash tests/run.sh` — it checks skill-name==folder, bundle sync, `ALLOWED` ↔ `skills/`,
    command ↔ skill, `help.md` coverage, catalog coverage and the documented counts.
 

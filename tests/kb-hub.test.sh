@@ -32,7 +32,7 @@ mk_repo() {  # <name> — a repo with a small KB
 
 echo "kb-export: collects a KB under projects/<name>/"
 a=$(mk_repo alpha)
-"$EXPORT" "$TMP/hub" "$a" >/dev/null 2>&1
+out=$("$EXPORT" "$TMP/hub" "$a" 2>&1)
 check "KB copied"                "$(cat "$TMP/hub/projects/alpha/knowledge-base/13-business-rules.md" 2>/dev/null)" "# rules"
 check "nested module doc copied" "$(cat "$TMP/hub/projects/alpha/knowledge-base/modules/auth.md" 2>/dev/null)" "# auth module"
 check "identity file written"    "$([ -f "$TMP/hub/projects/alpha/_meta.yml" ] && echo yes || echo no)" yes
@@ -42,9 +42,10 @@ check "index lists the project"  "$(grep -c 'projects/alpha' "$TMP/hub/README.md
 check "runbook carried into the hub" "$(cat "$TMP/hub/projects/alpha/runbook/alpha-2026-09-08.md" 2>/dev/null | head -1)" "# Runbook — alpha"
 # /cwk-map writes one file per run; the NEWEST is the one describing the current tree.
 check "newest code graph carried"    "$(grep -c 'NEWEST graph' "$TMP/hub/projects/alpha/code-graph.html" 2>/dev/null)" 1
-# That fixture is not a full-index page (no graph-data block), so it is copied as it is and the
-# export still records what the hub got.
-check "meta records the code graph"  "$(grep -c '^code_graph: stripped' "$TMP/hub/projects/alpha/_meta.yml" 2>/dev/null)" 1
+# That fixture is not a full-index page (no graph-data block), so it is copied as it is — and the
+# export records exactly that: nothing was stripped, so _meta.yml must not say `stripped`.
+check "meta records the code graph"  "$(grep -c '^code_graph: unchanged' "$TMP/hub/projects/alpha/_meta.yml" 2>/dev/null)" 1
+check "and the run says so"          "$(echo "$out" | grep -c 'copied UNCHANGED, nothing stripped')" 1
 
 echo "strip-map-source: a hub's code graph carries the graph, never the source text"
 # A full-index /cwk-map page embeds the TEXT of every indexed file (gzip+base64 inside
@@ -151,7 +152,27 @@ check "existing content intact"   "$(cat "$TMP/mate/knowledge-base/13-business-r
 echo "kb-import: --force replaces but keeps a backup"
 "$IMPORT" --force "$TMP/hub" alpha "$TMP/mate" >/dev/null 2>&1
 check "replaced"                  "$(cat "$TMP/mate/knowledge-base/13-business-rules.md")" "# rules"
-check "backup kept"               "$(ls -d "$TMP/mate"/knowledge-base.bak-* 2>/dev/null | wc -l | tr -d ' ')" 1
+check "backup kept under cwk-sessions/" "$(ls -d "$TMP/mate"/cwk-sessions/kb-backups/knowledge-base-* 2>/dev/null | wc -l | tr -d ' ')" 1
+check "no backup in the repo root" "$(ls -d "$TMP/mate"/knowledge-base.bak-* 2>/dev/null | wc -l | tr -d ' ')" 0
+
+echo "kb-import: in a git checkout the --force backup is git-ignored, never committable"
+# The old knowledge-base.bak-*/ sat un-ignored in the repo root: one `git add .` committed the KB.
+# Global and system git config are switched off, so the result cannot lean on this machine's ignores.
+gitq() { HOME="$TMP/ghome" XDG_CONFIG_HOME="$TMP/ghome/.config" GIT_CONFIG_NOSYSTEM=1 "$@"; }
+mkdir -p "$TMP/ghome" "$TMP/gmate/knowledge-base"; printf '# MINE\n' > "$TMP/gmate/knowledge-base/01-x.md"
+gitq git init -q "$TMP/gmate"
+gitq "$IMPORT" --force "$TMP/hub" alpha "$TMP/gmate" >/dev/null 2>&1
+check "backup made"               "$(ls -d "$TMP/gmate"/cwk-sessions/kb-backups/knowledge-base-* 2>/dev/null | wc -l | tr -d ' ')" 1
+check "git does not see it"       "$(gitq git -C "$TMP/gmate" status --porcelain | grep -c cwk-sessions)" 0
+check "ignored via info/exclude"  "$(grep -cx 'cwk-sessions/' "$TMP/gmate/.git/info/exclude")" 1
+sleep 1
+gitq "$IMPORT" --force "$TMP/hub" alpha "$TMP/gmate" >/dev/null 2>&1
+check "added once, not per run"   "$(grep -cx 'cwk-sessions/' "$TMP/gmate/.git/info/exclude")" 1
+# an exclude file without a final newline must not get the rule glued onto its last line
+mkdir -p "$TMP/gmate2/knowledge-base"; printf '# MINE\n' > "$TMP/gmate2/knowledge-base/01-x.md"
+gitq git init -q "$TMP/gmate2"; printf '*.log' > "$TMP/gmate2/.git/info/exclude"
+gitq "$IMPORT" --force "$TMP/hub" alpha "$TMP/gmate2" >/dev/null 2>&1
+check "no final newline: both rules still work" "$( (gitq git -C "$TMP/gmate2" check-ignore -q x.log && gitq git -C "$TMP/gmate2" check-ignore -q cwk-sessions/) && echo 1 || echo 0)" 1
 
 echo "kb-import: an unknown project is an error, not an empty import"
 "$IMPORT" "$TMP/hub" nosuch "$TMP/mate" >/dev/null 2>&1
@@ -250,6 +271,7 @@ check "token nowhere in the hub"         "$(grep -rl 'tok@' "$TMP/hub3" 2>/dev/n
 # The KB's own _meta.yml (written by a scan) is redacted the same way when it is copied.
 printf 'project: cred\nrepo: https://u:tok@example.com/x.git\nbranch: main\n' > "$TMP/cred/knowledge-base/_meta.yml"
 "$EXPORT" "$TMP/hub3" "$TMP/cred" >/dev/null 2>&1
+check "a URL the export redacts does not block it" "$?" 0
 check "scan-written meta redacted too"   "$(grep -rl 'tok@' "$TMP/hub3" 2>/dev/null | wc -l | tr -d ' ')" 0
 check "ssh form left as is"              "$(printf 'x' | sed -E 's#(https?://)[^/@]+@#\1#' >/dev/null; echo 'ssh://git@example.com/x.git' | sed -E 's#(https?://)[^/@]+@#\1#')" "ssh://git@example.com/x.git"
 
@@ -263,16 +285,99 @@ check "project not written"              "$([ -e "$TMP/hub4/projects/leaky" ] &&
 check "hit names file:line"              "$(echo "$out" | grep -c '14-integrations.md:3:')" 1
 check "hit is masked to 6 chars"         "$(echo "$out" | grep -c 'ghp_ab…')" 1
 check "full token never printed"         "$(echo "$out" | grep -c 'ghp_abcdefghij')" 0
-# Every pattern the scan promises: one fixture each, all must block.
-for s in 'AKIAABCDEFGHIJKLMNOP' 'gho_abcdefghijklmnopqrstuvwxyz' '-----BEGIN RSA PRIVATE KEY-----' 'xoxb-1234' 'sk-abcdefghijklmnopqrstuvwxyz' 'https://user:pass@example.com/repo.git'; do
+# Every pattern the scan promises: one fixture each, all must block. The newer ones are split in two
+# so this file itself never looks like a leaked key to a secret scanner.
+for s in 'AKIAABCDEFGHIJKLMNOP' 'gho_abcdefghijklmnopqrstuvwxyz' '-----BEGIN RSA PRIVATE KEY-----' 'xoxb-1234' 'sk-abcdefghijklmnopqrstuvwxyz' 'https://user:pass@example.com/repo.git' \
+         'github_pat_''11ABCDEFG0123456789_abcdefghij' 'sk_live_''abcdefghij0123' 'rk_live_''abcdefghij0123' \
+         'AIza''SyA-abcdefghijklmnopqrstuvwxyz01234' 'eyJhbGciOiJIUzI1NiJ9''.eyJzdWIiOiIxMjM0In0.sig'; do
   mkdir -p "$TMP/pat/knowledge-base"; printf '# doc\n\n%s\n' "$s" > "$TMP/pat/knowledge-base/01-x.md"
   "$EXPORT" "$TMP/hub-pat" "$TMP/pat" >/dev/null 2>&1
   check "blocks ${s:0:6}…"               "$([ $? -ne 0 ] && [ ! -e "$TMP/hub-pat/projects/pat" ] && echo yes || echo no)" yes
 done
+# Every text file is scanned, not only Markdown: cp -R copies the whole KB.
+printf '# doc\n' > "$TMP/pat/knowledge-base/01-x.md"; printf 'notes\ntoken: xoxb-1234\n' > "$TMP/pat/knowledge-base/notes.txt"
+out=$("$EXPORT" "$TMP/hub-pat" "$TMP/pat" 2>&1)
+check "a non-Markdown file blocks too"   "$([ $? -ne 0 ] && [ ! -e "$TMP/hub-pat/projects/pat" ] && echo yes || echo no)" yes
+check "and is named"                     "$(echo "$out" | grep -c 'notes.txt:2:')" 1
+# The KB's own generated viewer is dropped on the way in, so a stale token inside it is not exported
+# and must not block the export.
+rm "$TMP/pat/knowledge-base/notes.txt"
+printf '<meta name="generator" content="cwk kb-site">\nsk-abcdefghijklmnopqrstuvwxyz\n' > "$TMP/pat/knowledge-base/index.html"
+"$EXPORT" "$TMP/hub-pat" "$TMP/pat" >/dev/null 2>&1
+check "a generated viewer does not block" "$?" 0
+check "and is not exported"              "$([ -e "$TMP/hub-pat/projects/pat/knowledge-base/index.html" ] && echo yes || echo no)" no
 # A clean KB is unaffected, and --allow-secrets is the explicit override.
 "$EXPORT" --allow-secrets "$TMP/hub4" "$TMP/leaky" >/dev/null 2>&1
 check "--allow-secrets exports, exit 0"  "$?" 0
 check "project written on override"     "$([ -f "$TMP/hub4/projects/leaky/knowledge-base/01-x.md" ] && echo yes || echo no)" yes
+
+echo "kb-export: an existing _meta.yml without exported_from: does not kill the run"
+# Under set -e + pipefail, the grep that finds nothing in a hand-made (or older) meta exited 1 silently.
+mkdir -p "$TMP/hub9/projects/alpha"; printf 'project: alpha\n' > "$TMP/hub9/projects/alpha/_meta.yml"
+"$EXPORT" "$TMP/hub9" "$a" >/dev/null 2>&1
+check "exit 0"                           "$?" 0
+check "the KB was exported"              "$([ -f "$TMP/hub9/projects/alpha/knowledge-base/13-business-rules.md" ] && echo yes || echo no)" yes
+
+echo "kb-export: the hub README is rewritten only when this script wrote it"
+mkdir -p "$TMP/hub10"; printf '# Our team hub\n\nhand-written\n' > "$TMP/hub10/README.md"
+out=$("$EXPORT" "$TMP/hub10" "$a" 2>&1)
+check "a hand-written README is kept"    "$(grep -c 'hand-written' "$TMP/hub10/README.md")" 1
+check "not replaced by the index"        "$(grep -c 'Knowledge Base hub' "$TMP/hub10/README.md")" 0
+check "and the run says so"              "$(echo "$out" | grep -c 'README.md as it is')" 1
+"$EXPORT" "$TMP/hub11" "$a" >/dev/null 2>&1
+check "a generated README is marked"     "$(grep -c '^<!-- generator: cwk kb-export' "$TMP/hub11/README.md")" 1
+"$EXPORT" "$TMP/hub11" "$b" >/dev/null 2>&1
+check "a marked README is refreshed"     "$(grep -c 'projects/beta' "$TMP/hub11/README.md")" 1
+# One written before the marker existed is recognised by the sentence every version wrote.
+printf '# Knowledge Base hub\n\nGenerated Knowledge Bases for several repos, collected by `scripts/kb-export.sh`.\n' > "$TMP/hub11/README.md"
+"$EXPORT" "$TMP/hub11" "$a" >/dev/null 2>&1
+check "a pre-marker README is refreshed" "$(grep -c '^<!-- generator: cwk kb-export' "$TMP/hub11/README.md")" 1
+
+echo "kb-export: a hub whose visibility cannot be verified is refused unless you say so"
+# A hub with a remote is headed somewhere. When gh could not tell (not logged in to that host, a
+# GitLab remote, offline, no gh at all) the export used to go ahead without a word.
+mkdir -p "$TMP/ghbin"
+cat > "$TMP/ghbin/gh" <<'STUB'
+#!/usr/bin/env bash
+# `gh repo view --json visibility -q .visibility`: prints $FAKE_GH_VIS, or fails like an unreachable host
+[ -n "${FAKE_GH_VIS:-}" ] || { echo "none of the git remotes point to a known GitHub host" >&2; exit 1; }
+echo "$FAKE_GH_VIS"
+STUB
+chmod +x "$TMP/ghbin/gh"
+mkdir -p "$TMP/vis/knowledge-base"; printf '# vis\n' > "$TMP/vis/knowledge-base/01-x.md"
+mk_hub() { git init -q "$TMP/$1" && git -C "$TMP/$1" remote add origin "https://u:tok@git.example.com/acme/$1.git"; }
+mk_hub vhub1
+out=$(PATH="$TMP/ghbin:$PATH" "$EXPORT" "$TMP/vhub1" "$TMP/vis" 2>&1); rc=$?
+check "unverified → refused"             "$([ "$rc" -ne 0 ] && echo yes || echo no)" yes
+check "nothing written"                  "$([ -e "$TMP/vhub1/projects" ] && echo yes || echo no)" no
+check "says UNVERIFIED"                  "$(echo "$out" | grep -c 'visibility UNVERIFIED')" 1
+check "names the remote"                 "$(echo "$out" | grep -c 'https://git.example.com/acme/vhub1.git')" 1
+check "without its token"                "$(echo "$out" | grep -c 'tok@')" 0
+out=$(PATH="$TMP/ghbin:$PATH" "$EXPORT" --allow-unverified-visibility "$TMP/vhub1" "$TMP/vis" 2>&1); rc=$?
+check "--allow-unverified-visibility exports" "$rc" 0
+check "project written"                  "$([ -f "$TMP/vhub1/projects/vis/knowledge-base/01-x.md" ] && echo yes || echo no)" yes
+check "still warns"                      "$(echo "$out" | grep -c 'visibility UNVERIFIED')" 1
+mk_hub vhub2
+FAKE_GH_VIS=PUBLIC PATH="$TMP/ghbin:$PATH" "$EXPORT" --allow-unverified-visibility "$TMP/vhub2" "$TMP/vis" >/dev/null 2>&1; rc=$?
+check "PUBLIC refused, override or not"  "$([ "$rc" -ne 0 ] && [ ! -e "$TMP/vhub2/projects" ] && echo yes || echo no)" yes
+out=$(FAKE_GH_VIS=INTERNAL PATH="$TMP/ghbin:$PATH" "$EXPORT" "$TMP/vhub2" "$TMP/vis" 2>&1); rc=$?
+check "INTERNAL exports"                 "$rc" 0
+check "INTERNAL warns"                   "$(echo "$out" | grep -c 'INTERNAL — readable by everyone in the enterprise')" 1
+out=$(FAKE_GH_VIS=PRIVATE PATH="$TMP/ghbin:$PATH" "$EXPORT" "$TMP/vhub2" "$TMP/vis" 2>&1); rc=$?
+check "PRIVATE exports"                  "$rc" 0
+check "PRIVATE is reported, not warned"  "$(echo "$out" | grep -c '⚠')" 0
+# No remote at all: local only — a warning, then the export.
+out=$(PATH="$TMP/ghbin:$PATH" "$EXPORT" "$TMP/vhub3" "$TMP/vis" 2>&1); rc=$?
+check "no remote exports"                "$rc" 0
+check "and warns once"                   "$(echo "$out" | grep -c 'no git remote')" 1
+# No gh installed at all is the same unknown, not a pass: a PATH holding only what the script needs
+# up to that check — and no gh.
+mkdir -p "$TMP/nogh"
+for t in bash mkdir dirname git awk sed; do ln -sf "$(command -v "$t")" "$TMP/nogh/$t"; done
+mk_hub vhub4
+out=$(PATH="$TMP/nogh" "$EXPORT" "$TMP/vhub4" "$TMP/vis" 2>&1); rc=$?
+check "no gh → refused"                  "$([ "$rc" -ne 0 ] && [ ! -e "$TMP/vhub4/projects" ] && echo yes || echo no)" yes
+check "and says gh is missing"           "$(echo "$out" | grep -c 'gh CLI is not installed')" 1
 
 echo "kb-export: data classification travels with the KB, and defaults to internal"
 # A KB records permission matrices, unpatched defects and env var names; the hub copies it, so every

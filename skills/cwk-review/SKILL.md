@@ -171,6 +171,14 @@ follow the same change discipline as `/cwk-build`:
 - **One fix at a time**, then re-verify; preserve existing behavior elsewhere.
 - **Don't leave the tree broken**: run the project's build/lint/tests after; if red and not
   quickly fixable, **revert** and report.
+- **Revert only your own edits.** The code under review is often the user's uncommitted work, so
+  before the first fix save it: `git diff --binary HEAD > cwk-sessions/reviews/<file>-<date>.pre-fix.patch`,
+  and **copy** every target file git does not track yet into `cwk-sessions/reviews/<file>-<date>.pre-fix/`
+  — a diff against `HEAD` does not contain a brand-new file. (If nothing ignores `cwk-sessions/`, add it
+  to `$(git rev-parse --git-path info/exclude)` first.) Undo a fix by editing
+  those lines back, or with `git apply -R` of a diff of **your fix alone**; never `git restore`,
+  `git checkout .`/`--`, `git reset --hard` or `git clean -f` — they would delete the work you were
+  asked to review.
 - **Confirm before destructive/outward actions**; never touch secrets.
 Otherwise leave the review as a report. You may save it to `cwk-sessions/reviews/<file>-<date>.md`.
 

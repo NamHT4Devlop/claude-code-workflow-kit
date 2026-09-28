@@ -56,6 +56,14 @@ printf '# knowledge-base/ was here\nsrc/knowledge-base/\n' > "$TMP/nearmiss/.git
 "$ONBOARD" "$TMP/nearmiss" >/dev/null 2>&1
 check "the real pattern was added" "$(grep -cxF 'knowledge-base/' "$TMP/nearmiss/.gitignore")" 1
 
+echo "onboard: a .gitignore with no final newline is not glued onto"
+# `.env` + `cwk-sessions/` used to become `.envcwk-sessions/` — neither pattern then works.
+mkdir -p "$TMP/nonl"; printf '.env' > "$TMP/nonl/.gitignore"
+"$ONBOARD" "$TMP/nonl" >/dev/null 2>&1
+check "its last line intact"          "$(grep -cxF '.env' "$TMP/nonl/.gitignore")" 1
+check "ours on a line of its own"     "$(grep -cxF 'cwk-sessions/' "$TMP/nonl/.gitignore")" 1
+check "no blank line invented"        "$(grep -c '^$' "$TMP/nonl/.gitignore")" 0
+
 echo "onboard: a missing directory is an error, not a silent no-op"
 "$ONBOARD" "$TMP/does-not-exist" >/dev/null 2>&1
 check "exit non-zero" "$([ $? -ne 0 ] && echo yes || echo no)" yes

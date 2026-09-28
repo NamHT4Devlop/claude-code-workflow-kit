@@ -10,8 +10,13 @@
  *   node shadow-parity.cjs cases.json \
  *     --source http://localhost:3000 --target http://localhost:8080 \
  *     [--graphql-path /graphql] [--source-token "$RAILS_TOKEN"] [--target-token "$SPRING_TOKEN"] \
- *     [--max-diff 20] [--json report.json]
+ *     [--max-diff 20] [--json report.json] [--allow-writes]
  *   (SOURCE_URL / TARGET_URL env vars also work.)
+ *   Write cases (a REST method other than GET/HEAD/OPTIONS, or a GraphQL `mutation`) are NOT sent
+ *   unless --allow-writes is given: the same mutation sent to two services that share a database
+ *   writes twice. They are reported as failures ("not run"), so a gate never passes by skipping them.
+ *   A case that is rejected before it writes (a validation error) can say "readOnly": true.
+ *   With --allow-writes, write cases run source first, then target — never concurrently.
  *   Tokens: prefer SOURCE_TOKEN / TARGET_TOKEN env vars over the --*-token flags for secrets
  *   (argv is visible in ps / shell history / CI logs); env vars win over the flags.
  *
@@ -26,12 +31,25 @@
  *         "graphql": { "query": "query($id:ID!){ coach(id:$id){ id name metrics } }", "variables": {"id":"1"} },
  *         "ignore": ["data.coach.updatedAt"], "expectStatus": 200 },
  *       { "name": "list tasks", "type": "rest",
- *         "rest": { "method": "GET", "path": "/api/tasks" } }
+ *         "rest": { "method": "GET", "path": "/api/tasks" } },
+ *       { "name": "list tasks — unauthorized", "type": "rest",
+ *         "rest": { "method": "GET", "path": "/api/tasks" },
+ *         "headers": { "both": { "authorization": "" } }, "expectStatus": 401 }
  *     ]
  *   }
  *
+ * Per-case "headers" ({ both, source, target }) are merged over the global ones, names compared
+ * without regard to case (`authorization` replaces `Authorization`). An empty value removes that
+ * header, and an authorization header set (even to "") suppresses the --*-token.
+ *
  * Path patterns for `ignore` / `sortArraysAt`: dot-separated; `*` = one segment (incl. array elements),
  * `**` = any number of segments. Examples: `data.coaches.*.updatedAt`, `**.id`, `errors.*.message`.
+ *
+ * Numbers: an integer beyond Number.MAX_SAFE_INTEGER (2^53 - 1) is compared digit for digit and
+ * shows in a diff as "<int:9007199254740993>" — plain JSON.parse rounds it, and two different
+ * 64-bit ids would compare equal. Decimals are compared by value on purpose: 10.50 and 10.5 match,
+ * because a serialiser's scale is not a behaviour difference. An int that one side sends as a number
+ * and the other as a string still differs.
  */
 'use strict';
 
@@ -113,11 +131,51 @@ function diff(a, b, path, out) {
   }
 }
 
+// ---------- big integers ----------
+// JSON.parse rounds an integer past 2^53 to the nearest double, so 9007199254740993 and
+// 9007199254740992 would compare equal. Before parsing, every integer literal outside a string
+// whose magnitude exceeds Number.MAX_SAFE_INTEGER becomes the string "<int:…>" and diffs digit for
+// digit. Decimals are left alone on purpose: 10.50 and 10.5 are one value (see the header).
+function protectBigInts(text) {
+  if (!/\d{16}/.test(text)) return text;   // anything past MAX_SAFE_INTEGER has 16+ digits
+  const NUM = /-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/y;
+  const MAX = BigInt(Number.MAX_SAFE_INTEGER);
+  let out = '', inString = false;
+  for (let i = 0; i < text.length;) {
+    const ch = text[i];
+    if (inString) {
+      if (ch === '\\') { out += text.slice(i, i + 2); i += 2; continue; }
+      if (ch === '"') inString = false;
+      out += ch; i++; continue;
+    }
+    if (ch === '"') { inString = true; out += ch; i++; continue; }
+    if (ch === '-' || (ch >= '0' && ch <= '9')) {
+      NUM.lastIndex = i;
+      const m = NUM.exec(text);
+      if (m) {
+        const tok = m[0];
+        const big = /^-?\d+$/.test(tok) && (BigInt(tok) > MAX || BigInt(tok) < -MAX);
+        out += big ? `"<int:${tok}>"` : tok;
+        i += tok.length; continue;
+      }
+    }
+    out += ch; i++;
+  }
+  return out;
+}
+
 // ---------- one request ----------
 async function call(base, c, side, headers) {
-  const h = Object.assign({}, headers.both || {}, headers[side] || {});
+  const ch = c.headers || {};
+  // Header names are case-insensitive, so every layer merges by its lower-cased name (last wins):
+  // otherwise a per-case "authorization": "" left a global "Authorization", credential and all.
+  const h = {};
+  for (const layer of [headers.both, headers[side], ch.both, ch[side]]) {
+    for (const [k, v] of Object.entries(layer || {})) h[k.toLowerCase()] = v;
+  }
   const token = side === 'source' ? (process.env.SOURCE_TOKEN || opt['source-token']) : (process.env.TARGET_TOKEN || opt['target-token']);
-  if (token && typeof token === 'string' && !h.Authorization) h.Authorization = `Bearer ${token}`;
+  if (token && typeof token === 'string' && !('authorization' in h)) h.authorization = `Bearer ${token}`;
+  for (const k of Object.keys(h)) if (h[k] === '' || h[k] == null) delete h[k];   // "" = send no such header
   let url, init;
   if (c.type === 'rest') {
     url = base + (c.rest.path || '/');
@@ -131,9 +189,23 @@ async function call(base, c, side, headers) {
   try {
     const res = await fetch(url, init);
     const text = await res.text();
-    let body; try { body = JSON.parse(text); } catch { body = text; }
+    let body; try { body = JSON.parse(protectBigInts(text)); } catch { body = text; }
     return { status: res.status, body };
   } catch (e) { return { error: String(e.message || e) }; }
+}
+
+// A write sent to two services that share one database writes twice.
+const isWrite = (c) => !c.readOnly && (c.type === 'rest'
+  ? !['GET', 'HEAD', 'OPTIONS'].includes(String((c.rest && c.rest.method) || 'GET').toUpperCase())
+  : gqlMutates(c.graphql && c.graphql.query));
+// A GraphQL document writes when ANY of its operations is a mutation — it may open with a fragment,
+// or hold several operations and let operationName pick one. Comments and string literals are
+// blanked first so neither hides nor fakes the keyword. Fails closed: no query string, or a string
+// left unterminated, counts as a write.
+function gqlMutates(query) {
+  if (typeof query !== 'string') return true;
+  const bare = query.replace(/"""(?:\\"""|[\s\S])*?"""|"(?:\\.|[^"\\\n\r])*"|#[^\n\r]*/g, ' ');
+  return bare.includes('"') || /(^|[\s,}])mutation\b/i.test(bare);
 }
 
 // ---------- run ----------
@@ -148,7 +220,15 @@ const trunc = (v) => { const s = typeof v === 'string' ? v : JSON.stringify(v); 
 
   for (const c of cases) {
     const name = c.name || (c.type === 'rest' ? `${c.rest.method} ${c.rest.path}` : 'graphql');
-    const [s, t] = await Promise.all([call(SOURCE, c, 'source', headers), call(TARGET, c, 'target', headers)]);
+    if (isWrite(c) && opt['allow-writes'] !== true) {
+      fail++;
+      console.log(`  FAIL  ${name}\n          - not run: write case — needs --allow-writes (separate databases, or a disposable one), or "readOnly": true if it is rejected before writing`);
+      report.push({ name, ok: false, reasons: ['not run: write case without --allow-writes'], diffs: [] });
+      continue;
+    }
+    const [s, t] = isWrite(c)
+      ? [await call(SOURCE, c, 'source', headers), await call(TARGET, c, 'target', headers)]
+      : await Promise.all([call(SOURCE, c, 'source', headers), call(TARGET, c, 'target', headers)]);
     const ignore = globalIgnore.concat(c.ignore || []);
     const sortArrays = globalSort.concat(c.sortArraysAt || []);
     let ok = true; const reasons = []; const diffs = [];

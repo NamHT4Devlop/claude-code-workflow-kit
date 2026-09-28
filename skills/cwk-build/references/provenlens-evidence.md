@@ -62,7 +62,7 @@ an edge below `direct` says so.
 ### 2b. Bound files are anchors too
 
 A framework binding is not a call, so a symbol list built by reading source misses it. The index
-resolves eleven of them — MyBatis (`@Mapper` method ↔ `<select id>`), HTTP routes, Kafka, SQS, Camel,
+resolves nine of them — MyBatis (`@Mapper` method ↔ `<select id>`), HTTP routes, Kafka, SQS, Camel,
 Spring events, GraphQL, gRPC, Flyway. Three consequences for the ledger:
 
 - **A mapper XML, a route or a queue name is an anchor.** `provenlens affected <path/to/Mapper.xml>`
@@ -111,7 +111,7 @@ No `.provenlens/`, no `provenlens` command, or a language it does not cover:
 | `document` | §2 fields (which flows read them) and §6 gaps | §3b, one per business flow entry point |
 | `user-story` · `plan` | Dependencies, Impact Analysis, regression ACs | Investigation Notes / impact-analysis doc |
 | `build` · `fix-bug` | one regression test per ledger row, or an explicit "not covered" | the plan (§2) and the evidence / hotfix report |
-| `review` · `qa` | Phase 2 "no logic removed" · the traceability matrix evidence column | the review when a finding rests on a chain |
+| `review` · `pr` · `qa` | Phase 2 "no logic removed" · the traceability matrix evidence column | the review when a finding rests on a chain |
 | `runbook` | the service card: what falls over with each hotspot | the service card, and a `path` chain in every playbook |
 | `triage` | the incident scope: each flow through the suspect × seen failing in the logs / not failing / not checked | the Code path section, entry point → failing line |
 

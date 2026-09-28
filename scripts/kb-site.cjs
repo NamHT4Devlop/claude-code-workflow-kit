@@ -74,7 +74,11 @@ const GENERATOR = '<meta name="generator" content="cwk kb-site">';
 // Two shapes are accepted: a hub (projects/<name>/knowledge-base/) or one repo (knowledge-base/).
 const projects = [];
 const hubDir = path.join(root, 'projects');
-if (fs.existsSync(hubDir) && fs.statSync(hubDir).isDirectory()) {
+// A hub only when some projects/<name>/knowledge-base/ exists: an Angular workspace or a monorepo
+// has a top-level projects/ of its own and is still one repo, with its KB at knowledge-base/.
+const isHub = fs.existsSync(hubDir) && fs.statSync(hubDir).isDirectory()
+  && fs.readdirSync(hubDir).some((name) => fs.existsSync(path.join(hubDir, name, 'knowledge-base')));
+if (isHub) {
   for (const name of fs.readdirSync(hubDir).sort()) {
     const kb = path.join(hubDir, name, 'knowledge-base');
     if (fs.existsSync(kb)) {
@@ -98,7 +102,7 @@ if (fs.existsSync(hubDir) && fs.statSync(hubDir).isDirectory()) {
 }
 // Default output: beside the hub's projects, or inside a single repo's knowledge-base/ (gitignored),
 // never at the repo root.
-if (!out) out = path.join(fs.existsSync(hubDir) ? root : path.join(root, 'knowledge-base'), 'index.html');
+if (!out) out = path.join(isHub ? root : path.join(root, 'knowledge-base'), 'index.html');
 if (!projects.length) {
   console.error(`no Knowledge Base found under ${root}
   expected either  <dir>/projects/<name>/knowledge-base/   (a hub, from kb-export.sh)
@@ -579,7 +583,7 @@ function recolourDiagrams(host) {
     var srcIdx = {}, n = 0;
     paths.forEach(function (p, i) {
       var cls = p.getAttribute('class') || '';
-      var m = /LS-([^\s]+)/.exec(cls);
+      var m = /LS-([^\\s]+)/.exec(cls);   // doubled backslash: this code is emitted from a template literal
       var src = m ? m[1] : ('e' + i);
       if (!(src in srcIdx)) srcIdx[src] = n++;
       var color = PAL[srcIdx[src] % PAL.length], dash = false;

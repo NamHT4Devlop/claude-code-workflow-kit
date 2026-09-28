@@ -78,12 +78,10 @@ for repo in "${targets[@]}"; do
   [ "$found" = 1 ] || echo "• $repo — no legacy sessions folder (nothing to do)"
 done
 
-cat <<EOF
+# Quoted heredoc: printed verbatim, nothing expanded and no backslash can swallow the terminator.
+cat <<'EOF'
 
 Reminder — the machine-wide ignore should list the new name (keep the old ones while legacy folders exist):
-  grep -q '^cwk-sessions/\
-EOF
-exit $status
- ~/.gitignore_global || echo 'cwk-sessions/' >> ~/.gitignore_global
+  grep -qx 'cwk-sessions/' ~/.gitignore_global || echo 'cwk-sessions/' >> ~/.gitignore_global
 EOF
 exit $status

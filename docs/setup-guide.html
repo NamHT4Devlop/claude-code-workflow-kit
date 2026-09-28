@@ -214,7 +214,7 @@ claude
 
   <!-- ============ PROVENLENS (optional) ============ -->
   <h2 id="provenlens">🔗 3b. Optional: <code>provenlens</code> — the call graph</h2>
-  <p>Nothing here needs it. But <b>27 of the 30 skills</b> use it when a repository has a
+  <p>Nothing here needs it. But <b>28 of the 31 skills</b> use it when a repository has a
   <code>.provenlens/</code> index, and grep when it does not — and when they fall back they
   <b>say so</b>, marking the output <code>⚠️ grep-depth only (no provenlens index)</code>. That
   sentence is the point: a caller list from grep and one from a resolved call graph are not the
@@ -248,7 +248,7 @@ cd /path/to/your/repo &amp;&amp; provenlens init .</code></pre>
       <tr><td><code>/cwk-scan</code></td><td>Generate the Knowledge Base (16 docs + review-skills + per-module)</td><td><span class="tag blue">First</span> on a new repo</td></tr>
       <tr><td><code>/cwk-scan deep</code></td><td><b>For a repo with a lot of business logic.</b> No sampling, plus a document per module. Business rules and core flows get stable ids (<code>BR-V2</code>, <code>CF-03</code>) that QA tests and review findings cite, and each rule records where it is enforced and which test covers it — a <code>NONE</code> there is your untested business logic.</td><td><span class="tag blue">Once</span> per repo</td></tr>
       <tr><td><code>/cwk-rescan</code></td><td>Update the KB after code changes (git-diff aware)</td><td>After each feature</td></tr>
-      <tr><td><code>/cwk-build</code></td><td>13-step pipeline: plan → code → review → test → evidence</td><td><span class="tag green">Core</span> when building a feature</td></tr>
+      <tr><td><code>/cwk-build</code></td><td>14-step pipeline: plan → code → review → test → evidence</td><td><span class="tag green">Core</span> when building a feature</td></tr>
       <tr><td><code>/cwk-fix-bug</code></td><td>Production bug → root cause → regression test (red→green) → minimal fix → verify → hotfix report</td><td><span class="tag green">On an incident</span></td></tr>
       <tr><td><code>/cwk-review</code></td><td>Two-phase review: quality + business consistency</td><td>Before commit/PR</td></tr>
       <tr><td><code>/cwk-ask</code></td><td>Codebase Q&amp;A (explanation + Mermaid diagram + technical detail)</td><td>Understand a part fast</td></tr>

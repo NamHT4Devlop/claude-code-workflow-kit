@@ -78,12 +78,45 @@ const DARK = `
   img{background:#fff!important;padding:6px;border-radius:8px}
 }`;
 
-/* Light palette — a plain white page for paper. */
+/* Light palette — a plain white page for paper. Kit HTML is dark end to end (html-builder.js: light
+   headings, dark table cells, code, quotes and diagram cards, near-white diagram text pinned with
+   !important, a dark @page), so each of those is turned round here with the same selectors — a
+   white page alone left near-white text on white. Mermaid's dark theme also paints subgraph, note
+   and ER boxes dark; they get light fills so their (now dark) text stays readable. */
 const LIGHT = `
+@page{background:#fff}
 @media print{
   html,body{background:#fff!important;color:#111!important}
+  /* Neutralise dark panels from the source, as DARK does for light ones. */
+  body *:not(pre):not(code):not(kbd):not(samp):not(table):not(th):not(td):not(img):not(svg):not(.mermaid):not(.mermaid *){
+    background-color:transparent!important;background-image:none!important}
+  h1,h2,h3,h4,h5,h6{color:#111!important}
+  p,li,span,div,em,strong,dt,dd,figcaption{color:#1f2937!important}
   a{color:#1a4fd0!important}
-  .mermaid{background:#fff!important}
+  hr{border-color:#d0d7e2!important}
+  code,kbd,samp{background:#f1f3f7!important;color:#1f2937!important}
+  pre{background:#f6f8fa!important;color:#111!important;border:1px solid #d0d7e2}
+  pre code,pre *{background:none!important;color:inherit!important}
+  table{border:1px solid #d0d7e2!important}
+  th{background:#e8ebf5!important;color:#111!important}
+  td{background:#fff!important;color:#1f2937!important;border-color:#d0d7e2!important}
+  blockquote{border-left:3px solid #4f46e5!important;background:#f6f8fa!important;color:#374151!important}
+  .mermaid{background:#fff!important;border-color:#d0d7e2!important}
+  .mermaid svg text,.mermaid svg .messageText,.mermaid svg .labelText,.mermaid svg .loopText,
+  .mermaid svg .noteText,.mermaid svg .titleText,.mermaid svg .sectionTitle,
+  .mermaid svg .taskText,.mermaid svg tspan{fill:#111!important}
+  .mermaid svg .nodeLabel,.mermaid svg .edgeLabel,.mermaid svg .label{color:#111!important;fill:#111!important}
+  .mermaid svg .edgeLabel{background-color:#fff!important}
+  .mermaid svg .edgeLabel rect,.mermaid svg .labelBkg,.mermaid svg .relationshipLabelBox{fill:#fff!important;background:#fff!important}
+  .mermaid svg .actor,.mermaid svg .node rect,.mermaid svg .node polygon,.mermaid svg .node circle,
+  .mermaid svg .node ellipse,.mermaid svg .node path{fill:#eef2ff!important;stroke:#6366f1!important}
+  .mermaid svg .actor tspan,.mermaid svg .actor text{fill:#111!important}
+  .mermaid svg .cluster rect,.mermaid svg .note,.mermaid svg .labelBox,.mermaid svg .er.entityBox,
+  .mermaid svg .er.attributeBoxOdd,.mermaid svg .er.attributeBoxEven{fill:#f8fafc!important;stroke:#94a3b8!important}
+  .mermaid svg line,.mermaid svg .messageLine0,.mermaid svg .messageLine1,
+  .mermaid svg .edgePath path,.mermaid svg .flowchart-link,.mermaid svg .actor-line{stroke:#475569!important}
+  .mermaid svg marker path,.mermaid svg .arrowheadPath{fill:#475569!important;stroke:#475569!important}
+  .mermaid svg .sequenceNumber{fill:#111!important}
 }`;
 
 const mode = process.env.PDF_KEEP_COLORS === '1' ? 'keep'

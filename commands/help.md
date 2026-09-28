@@ -6,13 +6,13 @@ Show the user a concise guide to the **Workflow Kit** plugin. Then check whether
 has a `knowledge-base/` folder (Glob for `knowledge-base/*.md`) and report its status
 (present + how many docs, or missing) with a suggested next step.
 
-Commands (all namespaced under `/cwk-`):
+Commands — `/cwk-<name>` with the personal install, `/cwk:<name>` with the plugin:
 
 | Command | What it does |
 |---------|--------------|
 | `/cwk-scan` | Generate the Knowledge Base from the codebase (16 docs + review-skills + per-module). Run this first on a new repo. |
 | `/cwk-rescan` | Update the KB incrementally after code changes (git-diff aware). |
-| `/cwk-build <requirement>` | Full 13-step pipeline: clarify → plan → code → review → test → evidence → update KB. |
+| `/cwk-build <requirement>` | Full 14-step pipeline: clarify → plan → code → review → test → evidence → update KB. |
 | `/cwk-fix-bug <error or QA report>` | Triage code vs config/data/spec → root cause → regression test tied to the AC → minimal fix → verify → back to QA. |
 | `/cwk-review [file\|PR#\|empty]` | Two-phase review: quality checklist + business consistency vs the KB. Empty = branch vs default (or working-tree diff); accepts a PR #/URL. |
 | `/cwk-pr [review <PR#>]` | Prepare a PR description from the branch, or review a GitHub PR (two-phase + blast radius). |
@@ -34,7 +34,7 @@ Commands (all namespaced under `/cwk-`):
 | `/cwk-retro [window]` | Engineering retrospective from git history — shipped, pain, action items. |
 | `/cwk-skillify <name+purpose>` | Scaffold a new cwk-* skill + command (self-extend the kit). |
 | `/cwk-triage <Slack thread link>` | Slack incident → Splunk logs → KB + code → root cause + the commit/PR behind it → reply draft (+ Rally defect). Read-only; nothing sent without your yes. |
-| `/cwk-splunk-report [apps+window]` | Query Splunk for per-app errors (default today) → one table → post to Slack. Read-only; creds from env. |
+| `/cwk-splunk-report [apps+window]` | Query Splunk for per-app errors (default last 24h) → one table → post to Slack. Read-only; creds from env. |
 | `/cwk-observe [area]` | Instrument code: structured logs, correlation/trace IDs, metrics, error context — matches the backend schema. |
 | `/cwk-migrate [change]` | Safe migration/deprecation (API/DB/event/lib) — backward-compatible, staged, rollback + deprecation window. |
 | `/cwk-simplify [target]` | Behavior-preserving simplification — reduce complexity/duplication/nesting; tests stay green. |
@@ -109,7 +109,7 @@ the same six everywhere:
 
 ## Optional: `provenlens`
 
-If the repo has a `.provenlens/` index, **27 of the 30 skills** answer "who calls what" from a resolved
+If the repo has a `.provenlens/` index, **28 of the 31 skills** answer "who calls what" from a resolved
 call graph rather than grep — real callers, blast radius, and the tests that already cover a change.
 Without it they fall back and label the output `⚠️ grep-depth only (no provenlens index)`, so you can
 always tell which a finding rests on. Covers **Java · Ruby · TypeScript/JavaScript** only.

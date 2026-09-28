@@ -9,6 +9,7 @@
 # Safety: it never silently replaces an existing knowledge-base/. Without --force it stops and shows
 # you what differs. It also warns when the snapshot was taken from a commit your checkout does not
 # have — a KB describing code you are not on is worse than no KB, because it reads as current.
+# With --force the existing KB is first moved to cwk-sessions/kb-backups/ (git-ignored), never deleted.
 set -euo pipefail
 
 DRY=0; FORCE=0; args=()
@@ -16,7 +17,7 @@ for a in "$@"; do
   case "$a" in
     --dry-run|-n) DRY=1 ;;
     --force|-f) FORCE=1 ;;
-    -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
     *) args+=("$a") ;;
   esac
 done
@@ -76,9 +77,20 @@ if [ -d "$dest" ] && [ "$FORCE" != 1 ]; then
 fi
 
 if [ -d "$dest" ] && [ "$FORCE" = 1 ] && [ "$DRY" = 0 ]; then
-  bak="$target/knowledge-base.bak-$(date +%Y%m%d-%H%M%S)"
+  # Under cwk-sessions/, not beside the KB in the repo root: a knowledge-base.bak-*/ there is not
+  # ignored, and one `git add .` commits the very KB the ignore rules keep out of the team repo.
+  bak="$target/cwk-sessions/kb-backups/knowledge-base-$(date +%Y%m%d-%H%M%S)"
+  mkdir -p "$(dirname "$bak")"
   mv "$dest" "$bak"
-  echo "  previous KB moved to $(basename "$bak")"
+  echo "  previous KB moved to ${bak#"$target"/}"
+  # …and make sure cwk-sessions/ really is ignored in this checkout — via the repo-local
+  # .git/info/exclude, never the team's .gitignore.
+  if git -C "$target" rev-parse --git-dir >/dev/null 2>&1 && ! git -C "$target" check-ignore -q cwk-sessions/; then
+    # a leading newline: an exclude file without a final one would glue the rule onto its last line
+    ( cd "$target" && ex=$(git rev-parse --git-path info/exclude) && mkdir -p "$(dirname "$ex")" \
+        && printf '\ncwk-sessions/\n' >> "$ex" ) && git -C "$target" check-ignore -q cwk-sessions/ \
+      && echo "  cwk-sessions/ was not git-ignored here — added to .git/info/exclude"
+  fi
 fi
 
 run mkdir -p "$dest"

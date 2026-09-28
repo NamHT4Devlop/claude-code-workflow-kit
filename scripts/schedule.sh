@@ -16,6 +16,14 @@
 #   * It ALWAYS shows you the resulting change and asks before writing, unless you pass --yes.
 #   * It never schedules a skill that edits code. Unattended source edits are not something you
 #     should be able to set up by accident.
+#   * A headless `claude -p` cannot answer an approval prompt and, in the default mode, refuses every
+#     write — so a scheduled rescan could never save the KB. rescan and drift therefore get exactly
+#     the writes they need and nothing more: Edit/Write under knowledge-base/ (rescan only) and
+#     cwk-sessions/, plus read-only git. Not acceptEdits — that would let an unattended run, reading
+#     other people's diffs and commit messages, edit your source. splunk stays in the default mode.
+#   * cron's PATH has no /opt/homebrew/bin or nvm, and `claude` is a node script, so the line
+#     carries the directories of claude, node, git, jq and provenlens — not the whole interactive
+#     PATH: macOS cron cuts a command at 1000 bytes, and a cut line never runs (it refuses those).
 set -euo pipefail
 
 MARK="# cwk-kit"
@@ -27,7 +35,7 @@ for a in "$@"; do
   case "$a" in
     --dry-run|-n) DRY=1 ;;
     --yes|-y) YES=1 ;;
-    -h|--help) sed -n '2,18p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
     *) args+=("$a") ;;
   esac
 done
@@ -35,6 +43,22 @@ set -- "${args[@]:-}"
 
 die() { echo "✗ $*" >&2; exit 1; }
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Quote for /bin/sh, which cron runs the line with: POSIX single quotes, a ' written as '\''.
+# Not printf %q — bash 3.2 renders a non-ASCII path as $'…', which dash (cron's sh on Debian) rejects.
+sq() { printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"; }
+
+# Our lines for $name/$repo, or with -v every OTHER line. The tag sits at END OF LINE and is compared
+# there as a plain string: a substring match makes /x/api's tag hit /x/api-v2's line, and a regex
+# built from the path breaks on ( + | — `a|b` even matched other repos' lines. Both markers count
+# (2.x wrote namht-kit), and % is compared escaped, the way the line was written (see below).
+ours() {
+  local r; r=${repo//%/\\%}
+  CWK_T1="# cwk-kit:$name:$r" CWK_T2="# namht-kit:$name:$r" CWK_V="${1:-}" awk '
+    function ends(s, t) { return length(s) >= length(t) && substr(s, length(s) - length(t) + 1) == t }
+    { m = ends($0, ENVIRON["CWK_T1"]) || ends($0, ENVIRON["CWK_T2"]) }
+    (ENVIRON["CWK_V"] == "-v") != m'
+}
 
 # preset → the slash command it runs. Read-only skills only, on purpose.
 preset_cmd() {
@@ -62,14 +86,12 @@ if [ "$cmd" = "remove" ]; then
   repo=${3:-}
   [ -n "$repo" ] || die "usage: schedule.sh remove <preset> <repo>"
   repo=$(cd "$repo" 2>/dev/null && pwd) || die "no such directory: ${3}"
-  tag="$MARK:$name:$repo"
   current=$(crontab -l 2>/dev/null || true)
-  # The tag sits at END OF LINE, so match it anchored. A substring match makes the tag for /x/api
-  # also match the line for /x/api-v2 — removing or replacing a DIFFERENT repo's job silently.
-  tag_re="$MARK_RE:$name:$(printf '%s' "$repo" | sed 's/[][\.^$*\/&]/\\&/g')"
-  echo "$current" | grep -qE "${tag_re}\$" || die "no entry for '$name' in $repo"
-  new=$(echo "$current" | grep -vE "${tag_re}\$" || true)
-  echo "Will remove:"; echo "$current" | grep -E "${tag_re}\$" | sed 's/^/  - /'
+  # anchored, plain-string match on the tag — see ours()
+  hit=$(echo "$current" | ours)
+  [ -n "$hit" ] || die "no entry for '$name' in $repo"
+  new=$(echo "$current" | ours -v)
+  echo "Will remove:"; echo "$hit" | sed 's/^/  - /'
   if [ "$DRY" = 1 ]; then echo "(dry run — nothing written)"; exit 0; fi
   if [ "$YES" != 1 ]; then printf 'Write this crontab? [y/N] '; read -r ans; [ "$ans" = y ] || [ "$ans" = Y ] || die "aborted"; fi
   printf '%s\n' "$new" | crontab -
@@ -95,26 +117,51 @@ claude_bin=$(command -v claude || true)
 log="$HOME/.claude/logs/cwk-$name.log"
 tag="$MARK:$name:$repo"
 prompt="$slash${extra:+ $extra}"
-# cron gives you a bare environment: cd into the repo, use the absolute binary, append to a log.
-line="$sched cd $(printf '%q' "$repo") && $(printf '%q' "$claude_bin") -p $(printf '%q' "$prompt") >> $(printf '%q' "$log") 2>&1 $tag"
+# The writes each job needs, and read-only git — see the header.
+GIT_RO='Bash(git diff:*),Bash(git log:*),Bash(git status:*),Bash(git rev-parse:*),Bash(git show:*)'
+perm=""
+case "$name" in
+  rescan) perm=" --permission-mode default --allowedTools $(sq "Read,Grep,Glob,Edit(knowledge-base/**),Write(knowledge-base/**),Edit(cwk-sessions/**),Write(cwk-sessions/**),$GIT_RO")" ;;
+  drift)  perm=" --permission-mode default --allowedTools $(sq "Read,Grep,Glob,Edit(cwk-sessions/**),Write(cwk-sessions/**),$GIT_RO")" ;;
+esac
+# cron gives you a bare environment: cd into the repo, carry a PATH that finds the tools, use the
+# absolute binary, append to a log.
+cron_path=""
+for b in "$claude_bin" node git jq provenlens; do
+  p=$(command -v "$b" 2>/dev/null) || continue
+  d=$(dirname "$p"); case ":$cron_path:" in *":$d:"*) ;; *) cron_path="${cron_path:+$cron_path:}$d" ;; esac
+done
+for d in /opt/homebrew/bin /usr/local/bin /usr/bin /bin /usr/sbin /sbin; do
+  [ -d "$d" ] || continue; case ":$cron_path:" in *":$d:"*) ;; *) cron_path="$cron_path:$d" ;; esac
+done
+line="$sched cd $(sq "$repo") && PATH=$(sq "$cron_path") $(sq "$claude_bin")$perm -p $(sq "$prompt") >> $(sq "$log") 2>&1 $tag"
 # cron treats an unescaped % as a newline and feeds the remainder to the command on stdin,
 # so a Splunk window like `earliest=-1d@d%2B7h` would silently truncate the scheduled command.
-# printf %q quotes for the shell, not for crontab(5) — escape percent signs separately.
+# Shell quoting is not crontab(5) quoting — escape percent signs separately.
 line=${line//%/\\%}
+# macOS cron reads at most 1000 bytes of command; the rest is cut, the quoting breaks and the job
+# never runs — silently, since the log redirect is cut too.
+cmd_bytes=$(printf '%s' "${line#"$sched "}" | wc -c | tr -d ' ')
+[ "$cmd_bytes" -lt 1000 ] || die "the cron line would be $cmd_bytes bytes; cron cuts a command at 1000, and a cut line never runs. Shorten the repo path or the skill arguments."
 
 current=$(crontab -l 2>/dev/null || true)
-tag_re="$MARK_RE:$name:$(printf '%s' "$repo" | sed 's/[][\.^$*\/&]/\\&/g')"
-if echo "$current" | grep -qE "${tag_re}\$"; then
+old=$(echo "$current" | ours)
+if [ -n "$old" ]; then
   echo "Replacing the existing entry for '$name' in $repo:"
-  echo "$current" | grep -E "${tag_re}\$" | sed 's/^/  - /'
-  # `|| true`: with set -e, a grep that filters away the ONLY line returns 1 and would abort here.
-  current=$(echo "$current" | grep -vE "${tag_re}\$" || true)
+  echo "$old" | sed 's/^/  - /'
+  current=$(echo "$current" | ours -v)
 fi
 echo "Will add:"; echo "  + $line"
 echo
 echo "Notes:"
 echo "  · output goes to $log (create the folder if it doesn't exist: mkdir -p \"$(dirname "$log")\")"
 echo "  · an unattended run cannot answer a permission prompt — a skill needing one will just fail in the log"
+if [ -n "$perm" ]; then
+  echo "    ($slash may write only its own output — knowledge-base/ for rescan, cwk-sessions/ — and read git; nothing else)"
+else
+  echo "    ($slash runs in the default mode: allow its MCP tools and its save to cwk-sessions/ in your settings)"
+fi
+echo "  · the line carries the folders of claude, node, git, jq and provenlens — re-run add if you move them"
 echo "  · on macOS, cron may need Full Disk Access (System Settings ▸ Privacy & Security) to read your repo"
 
 if [ "$DRY" = 1 ]; then echo; echo "(dry run — nothing written)"; exit 0; fi

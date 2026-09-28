@@ -20,7 +20,11 @@ spot a bug, you stop and report it, you do not "fix" it here.
    target behavior is covered; if not, write **characterization tests** (assert what the code does
    *today*, bug-for-bug) before changing anything — those tests are the definition of "unchanged".
 2. **One transformation at a time → run tests → next.** Never batch several risky moves. Green after
-   each step is the proof behavior held; red means revert that step.
+   each step is the proof behavior held; red means revert that step: save the red state the same way
+   as the change diff (to `….red.diff`), and from the top level `git apply -R` it, then `git apply` the last green step's
+   `….change.diff` copy (keep one per green step as `….step-<n>.diff`). No test runner, or the target
+   is uncovered and characterization tests cannot run → write `NOT RUN (<reason>)` and mark the result
+   **UNVERIFIED**; never call an unrun refactor behavior-preserving.
 
 ### provenlens (optional)
 `.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
@@ -83,9 +87,16 @@ reviewable. Optionally save `cwk-sessions/simplify/<area>-<date>.md`.
   the output with the reason.
 - **Safety net — before the first edit.** Run `git status --porcelain` (ask the user to commit or stash
   their own work first); run the relevant gates once and record **which tests were already failing**;
-  save `git diff HEAD > <session>/00-pre-change.patch`. To undo later use ONLY `git stash push -u` or
-  `git apply -R <your diff>` — never `git restore`, `git checkout .`/`--`, `git reset --hard`
+  save `git diff HEAD > cwk-sessions/simplify/<area>-<date>.pre-change.patch`. To undo later use ONLY `git stash push -u` or
+  `cd "$(git rev-parse --show-toplevel)" && git apply -R cwk-sessions/simplify/<area>-<date>.change.diff` (re-capture it first when undoing from a red state, then confirm with `git status --porcelain`) — never `git restore`, `git checkout .`/`--`, `git reset --hard`
   or `git clean -f`, which throw away the user's uncommitted work along with yours. A test that was red before you started is not your regression.
+  Keep the kit's own files out of that check first: `git check-ignore -q cwk-sessions/ || { f=$(git rev-parse --git-path info/exclude); mkdir -p
+  "${f%/*}"; printf '\ncwk-sessions/\n' >> "$f"; }` (a worktree's `.git` is a file, so never write
+  `.git/info/exclude` by hand). **The tree must be clean before the first edit — untracked files included**
+  (`git stash push -u` parks them); if the user will not commit or stash, do not start.
+  `cwk-sessions/simplify/<area>-<date>.change.diff` is your own change, rewritten after each green step with
+  `cd "$(git rev-parse --show-toplevel)" && { git diff --binary --src-prefix=a/ --dst-prefix=b/; git ls-files -z --others --exclude-standard | xargs -0 -r -n1 git diff --binary --no-index --src-prefix=a/ --dst-prefix=b/ -- /dev/null; } > cwk-sessions/simplify/<area>-<date>.change.diff`
+  (exit status 1 — 123 with GNU xargs — is normal there; check the file is not empty) — plain `git diff` omits the files you created and binary content.
 - Change-discipline: scope-lock, verify + rollback, never touch secrets, confirm before destructive actions.
 
 ## Common rationalizations

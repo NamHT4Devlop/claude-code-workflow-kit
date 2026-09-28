@@ -16,8 +16,8 @@ A native port of Auto Spec extension's `/ask`. Answer grounded in the Knowledge 
 and real source (technical detail) — never invent files, APIs, fields, or behavior.
 
 > **Legacy folder.** Session artifacts used to live in `spec-kit-sessions/` (renamed to avoid
-> confusion with GitHub's unrelated `spec-kit` project). If a repo still has `spec-kit-sessions/` and no
-> `cwk-sessions/`, **read** the old folder so past work isn't lost, keep **writing** to
+> confusion with GitHub's unrelated `spec-kit` project), then `namht-sessions/` (2.x). If a repo still
+> has one of those and no `cwk-sessions/`, **read** the old folder so past work isn't lost, keep **writing** to
 > `cwk-sessions/`, and mention `scripts/migrate-sessions.sh <repo>` once to merge them.
 
 ### provenlens (optional)
@@ -78,8 +78,8 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
 2. **Select relevant KB context.** Map the question to topics and load just those
    `knowledge-base/` docs (don't dump the whole KB). If the question names a module/feature,
    load the matching `knowledge-base/modules/<module>.md` first — those deep docs are the
-   richest context. Fall back to reading the actual source only if the KB lacks the answer
-   (and say so).
+   richest context. If the KB lacks the business answer, read the source for it and say the KB
+   did not cover it (step 1 already grounds the technical detail in source either way).
 3. **Detect vagueness.** If the question is broad/under-specified, first state your
    interpretation + assumptions, answer the most likely intent, then ask 2–3 clarifying
    questions.
@@ -89,6 +89,8 @@ Write so a **non-technical reader (founder / PM / ops) AND an engineer both get 
 the same answer.** Layer it plain → precise: never assume tech background in the top sections,
 never lose precision at the bottom, and define every unavoidable term.
 ```
+Evidence: <provenlens · resolution % · synced date — or ⚠️ grep-depth only (no provenlens index)>
+
 ## TL;DR (one line — for everyone)
 One jargon-free sentence that answers the question. Add a short analogy if it helps.
 

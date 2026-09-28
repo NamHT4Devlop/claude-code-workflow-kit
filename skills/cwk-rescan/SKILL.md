@@ -25,7 +25,8 @@ fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` 
 is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- `git diff --name-only <last-scan-commit>..HEAD | provenlens affected` — the changed symbols **and**
+- `git diff --name-only <base> | provenlens affected` (base from step 1; no `..HEAD`, so uncommitted
+  edits are included) — the changed symbols **and**
   everything that transitively reaches them. That reached set is the list of KB pages to re-read,
   and it is strictly larger than the set of changed files: a rescan driven by `git diff` alone
   leaves documentation describing a caller whose callee changed underneath it.
@@ -35,12 +36,17 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
 ## Procedure
 1. **Confirm the branch + diff base, then find what changed.** The rescan reads the **working tree
    of the currently checked-out branch** (it does NOT switch branches). Get the branch with
-   `git rev-parse --abbrev-ref HEAD`. Pick the **diff base**: by default the last commit the KB was
-   built from (usually `HEAD` / the most recent commit), else a **branch or commit the user names**
-   (e.g. `main`, a tag, a release branch). List changed source files with
-   `git diff --name-only <base>` **plus** uncommitted changes (`git status --short`). State it
+   `git rev-parse --abbrev-ref HEAD`. Pick the **diff base**: by default the commit the KB was built
+   from — `commit:` in `knowledge-base/_meta.yml` — else a **branch or commit the user names** (e.g.
+   `main`, a tag, a release branch). No `_meta.yml` → ask which commit the KB describes rather than
+   diffing against `HEAD`, which would see only uncommitted edits; a `commit:` that no longer exists
+   (rebased, shallow clone) → say so and ask. List changed files with `git diff --name-only <base>`
+   (committed since the base **and** uncommitted) plus new files (`git status --short`). State it
    plainly before proceeding: *"Rescanning branch `<X>`, changes vs `<base>` (+ N uncommitted)."*
    If git isn't usable, ask the user which areas changed.
+   **Scoped update** — when `/cwk-drift --fix-docs` (or the user) hands over a list of KB files and
+   the findings that make them wrong, skip the diff: re-analyse exactly those areas from the code,
+   and fix what the findings name. The code did not have to change for a KB page to be wrong.
 2. **Map changes → KB docs.** Determine which knowledge-base files the changes affect:
    - new/changed entities or migrations → `05-domain-model.md`, `08-database-schema.md`
    - new/changed endpoints → `11-api-docs.md`, `03-entry-points.md`
@@ -53,6 +59,11 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
    - auth changes → `09-auth-security.md`
    - new/changed integrations, SQS queues/topics, events, Camel routes → `14-integrations.md`, `17-async-events.md` (Event/Contract Catalog)
    - structural/dependency changes → `01-project-structure.md`, `16-architecture-patterns.md`
+   - dependency manifests / runtime or framework versions → `02-tech-stack.md`
+   - config, env vars, Dockerfile / CI / deploy files → `03-entry-points.md` (env and run config),
+     `02-tech-stack.md`
+   - error handling, retries, exception mappers → `15-error-scenarios.md`
+   - a new convention the change follows or breaks (naming, layering, test style) → `12-conventions.md`
    - **anything that changes the TOPOLOGY → `07-architecture-diagram.md`** — a new/removed service or
      deployable unit, a new datastore/queue/topic/external system, a new entry point, or a changed
      edge between components. Update the **Mermaid high-level diagram itself** (add/remove the node
@@ -81,7 +92,11 @@ it prints before reporting. A `⚠` size warning on a diagram **you touched** is
 it (an `erDiagram` by aggregate, per §08) or say in one line why it cannot be. One on a diagram you
 did not touch is pre-existing: leave it, and list it under what the rescan did not cover.
 
-**Always refresh `knowledge-base/_meta.yml`** — at minimum `commit`, `branch` and `generated`. A KB
+**Always refresh `knowledge-base/_meta.yml`** — at minimum `commit`, `branch` and `generated`. A
+**scoped update** is the exception: it re-checked some pages, not everything since the base, so leave
+`commit` **and** `generated` where they were and append the pages and date it fixed under
+`patched:` instead — `/cwk-drift` bounds its next run by `generated`, and moving it would hide
+everything since the last real rebuild. A KB
 whose meta still points at a three-month-old commit will be trusted as current by the next person;
 that is the whole reason the file exists. If it doesn't exist yet (a KB from before `_meta.yml`),
 create it from git.

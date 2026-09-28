@@ -96,9 +96,16 @@ and example queries/dashboards it enables.
   hop or a mask that doesn't mask fails silently and only surfaces at 3am. Also confirm existing
   log-parsing tests/dashboards still match any field name you changed.
 - **Safety net — before the first edit.** `git status --porcelain` (ask the user to commit/stash first)
-  and save `git diff HEAD > <session>/00-pre-change.patch`. To undo use ONLY `git stash push -u` or
-  `git apply -R <your diff>` — never `git restore`, `git checkout .`/`--`, `git reset --hard`
+  and save `git diff HEAD > cwk-sessions/observe/<area>-<date>.pre-change.patch`. To undo use ONLY `git stash push -u` or
+  `cd "$(git rev-parse --show-toplevel)" && git apply -R cwk-sessions/observe/<area>-<date>.change.diff` (re-capture it first when undoing from a red state, then confirm with `git status --porcelain`) — never `git restore`, `git checkout .`/`--`, `git reset --hard`
   or `git clean -f`, which throw away the user's uncommitted work along with yours.
+  Keep the kit's own files out of that check first: `git check-ignore -q cwk-sessions/ || { f=$(git rev-parse --git-path info/exclude); mkdir -p
+  "${f%/*}"; printf '\ncwk-sessions/\n' >> "$f"; }` (a worktree's `.git` is a file, so never write
+  `.git/info/exclude` by hand). **The tree must be clean before the first edit — untracked files included**
+  (`git stash push -u` parks them); if the user will not commit or stash, do not start.
+  `cwk-sessions/observe/<area>-<date>.change.diff` is your own change, rewritten after each green step with
+  `cd "$(git rev-parse --show-toplevel)" && { git diff --binary --src-prefix=a/ --dst-prefix=b/; git ls-files -z --others --exclude-standard | xargs -0 -r -n1 git diff --binary --no-index --src-prefix=a/ --dst-prefix=b/ -- /dev/null; } > cwk-sessions/observe/<area>-<date>.change.diff`
+  (exit status 1 — 123 with GNU xargs — is normal there; check the file is not empty) — plain `git diff` omits the files you created and binary content.
 - Change-discipline: minimal diff, verify + rollback, confirm outward actions, never touch secrets.
 
 ## Common rationalizations

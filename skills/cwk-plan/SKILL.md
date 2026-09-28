@@ -47,14 +47,17 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
 1. **KB Deep Investigation** — from the KB, gather: related entities (existing + new),
    applicable business rules (validation, authorization, state-machine, calculation,
    time-based, invariants), affected flows, integrations, and affected modules. Cite KB sources.
+   No `knowledge-base/` → read the source for the same things, say the grounding is weaker (rules
+   that live only in people's heads are missed), and suggest `/cwk-scan`.
 2. **Auto Feature Discovery** — split the Epic into **3–8 features**, ordered by dependency;
    include cross-cutting features (auth, audit, migration) when needed. For each: id, title,
    a one-line **plain "what & why" (non-tech, no jargon)**, description, scope (in/out),
    affected entities, affected flows, complexity (Low/Med/High).
 3. **Impact Analysis per feature** — for each feature: EXISTING flow (before) → NEW flow
    (after, step by step) → DELTA / breaking changes (data model, API, state machines,
-   permissions, integrations) → migration / backward compatibility → dependencies. With an index,
-   each feature's DELTA carries a **reach ledger** and a pasted **code graph**
+   permissions, integrations) → migration / backward compatibility → dependencies. Each feature's
+   DELTA carries a **reach ledger** and a **code graph** (pasted from provenlens; without an index,
+   from Grep with counts marked `(grep)` and a diagram labelled as inferred)
    (`references/provenlens-evidence.md`) in `impact-analysis-<epic>-<date>.md`; a consumer the graph
    reaches that no story covers is a 🔴 item in step 4, not a silence.
 4. **Confirmation Checklist** — categorize open questions: 🔴 MUST CONFIRM BEFORE DEV

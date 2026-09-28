@@ -23,7 +23,7 @@ and hands each finding to the skill that can fix it. Say this to the user up fro
 exception is the opt-in `--fix-docs` mode below, which still never touches source code.
 
 > **Legacy folder.** Session artifacts used to live in `spec-kit-sessions/` (renamed to avoid
-> confusion with GitHub's unrelated `spec-kit` project). If a repo has only the old folder, read
+> confusion with GitHub's unrelated `spec-kit` project), then `namht-sessions/` (2.x). If a repo has only an old folder, read
 > from it and keep writing to `cwk-sessions/`.
 
 ## The four kinds of drift (this is the whole job)
@@ -67,7 +67,10 @@ only what Step 3 explicitly concluded was **the document's fault**, and only aft
    the user that folder is the rollback.
 5. **Delegate the write to `/cwk-rescan`, scoped to the affected modules.** Do not hand-edit KB
    files yourself — `rescan` is the skill that owns KB writes, and keeping one writer is what stops
-   the two from producing different formats. Pass it the finding list as the reason for the update.
+   the two from producing different formats. Hand it the files and the finding list as a **scoped
+   update** (rescan step 1) — rescan's own diff would miss a page that was wrong while the code stood
+   still, and a scoped update moves neither `_meta.yml`'s `commit` nor its `generated`, so the next drift run still sees
+   everything since the KB was actually rebuilt.
 6. **Verify the fix.** Re-check each fixed claim against the same `file:line` evidence: does the KB
    now say what the code does? Anything still wrong goes back on the manual list — do not report a
    fix you did not confirm.
@@ -164,8 +167,8 @@ file, else `$HOME/.claude/skills/cwk-drift/references`), then open it.
 # Drift Report — <project> — <date>
 
 ## In plain words (non-tech)
-3–5 câu: tài liệu và code đang lệch nhau ở đâu, cái gì hứa mà chưa làm, mức độ nghiêm trọng,
-và cần làm gì tiếp. No jargon.
+3–5 sentences: where the docs and the code disagree, what was promised and not built, how serious
+it is, and what to do next. No jargon. (Write this in the user's language.)
 
 ## Verdict
 CONVERGED (no material drift) · DRIFTING (<n> items, <n> critical) · STALE (the KB no longer

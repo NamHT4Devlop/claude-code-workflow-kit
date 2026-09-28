@@ -2,12 +2,14 @@
 # kb-export.sh — collect the knowledge-base/ of several repos into ONE hub repo, namespaced by
 # project, so a team can pull the hub and drop a project's KB into their own checkout.
 #
-#   scripts/kb-export.sh [--dry-run] [--with-source] [--allow-secrets] <hub-dir> <repo> [repo...]
+#   scripts/kb-export.sh [--dry-run] [--with-source] [--allow-secrets] [--allow-unverified-visibility]
+#                        <hub-dir> <repo> [repo...]
 #   scripts/kb-export.sh --dry-run ~/kb-hub ~/work/taskflow ~/work/billing
 #
-# Before a project is copied its KB (and runbook) Markdown is scanned for secret-looking strings
-# (AWS keys, GitHub/Slack/OpenAI tokens, private keys, user:password@ URLs). A hit prints file:line
-# (masked), skips that project and makes the run exit non-zero; --allow-secrets exports it anyway.
+# Before a project is copied, every text file in its KB (and runbook) is scanned for secret-looking
+# strings (AWS keys, GitHub/Slack/OpenAI/Stripe/Google tokens, JWTs, private keys, user:password@
+# URLs). A hit prints file:line (masked), skips that project and makes the run exit non-zero;
+# --allow-secrets exports it anyway.
 # Credentials inside the origin URL (https://user:token@host/…) are stripped before it is recorded.
 #
 # Layout it writes:
@@ -16,7 +18,8 @@
 #   <hub>/projects/<project>/code-graph.html    the newest /cwk-map page, with its embedded SOURCE
 #                                               TEXT STRIPPED (symbols, edges, call-site lines stay)
 #   <hub>/projects/<project>/_meta.yml          identity: repo, branch, commit, date, counts,
-#                                               code_graph: stripped | with-source | none
+#                                               code_graph: stripped | unchanged | with-source | none
+#                                               (unchanged = not a full-index page, nothing to strip)
 #   <hub>/README.md                             an index table of every project in the hub
 #
 # --with-source copies the code-graph page raw. A full-index /cwk-map page embeds the text of every
@@ -27,17 +30,22 @@
 # A Knowledge Base is a distilled description of your source: business rules, data model, auth model,
 # endpoints. It is DERIVED FROM the code and is often more sensitive per page than the code itself,
 # because it is the readable version. The hub repo must be **private** and shared only with people
-# who already have access to those repos. This script checks GitHub visibility when it can, refuses
-# to write into a repo it can see is public, and NEVER pushes — you review and push yourself.
+# who already have access to those repos. This script asks `gh` for the hub's visibility: PUBLIC is
+# refused, INTERNAL (readable by everyone in the enterprise) is a warning. When the hub has a git
+# remote but its visibility cannot be verified (no gh, gh not logged in to that host, a non-GitHub
+# remote, offline) it stops — check the remote yourself, then pass --allow-unverified-visibility.
+# A hub with no remote is local only: a warning, then the export. It NEVER pushes — you review and
+# push yourself.
 set -euo pipefail
 
-DRY=0; WITH_SOURCE=0; ALLOW_SECRETS=0; args=()
+DRY=0; WITH_SOURCE=0; ALLOW_SECRETS=0; ALLOW_UNVERIFIED=0; args=()
 for a in "$@"; do
   case "$a" in
     --dry-run|-n) DRY=1 ;;
     --with-source) WITH_SOURCE=1 ;;
     --allow-secrets) ALLOW_SECRETS=1 ;;
-    -h|--help) sed -n '2,31p' "$0"; exit 0 ;;
+    --allow-unverified-visibility) ALLOW_UNVERIFIED=1 ;;
+    -h|--help) sed -n '2,38p' "$0"; exit 0 ;;
     *) args+=("$a") ;;
   esac
 done
@@ -53,15 +61,19 @@ redact_url() { printf '%s' "$1" | sed -E 's#(https?://)[^/@]+@#\1#'; }
 
 # Secret patterns a KB page must not carry into a hub. A KB is prose distilled from code, and a scan
 # that quoted a config file quotes its token too. Matched text is printed masked to 6 characters.
-SECRET_RE='AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|gh[ousr]_[A-Za-z0-9]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY|xox[baprs]-|sk-[A-Za-z0-9]{20,}|https?://[^/@[:space:]]+:[^/@[:space:]]+@'
-scan_secrets() { # <dir>... — prints masked file:line hits to stderr; returns 1 when any were found
+SECRET_RE='AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|gh[ousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY|xox[baprs]-|sk-[A-Za-z0-9]{20,}|[sr]k_live_[A-Za-z0-9]{10,}|AIza[0-9A-Za-z_-]{35}|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.|https?://[^/@[:space:]]+:[^/@[:space:]]+@'
+scan_secrets() { # <kb-dir> [dir]... — prints masked file:line hits to stderr; returns 1 when any were found
   local hits=0 line loc rest no m
   while IFS= read -r line; do
     [ -n "$line" ] || continue
-    hits=$((hits+1))
     loc="${line%%:*}"; rest="${line#*:}"; no="${rest%%:*}"; m="${rest#*:}"   # file:lineno:match
+    # Not exported as found, so not a leak: the KB's generated viewer is dropped on the way in, and
+    # the remote URL in its _meta.yml is redacted (both below).
+    [ "$loc" = "$1/index.html" ] && grep -q 'content="cwk kb-site"' "$loc" 2>/dev/null && continue
+    case "$loc|$m" in "$1/_meta.yml|http"*) continue ;; esac
+    hits=$((hits+1))
     echo "   secret: $loc:$no: ${m:0:6}…" >&2
-  done < <(grep -rnoE --include='*.md' "$SECRET_RE" "$@" 2>/dev/null || true)
+  done < <(LC_ALL=C grep -rnoIE "$SECRET_RE" "$@" 2>/dev/null || true)   # every text file: cp -R copies them all
   [ "$hits" -eq 0 ]
 }
 
@@ -77,13 +89,29 @@ if [ "$WITH_SOURCE" = 1 ]; then
 fi
 
 # --- refuse to write into a repo we can see is public -----------------------------
-if [ -d "$hub/.git" ] && command -v gh >/dev/null 2>&1; then
+# Fail CLOSED: a hub with a remote is headed somewhere, and "gh could not tell" (no gh, not logged in
+# to that host, a GitLab/Bitbucket remote, several remotes and no `gh repo set-default`, offline) is
+# not "private". Only a hub with no remote at all is local-only — that one gets a warning.
+if [ -n "$(git -C "$hub" remote 2>/dev/null || true)" ]; then
   vis=$(cd "$hub" && gh repo view --json visibility -q .visibility 2>/dev/null || true)
-  if [ "$vis" = "PUBLIC" ]; then
-    die "the hub repo is PUBLIC. A KB describes your source in readable form — make it private first
-    (gh repo edit --visibility private), or export to a different location."
-  fi
-  [ -n "$vis" ] && echo "· hub visibility: $vis"
+  case "$vis" in
+    PUBLIC)
+      die "the hub repo is PUBLIC. A KB describes your source in readable form — make it private first
+    (gh repo edit --visibility private), or export to a different location." ;;
+    INTERNAL)
+      echo "⚠️  hub visibility: INTERNAL — readable by everyone in the enterprise, not only the people who can read these repos." >&2 ;;
+    PRIVATE) echo "· hub visibility: $vis" ;;
+    *)
+      why="gh could not read it (not logged in to that host, a non-GitHub remote, several remotes, or offline)"
+      command -v gh >/dev/null 2>&1 || why="the gh CLI is not installed"
+      echo "⚠️  hub visibility UNVERIFIED — $why. Remote(s):" >&2
+      git -C "$hub" remote -v 2>/dev/null | awk '$3 == "(push)" { print "    " $1 "  " $2 }' | sed -E 's#(https?://)[^/@]+@#\1#' >&2 || true
+      [ "$ALLOW_UNVERIFIED" = 1 ] || die "not exporting into a hub whose visibility is unknown. Check that remote is private yourself,
+    then re-run with --allow-unverified-visibility."
+      echo "    continuing (--allow-unverified-visibility) — make sure it is private before you push." >&2 ;;
+  esac
+else
+  echo "⚠️  the hub has no git remote, so its visibility could not be checked — it is local only; make sure it is private before you add one and push." >&2
 fi
 
 ok=0; skipped=0; secrets_blocked=0
@@ -122,7 +150,8 @@ for repo in "$@"; do
   # alone would silently replace one client's business rules with another's, under a name that still
   # looks right — and the export is what the team then reads. Refuse instead.
   if [ -f "$dest/_meta.yml" ]; then
-    prev=$(grep -m1 '^exported_from:' "$dest/_meta.yml" 2>/dev/null | cut -d: -f2- | sed 's/^ *//')
+    # `|| true`: under set -e + pipefail a meta with no such line (hand-made, older) would abort here
+    prev=$(grep -m1 '^exported_from:' "$dest/_meta.yml" 2>/dev/null | cut -d: -f2- | sed 's/^ *//' || true)
     if [ -n "$prev" ] && [ "$prev" != "$repo" ]; then
       echo "✗ $project — this hub already holds an export of a DIFFERENT repo under that name:" >&2
       echo "    existing: $prev" >&2
@@ -183,10 +212,12 @@ for repo in "$@"; do
         echo "   + code graph ($(basename "$graph")) — source stripped"
         code_graph=stripped
       elif [ "$rc" = 2 ]; then
-        # Not a full-index page (the older sampled viewer embeds no source): copy it as it is.
-        echo "   + code graph ($(basename "$graph")) — not a full-index page, copied unchanged"
+        # Nothing the stripper recognises as source (a map with no excerpts): copy it as it is — and
+        # record that, because nothing was stripped and _meta.yml must not claim otherwise.
+        echo "   ! $project — code graph ($(basename "$graph")) is not a full-index page; copied UNCHANGED, nothing stripped:" >&2
+        sed 's/^/    /' "$dest/.strip.err" >&2
         cp "$graph" "$dest/code-graph.html"
-        code_graph=stripped
+        code_graph=unchanged
       else
         echo "✗ $project — could not strip source from $(basename "$graph"); code graph NOT exported (use --with-source to copy it raw):" >&2
         sed 's/^/    /' "$dest/.strip.err" >&2
@@ -235,8 +266,15 @@ EOF
 done
 
 # --- index ------------------------------------------------------------------------
-if [ "$DRY" = 0 ] && [ "$ok" -gt 0 ]; then
+# Rewritten on every export — but only a README this script wrote (the marker line, or the sentence
+# every earlier version wrote). One somebody wrote by hand is theirs: left alone, and the run says so.
+README_MARK='<!-- generator: cwk kb-export — this file is rewritten on every export -->'
+if [ "$DRY" = 0 ] && [ "$ok" -gt 0 ] && [ -f "$hub/README.md" ] \
+   && ! grep -qF -e "$README_MARK" -e 'collected by `scripts/kb-export.sh`' "$hub/README.md"; then
+  echo "· left $hub/README.md as it is — kb-export.sh did not write it, so its project table is not refreshed"
+elif [ "$DRY" = 0 ] && [ "$ok" -gt 0 ]; then
   {
+    echo "$README_MARK"
     echo "# Knowledge Base hub"
     echo
     echo "Generated Knowledge Bases for several repos, collected by \`scripts/kb-export.sh\`."

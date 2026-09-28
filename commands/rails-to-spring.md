@@ -7,7 +7,7 @@ Use the **cwk-rails-to-spring** skill to port the service below onto a new stack
 and business behavior. Default target profile: Spring Boot + MyBatis + Flyway + Camel + SQS + MySQL,
 sharing the same database. Freeze the contract (port the GraphQL schema 1:1 + the named REST APIs),
 ground the business rules in the source (`/cwk-scan`), capture golden/characterization tests of the
-real responses, then re-implement endpoint-by-endpoint and verify byte-for-byte parity before cutover
+real responses, then re-implement endpoint-by-endpoint and verify canonical-JSON parity (and side effects) before cutover
 (strangler). Port ONLY the scoped set — all GraphQL resolvers + the specific 3–5 REST APIs — and list
 anything out of scope.
 

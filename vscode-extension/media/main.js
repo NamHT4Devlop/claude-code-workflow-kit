@@ -25,7 +25,7 @@ const ACTIONS = [
   A('cwk-plan-review', 'plan', '🔎', 'Review a plan', 'Multi-lens critique + verdict.', [one('plan', 'The plan / user stories', 'Paste the plan…')], v => v.plan),
   A('cwk-user-story', 'plan', '📝', 'Create user stories', 'Deep-investigate → features + INVEST stories, each AC as granular as possible.', [one('req', 'Requirement / idea (leave blank if using Slack)', 'As a coach I want…', 'textarea', true), one('slack', 'Slack thread / channel URL (optional)', 'https://…slack.com/archives/…', 'text', true)], v => [v.req, v.slack ? ('Slack source: ' + v.slack) : ''].filter(Boolean).join('\n\n')),
   A('cwk-issues', 'plan', '🎫', 'Stories → tracker issues', 'Turn a plan / user stories into GitHub or Jira issues. Previews first — nothing is created without your OK.', [one('src', 'Plan or user-story file (blank = pick the most recent)', 'cwk-sessions/plans/…md', 'text', true), one('target', 'Target project', 'e.g. github NamHT4Devlop/my-repo', 'text', true), one('create', 'Create them for real (otherwise it only writes a preview file)', 'It still shows you every issue and asks before creating anything.', 'checkbox', true)], v => [v.src || '', v.target || '', v.create ? '--create' : ''].filter(Boolean).join(' ')),
-  A('cwk-build', 'build', '🏗️', 'Build a feature', '13-step pipeline: plan → code → review → test.', [one('req', 'Requirement', 'Add a forgot-password flow via email OTP')], v => v.req, true),
+  A('cwk-build', 'build', '🏗️', 'Build a feature', '14-step pipeline: plan → code → review → test.', [one('req', 'Requirement', 'Add a forgot-password flow via email OTP')], v => v.req, true),
   A('cwk-fix-bug', 'build', '🐛', 'Fix a bug', 'Triage (code vs config/spec) → root-cause → regression test → minimal fix.', [one('err', 'Error / stack trace, or a QA report (expected vs actual + repro + environment + failing case)', 'Paste the error, or the QA bug report…')], v => v.err, true),
   A('cwk-migrate', 'build', '🔀', 'Migration / deprecation', 'Safe API/DB/event/lib change with rollback.', [one('change', "What's changing", 'Add nullable dueDate column to tasks')], v => v.change, true),
   A('cwk-simplify', 'build', '✨', 'Simplify code', 'Behavior-preserving cleanup; tests stay green.', [one('target', 'File / function (optional)', 'src/foo.ts', 'text', true)], v => v.target || '', true),
@@ -55,7 +55,7 @@ let LANG = 'en';
 const t = s => (LANG === 'vi' && typeof I18N_VI !== 'undefined' && I18N_VI[s]) || s;
 
 // ---------- safe mini-markdown ----------
-function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 function inl(s) { return s.replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2">$1</a>'); }
 function mdToHtml(md) {
   const L = esc(md || '').split('\n'); let out = ''; let i = 0; let lb = [];

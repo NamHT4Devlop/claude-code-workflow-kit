@@ -113,8 +113,9 @@ yourself:
 Write an **Investigation Notes** section capturing: real entities & fields (with types), the
 existing flow (before), the new flow (after), business rules in play (cite BR ids), roles/permissions,
 state machine, integration/async touchpoints, blast radius (who else is affected), and the concrete
-edge cases the code/KB reveal. With an index the blast radius **is** the reach ledger
-(`references/provenlens-evidence.md` §2) plus a pasted code graph of the touched area; a consumer the
+edge cases the code/KB reveal. The blast radius **is** the reach ledger
+(`references/provenlens-evidence.md` §2 — from Grep with counts marked `(grep)` when there is no
+index, §4) plus a code graph of the touched area; a consumer the
 graph reaches and no story covers becomes an open question in §6, never a silence. **Cite real file paths, endpoints, field names** — not invented ones.
 
 ### 3. Clarify intent & assumptions

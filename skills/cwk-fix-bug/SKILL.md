@@ -49,9 +49,16 @@ user story / acceptance criteria the bug violated.
   get the exact code path + blast radius before changing anything.
 - **Safety net — before the first edit.** `git status --porcelain` (ask the user to commit/stash their
   own work first); run the relevant gates once and record **which tests were already failing**; save
-  `git diff HEAD > <session>/00-pre-change.patch`. To undo use ONLY `git stash push -u` or
-  `git apply -R <your diff>` — never `git restore`, `git checkout .`/`--`, `git reset --hard`
+  `git diff HEAD > cwk-sessions/fixes/<slug>-<date>.pre-change.patch`. To undo use ONLY `git stash push -u` or
+  `cd "$(git rev-parse --show-toplevel)" && git apply -R cwk-sessions/fixes/<slug>-<date>.change.diff` (re-capture it first when undoing from a red state, then confirm with `git status --porcelain`) — never `git restore`, `git checkout .`/`--`, `git reset --hard`
   or `git clean -f`, which throw away the user's uncommitted work along with yours. A test red before you started is not your regression.
+  Keep the kit's own files out of that check first: `git check-ignore -q cwk-sessions/ || { f=$(git rev-parse --git-path info/exclude); mkdir -p
+  "${f%/*}"; printf '\ncwk-sessions/\n' >> "$f"; }` (a worktree's `.git` is a file, so never write
+  `.git/info/exclude` by hand). **The tree must be clean before the first edit — untracked files included**
+  (`git stash push -u` parks them); if the user will not commit or stash, do not start.
+  `cwk-sessions/fixes/<slug>-<date>.change.diff` is your own change, rewritten after each green step with
+  `cd "$(git rev-parse --show-toplevel)" && { git diff --binary --src-prefix=a/ --dst-prefix=b/; git ls-files -z --others --exclude-standard | xargs -0 -r -n1 git diff --binary --no-index --src-prefix=a/ --dst-prefix=b/ -- /dev/null; } > cwk-sessions/fixes/<slug>-<date>.change.diff`
+  (exit status 1 — 123 with GNU xargs — is normal there; check the file is not empty) — plain `git diff` omits the files you created and binary content.
 - **Cover the untested consumers, or say you didn't.** For every blast-radius consumer from Step 6 with
   **no covering test**, either add a `[REGRESSION]` test asserting its OLD behavior still holds, or run
   one independent `cwk-business-consistency-reviewer` sub-agent on the diff (give it the consumer
@@ -92,7 +99,7 @@ Gather (ask 2–4 targeted questions if missing — don't guess):
 - Error text / **stack trace** / screenshots / logs, affected endpoint/feature/job, severity/urgency.
 Also skim `cwk-sessions/answers/_journal.md` if present — a past Q&A about this area may already
 name the flow/files involved (cheap: one small index). If the repo still has the pre-rename
-`spec-kit-sessions/` and no `cwk-sessions/`, read from there; write new artifacts to `cwk-sessions/`.
+`spec-kit-sessions/` or `namht-sessions/` and no `cwk-sessions/`, read from there; write new artifacts to `cwk-sessions/`.
 
 ### 2. TRIAGE — is this even a code bug? (do this BEFORE editing code)
 Classify the root cause into one of these, gathering the matching evidence:
@@ -107,7 +114,9 @@ Classify the root cause into one of these, gathering the matching evidence:
   ambiguous. → this is a **spec bug**: don't "fix" correct code; flag it, propose the AC change
   (loop to `/cwk-plan` or `/cwk-user-story` to correct the story), and confirm with the user.
 - **Environment-only (can't reproduce locally)** → don't force a local repro. Pull env evidence:
-  logs via `/cwk-splunk-report` or the structured fields from `/cwk-observe` (filter by the
+  logs — `/cwk-triage` pulls them from Splunk by correlation id and onset, and its report is a ready
+  intake for this skill (`/cwk-splunk-report` only counts errors per app) — or the structured fields
+  from `/cwk-observe` (filter by the
   correlation id / the failing request), the config/env diff, the recent **deploy commit range**
   (`git log` since the last good deploy), and the data/flag state. Diagnose from that and say the
   repro is evidence-based, not local.
@@ -149,7 +158,7 @@ and get a quick OK. Include a **rollback note** and, if risky, a guard/feature-f
 
 ### 8. Regression test FIRST (red) — mapped to the QA case
 Write a test that reproduces the bug and currently **fails**. **Name/tag it with the failing QA test
-case ID / AC** (e.g. `// regression: TC-07 / AC-US-12-03`) so QA's suite and this fix line up. Cover
+case ID / AC** (e.g. `// regression: TC-07 / AC-US-F1-001-03`) so QA's suite and this fix line up. Cover
 the exact failing case + the obvious neighbors (boundary/null/error path).
 
 ### 9. Apply the fix (minimal diff)

@@ -40,6 +40,9 @@ it is used, so give them what that takes. Favour precision over recall: report w
 in the changed code and what it reaches, and do not report what a compiler, type checker or linter
 already reports.
 
+When the target is files or a whole repository rather than a diff, "changed" means "in the
+target": quote the lines from the file, and a defect that was already there is in scope.
+
 Before a claim that is not visible in the changed lines (a caller, concurrency, attacker control,
 "this breaks X"), establish it: find the entry point the user passes through, not only the inner
 function; treat library behaviour as a claim to read or mark `(library default, not verified)`.

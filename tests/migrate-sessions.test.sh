@@ -81,5 +81,12 @@ check "oldest name renamed first"     "$(cat "$r/cwk-sessions/answers/_journal.m
 check "newer legacy file carried"     "$(cat "$r/cwk-sessions/answers/n.md" 2>/dev/null)" "only v2"
 check "namht-sessions left in place (its journal could not merge)" "$([ -f "$r/namht-sessions/answers/_journal.md" ] && echo yes || echo no)" yes
 
+echo "migrate-sessions: the closing reminder prints its command intact"
+# A trailing backslash in an unquoted heredoc swallowed the terminator: the reminder read
+# `grep -q '^cwk-sessions/EOF` followed by a stray `exit 0`.
+out=$("$SCRIPT" "$TMP/empty" 2>&1)
+check "the ignore command is whole" "$(printf '%s\n' "$out" | grep -cxF "  grep -qx 'cwk-sessions/' ~/.gitignore_global || echo 'cwk-sessions/' >> ~/.gitignore_global")" 1
+check "no heredoc debris"           "$(printf '%s\n' "$out" | grep -cE 'EOF|^exit ')" 0
+
 echo "migrate-sessions: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

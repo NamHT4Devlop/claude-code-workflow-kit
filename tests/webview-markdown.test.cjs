@@ -49,6 +49,7 @@ has('an https link becomes an anchor',   inl('[ok](https://example.com)'), '<a h
 hasNot('javascript: is NOT linkified',   inl('[x](javascript:alert(1))'), '<a href');
 hasNot('data: is NOT linkified',         inl('[x](data:text/html,<b>)'), '<a href');
 hasNot('file: is NOT linkified',         inl('[x](file:///etc/passwd)'), '<a href');
+hasNot('a quote cannot close the href',   mdToHtml('[d](https://x.test/"onfocus="alert(1))'), '"onfocus=');
 
 console.log('webview-markdown: the formatting people actually rely on still works');
 has('heading',       mdToHtml('## Title'), '<h2>Title</h2>');

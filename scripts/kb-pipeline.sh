@@ -20,6 +20,8 @@
 #   --force                       redo a step whose output already exists
 #   --dry-run                     print every command, run nothing
 #   --yes                         skip the confirmation
+#   --allow-unverified-visibility passed to kb-export.sh: publish into a hub whose remote's
+#                                 visibility gh cannot read (check it is private yourself)
 #
 # It does NOT clone anything: point it at checkouts you already have. Steps 2-4 spend tokens
 # through `claude -p`, and a scan is the most expensive thing in this kit — hence the estimate and
@@ -29,8 +31,8 @@
 # refuses to write and the scan produces nothing (verified: "Việc ghi file bị từ chối quyền").
 # The default here is `acceptEdits`, which lets the skills write the Knowledge Base and the runbook.
 # Steps that shell out — the HTML render, git reads, /cwk-map — still need Bash approval and will be
-# skipped or degrade under it. `--permission-mode bypassPermissions` is what makes every step run,
-# and is what the VS Code panel uses; it also permits ANY Bash command, writes outside the workspace
+# skipped or degrade under it. `--permission-mode bypassPermissions` is what makes every step run
+# (the VS Code panel defaults to acceptEdits too); it also permits ANY Bash command, writes outside the workspace
 # and network calls, so it belongs in a workspace you trust. The file-guard hook still applies in
 # either mode (PreToolUse runs before the permission check), but it guards policy and credential
 # files only: since 4.0.0 nothing in the kit restricts git, so under bypassPermissions a destructive
@@ -38,27 +40,33 @@
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEPTH=standard; HUB="$HOME/kb-hub"; MODEL=""; PERM=acceptEdits; FORCE=0; DRY=0; YES=0; repos=()
+DEPTH=standard; HUB="$HOME/kb-hub"; MODEL=""; PERM=acceptEdits; FORCE=0; DRY=0; YES=0; repos=(); EXPORT_OPTS=()
 
+die() { echo "✗ $*" >&2; exit 1; }
+# An option's value must follow it: `shift 2` with nothing left fails WITHOUT shifting, so
+# `kb-pipeline.sh api --depth` used to spin in the loop below forever.
+need_val() { [ $# -ge 2 ] && [ -n "$2" ] && [ "${2#-}" = "$2" ] || die "$1 needs a value — usage: kb-pipeline.sh [options] <repo> [repo...] (see --help)"; }
 while [ $# -gt 0 ]; do
   case "$1" in
-    --depth) DEPTH="${2:-}"; shift 2;;
-    --hub)   HUB="${2:-}";   shift 2;;
-    --model) MODEL="${2:-}"; shift 2;;
-    --permission-mode) PERM="${2:-}"; shift 2;;
+    --depth) need_val "$@"; DEPTH="$2"; shift 2;;
+    --hub)   need_val "$@"; HUB="$2";   shift 2;;
+    --model) need_val "$@"; MODEL="$2"; shift 2;;
+    --permission-mode) need_val "$@"; PERM="$2"; shift 2;;
     --force) FORCE=1; shift;;
     --dry-run|-n) DRY=1; shift;;
     --yes|-y) YES=1; shift;;
-    -h|--help) sed -n '2,40p' "$0"; exit 0;;
+    --allow-unverified-visibility) EXPORT_OPTS+=("$1"); shift;;
+    -h|--help) sed -n '2,39p' "$0"; exit 0;;
     *) repos+=("$1"); shift;;
   esac
 done
 
-die() { echo "✗ $*" >&2; exit 1; }
 [ ${#repos[@]} -gt 0 ] || die "give me at least one repo path (this script never clones — see --help)"
 case "$DEPTH" in quick|standard|deep) ;; *) die "--depth must be quick, standard or deep (got '$DEPTH')";; esac
 case "$PERM" in acceptEdits|bypassPermissions|auto|dontAsk|manual|plan) ;;
   *) die "--permission-mode must be one the CLI accepts (got '$PERM')";; esac
+# Absolute before the loop below cd's into each repo — a relative --hub would land inside the LAST one.
+case "$HUB" in /*) ;; *) HUB="$PWD/$HUB" ;; esac
 
 command -v claude >/dev/null 2>&1 || die "the 'claude' CLI is not on PATH — steps 2-4 run through it"
 command -v node   >/dev/null 2>&1 || die "node is not on PATH — steps 4-5 need it"
@@ -139,7 +147,7 @@ done
 echo
 if [ ${#did[@]} -eq 0 ]; then echo "Nothing was processed."; exit 1; fi
 echo "▶ publishing $HUB"
-run bash "$HERE/kb-export.sh" "$HUB" "${did[@]}" || die "export failed"
+run bash "$HERE/kb-export.sh" ${EXPORT_OPTS[@]+"${EXPORT_OPTS[@]}"} "$HUB" "${did[@]}" || die "export failed"
 run node "$HERE/kb-site.cjs" "$HUB" || die "site build failed"
 echo
 if [ "$failed" -gt 0 ]; then echo "✔ done — but $failed repo(s) had a failing step, see above"

@@ -72,8 +72,8 @@ const I18N_VI = {
     'Điều tra kỹ → tính năng + story chuẩn INVEST, mỗi AC chi tiết nhất có thể.',
   'Turn a plan / user stories into GitHub or Jira issues. Previews first — nothing is created without your OK.':
     'Biến kế hoạch / user story thành issue trên GitHub hoặc Jira. Xem trước đã — không tạo gì nếu bạn chưa đồng ý.',
-  '13-step pipeline: plan → code → review → test.':
-    'Quy trình 13 bước: kế hoạch → code → review → test.',
+  '14-step pipeline: plan → code → review → test.':
+    'Quy trình 14 bước: kế hoạch → code → review → test.',
   'Triage (code vs config/spec) → root-cause → regression test → minimal fix.':
     'Phân loại (do code hay config/spec) → tìm nguyên nhân gốc → test hồi quy → sửa tối thiểu.',
   'Safe API/DB/event/lib change with rollback.':

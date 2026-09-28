@@ -17,12 +17,17 @@
  * exist: DOMPurify initialises when `document.nodeType === 9` and checks a handful of constructors
  * with `instanceof`. Nothing is rendered, so nothing real is required. Zero dependencies, like the
  * rest of `scripts/`.
+ *
+ * Deadline: the parser runs in a worker thread and each diagram gets MM_TIMEOUT_MS (default 10000)
+ * to answer. A diagram that sends it into a loop is reported as `timeout parsing <file>:<line>` and
+ * the run exits 2 — before, one such label hung the whole scan with no output at all.
  */
 const fs = require('fs');
 const path = require('path');
+const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
 
 const targets = process.argv.slice(2);
-if (!targets.length) {
+if (isMainThread && !targets.length) {
   console.error('usage: node check-mermaid.cjs <file-or-dir> [more...]');
   process.exit(2);
 }
@@ -61,7 +66,8 @@ function vendoredLib(lib) {
 }
 // ---- end vendored library lookup ------------------------------------------------------------
 
-const vendored = vendoredLib('mermaid');
+// The worker thread is handed the file its parent already verified.
+const vendored = isMainThread ? vendoredLib('mermaid') : { file: workerData.bundle };
 if (!vendored.file) {
   console.error(vendored.why === 'absent'
     ? '✖ vendor/mermaid.min.js not found in the kit — run scripts/fetch-vendor.sh first'
@@ -90,27 +96,62 @@ const stub = () => new Proxy(function () {}, {
   apply: () => stub(),
   construct: () => stub(),
 });
-globalThis.window = globalThis;
-globalThis.addEventListener = () => {};
-globalThis.removeEventListener = () => {};
-globalThis.document = new Proxy(stub(), { get: (t, k) => (k === 'nodeType' ? 9 : answer(k)) });
-if (!globalThis.navigator) globalThis.navigator = { userAgent: 'node' };
-for (const n of ['Node', 'Element', 'HTMLElement', 'HTMLFormElement', 'HTMLTemplateElement', 'NamedNodeMap',
-  'DocumentFragment', 'Text', 'Comment', 'Document', 'DOMParser', 'NodeFilter', 'HTMLCollection']) {
-  if (!globalThis[n]) globalThis[n] = function () {};
+const quiet = { error: console.error, warn: console.warn };
+
+/** The worker thread: the do-nothing DOM, mermaid on top of it, one parse per message. Answers
+ *  { ready } once loaded (or { fatal }), then { why } for a parse error and {} for a clean parse. */
+function serveParses() {
+  globalThis.window = globalThis;
+  globalThis.addEventListener = () => {};
+  globalThis.removeEventListener = () => {};
+  globalThis.document = new Proxy(stub(), { get: (t, k) => (k === 'nodeType' ? 9 : answer(k)) });
+  if (!globalThis.navigator) globalThis.navigator = { userAgent: 'node' };
+  for (const n of ['Node', 'Element', 'HTMLElement', 'HTMLFormElement', 'HTMLTemplateElement', 'NamedNodeMap',
+    'DocumentFragment', 'Text', 'Comment', 'Document', 'DOMParser', 'NodeFilter', 'HTMLCollection']) {
+    if (!globalThis[n]) globalThis[n] = function () {};
+  }
+
+  // Mermaid logs every parse error to the console on its own; keep the report ours.
+  console.error = () => {};
+  console.warn = () => {};
+  let mermaid;
+  try {
+    const m = require(bundle);
+    mermaid = m.default || m;
+  } catch (err) {
+    parentPort.postMessage({ fatal: `could not load ${bundle}: ${err.message}` });
+    return;
+  }
+  parentPort.on('message', async (src) => {
+    try {
+      await mermaid.parse(src);
+      parentPort.postMessage({});
+    } catch (err) {
+      parentPort.postMessage({ why: String((err && err.message) || err) });
+    }
+  });
+  parentPort.postMessage({ ready: true });
 }
 
-// Mermaid logs every parse error to the console on its own; keep the report ours.
-const quiet = { error: console.error, warn: console.warn };
-console.error = () => {};
-console.warn = () => {};
-let mermaid;
-try {
-  const m = require(bundle);
-  mermaid = m.default || m;
-} catch (err) {
-  quiet.error(`✖ could not load ${bundle}: ${err.message}`);
-  process.exit(2);
+/** The main thread's handle on that worker. `ready` settles with its first answer; `parse(src)`
+ *  settles with the answer, { timeout: true } once DEADLINE_MS passes, or { fatal } if it died. */
+// Only a positive finite value is taken, capped at setTimeout's limit (2^31-1 ms): past it, and for
+// Infinity, a negative or NaN, the timer fires after 1 ms and every diagram "times out".
+const MM_TIMEOUT = Number(process.env.MM_TIMEOUT_MS);
+const DEADLINE_MS = Number.isFinite(MM_TIMEOUT) && MM_TIMEOUT > 0 ? Math.min(MM_TIMEOUT, 2147483647) : 10000;
+function startParser() {
+  const w = new Worker(__filename, { workerData: { bundle } });
+  let settle = null;
+  const reply = (m) => { const s = settle; settle = null; if (s) s(m); };
+  w.on('message', reply);
+  w.on('error', (err) => reply({ fatal: err.message }));
+  w.on('exit', (code) => reply({ fatal: `the parser thread exited (code ${code})` }));
+  const next = (ms) => new Promise((resolve) => {
+    const t = ms ? setTimeout(() => reply({ timeout: true }), ms) : null;
+    settle = (m) => { clearTimeout(t); resolve(m); };
+  });
+  const ready = next(0);
+  return { ready, parse(src) { const p = next(DEADLINE_MS); w.postMessage(src); return p; } };
 }
 
 // ---- collect blocks ----
@@ -128,8 +169,10 @@ function blocks(file) {
   const lines = fs.readFileSync(file, 'utf8').split('\n');
   const found = [];
   for (let i = 0; i < lines.length; i++) {
-    const open = lines[i].match(/^(\s*)```mermaid\s*$/);
-    if (!open) continue;
+    // The fence rule html-builder.js renders by: first word of the info string, lowercased, so
+    // ```Mermaid and ```mermaid title=x are diagrams on the page and must be checked here too.
+    const open = lines[i].match(/^(\s*)```\s*([^\s`]*)[^`]*$/);
+    if (!open || open[2].toLowerCase().replace(/[^a-z0-9_+#-]/g, '') !== 'mermaid') continue;
     const indent = open[1].length;
     const start = i + 1;
     const body = [];
@@ -142,19 +185,67 @@ function blocks(file) {
 // A `<` inside label text sends DOMPurify into real HTML parsing, which the do-nothing DOM above
 // cannot finish (it loops until the heap runs out). In a browser the same diagram parses fine. Label
 // text is opaque to Mermaid's grammar, so swapping `<` and `>` for look-alikes there changes nothing
-// the parser judges. Arrows (`-->`, `->>`, `<-->`, `<|--`) sit outside quotes and message text and
-// are left alone.
+// the parser judges. Arrows (`-->`, `->>`, `<-->`, `<|--`) and annotations (`<<interface>>`) sit
+// outside quotes, labels and member text and are left alone. Every swap is one character for one,
+// so a parse error still points at the same line and column.
 function neutralise(src) {
   const swap = (t) => t.replace(/</g, '\u2039').replace(/>/g, '\u203a');
-  const seq = /^\s*sequenceDiagram\b/.test(typeLine(src));
+  const type = typeLine(src).trim().split(/\s+/)[0];
+  const seq = /^sequenceDiagram\b/.test(type);
+  const flow = /^(flowchart|flowchart-elk|graph)$/.test(type);
+  const cls = /^classDiagram(-v2)?$/.test(type);
+  let body = false;   // inside a classDiagram `class X {` … `}` block
   return src.split('\n').map((line) => {
     let out = line.replace(/"[^"\n]*"/g, swap);
     // Sequence messages are unquoted: `A->>B: text`. Everything after the first colon is text.
     if (seq) out = out.replace(/^([^:]*?(?:->>|-->>|->|-->|-x|--x|-\)|--\)))([^:]*:)(.*)$/, (m, a, b, c) => a + b + swap(c));
     // Notes: `Note over A: text`.
     if (seq) out = out.replace(/^(\s*[Nn]ote\s[^:]*:)(.*)$/, (m, a, b) => a + swap(b));
+    // Node labels `A[Line one<br/>line two]`, `B{a < b?}` and every other shape, and `-->|edge label|`.
+    if (flow) out = swapLabels(out, swap);
+    if (cls) {
+      if (body) {
+        // Members inside a class block (`+List<Item> items`); an annotation line (`<<interface>>`) is syntax.
+        if (!/^\s*<<[^<>]*>>\s*\}?\s*$/.test(out)) out = swap(out);
+        // The block ends at a `}` outside quotes — on a line of its own or after the last member
+        // (`+List<Item> items }`). Waiting for a bare `}` swapped every relationship line after it.
+        if (/\}\s*$/.test(out.replace(/"[^"\n]*"/g, (q) => ' '.repeat(q.length)))) body = false;
+      }
+      else if (/^\s*class\s.*\{\s*$/.test(out)) body = true;
+      // `Order : +List<Item> items`, `A <|-- B : label` — the text after the first colon that is
+      // outside quotes and not part of a `:::style` shorthand.
+      else {
+        const at = /(^|[^:]):(?!:)/.exec(out.replace(/"[^"\n]*"/g, (q) => ' '.repeat(q.length)));
+        if (at) { const i = at.index + at[1].length + 1; out = out.slice(0, i) + swap(out.slice(i)); }
+      }
+    }
     return out;
   }).join('\n');
+}
+/** Swap inside every bracketed label on a flowchart line — [..], (..), {..} and the doubled or
+ *  mixed shapes ((..)), [[..]], {{..}}, [(..)], `id>..]` — and inside `|edge labels|`. Only a span
+ *  that closes on the same line: an unclosed bracket is a syntax error to report as written. */
+function swapLabels(line, swap) {
+  const CLOSE = { '[': ']', '(': ')', '{': '}' };
+  let out = '';
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    // Quoted text (`A -- "a (b" --> B`) is copied through as it is: a bracket or pipe inside it
+    // paired with a later one, and every arrow between the two was swapped (`-->` became `--›`).
+    if (c === '"') { const q = line.indexOf('"', i + 1); if (q > 0) { out += line.slice(i, q + 1); i = q; continue; } }
+    const shut = CLOSE[c] || (c === '|' ? '|' : c === '>' && /\w/.test(line[i - 1] || '') ? ']' : '');
+    if (!shut) { out += c; continue; }
+    let depth = 1, j = i + 1;
+    for (; j < line.length; j++) {
+      if (line[j] === '"') { const q = line.indexOf('"', j + 1); if (q > 0) { j = q; continue; } }
+      if (CLOSE[c] && line[j] === c) depth++;
+      else if (line[j] === shut && --depth === 0) break;
+    }
+    if (j >= line.length) { out += line.slice(i); break; }
+    out += c + swap(line.slice(i + 1, j)) + shut;
+    i = j;
+  }
+  return out;
 }
 
 // Size is not a parse error, but a 40-node LR flowchart renders as a strip nobody reads. Count
@@ -213,10 +304,14 @@ function sizeWarning(src) {
   return '';
 }
 
-(async () => {
+if (!isMainThread) serveParses();
+else (async () => {
   let total = 0;
   const failures = [];
   const warnings = [];
+  const parser = startParser();
+  const up = await parser.ready;
+  if (up.fatal) { quiet.error(`✖ ${up.fatal}`); process.exit(2); }
   for (const t of targets) {
     if (!fs.existsSync(t)) { quiet.error(`✖ not found: ${t}`); process.exit(2); }
     for (const f of mdFiles(t)) {
@@ -224,11 +319,13 @@ function sizeWarning(src) {
         total++;
         const w = sizeWarning(b.src);
         if (w) warnings.push({ where: `${f}:${b.line}`, why: w });
-        try {
-          await mermaid.parse(neutralise(b.src));
-        } catch (err) {
-          failures.push({ where: `${f}:${b.line}`, why: String((err && err.message) || err).split('\n').slice(0, 4).join(' ').replace(/\s+/g, ' ').slice(0, 240) });
+        const r = await parser.parse(neutralise(b.src));
+        if (r.timeout) {
+          quiet.error(`✖ timeout parsing ${f}:${b.line} — no answer in ${DEADLINE_MS / 1000}s (MM_TIMEOUT_MS); fix or quote that diagram's labels`);
+          process.exit(2);
         }
+        if (r.fatal) { quiet.error(`✖ could not parse ${f}:${b.line}: ${r.fatal}`); process.exit(2); }
+        if (r.why) failures.push({ where: `${f}:${b.line}`, why: r.why.split('\n').slice(0, 4).join(' ').replace(/\s+/g, ' ').slice(0, 240) });
       }
     }
   }

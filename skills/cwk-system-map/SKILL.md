@@ -38,6 +38,9 @@ joiner can produce the cross-service map from the hub alone, without cloning a s
 - **Discover services:** each immediate sub-folder that is a git repo or has a manifest
   (`package.json`, `pom.xml`/`build.gradle`, `go.mod`, `Gemfile`, `requirements.txt`,
   `*.csproj`, `Cargo.toml`) and/or a `knowledge-base/`. List them with detected language + role.
+  **A monorepo** (one git repo, services under e.g. `services/*`, `apps/*`, `packages/*`) has no
+  per-service sub-repos: take the deployable units from the root KB (`01-project-structure.md`) or
+  from manifests / Dockerfiles at any depth, and treat each as a service.
 - **Precondition (strongly recommended):** each service should already have a Knowledge Base
   (`cd <svc> && /cwk-scan`). If some don't, list them and offer to scan them first — the system
   map is far more accurate from per-service KBs. You can still proceed by reading source for
@@ -57,7 +60,8 @@ fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` 
 is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- Index each service once (`cd <svc> && provenlens init .`), then query from the **workspace root** —
+- Index each service once (`cd <svc> && provenlens init .` — ask first; indexing is the user's call),
+  then query from the **workspace root** —
   `provenlens serve` and the MCP server both accept a folder of checkouts and answer across all of them.
 - Cross-service edges stop being inferred. A producer and a consumer sharing a queue name or an
   endpoint URI are linked by the binding layer, **across languages** (a Java publisher to a Ruby
@@ -113,8 +117,10 @@ node "$SKILL_DIR/render-html.cjs" \
 ```
 
 ## Notes
-- `system-map/` is a workspace-level artifact (the parent folder usually isn't a git repo). It's
-  also covered by the global gitignore (`system-map/`) so it never lands in a service repo.
+- `system-map/` is a workspace-level artifact (the parent folder usually isn't a git repo). When it
+  *is* one — a monorepo root — check `git check-ignore -q system-map/` before writing, and if it is
+  not ignored add `system-map/` to `$(git rev-parse --git-path info/exclude)` (local, never committed;
+  a worktree's `.git` is a file) so the map does not land in the team's repo.
 - **Keep it fresh:** after a service changes its API/integrations, `/cwk-rescan` that service,
   then re-run `/cwk-system-map` (or just re-derive the affected flow).
 - Polyglot is fine — the map works off **contracts/events** (language-agnostic), not code imports;

@@ -21,7 +21,7 @@ claude-code-workflow-kit/
 │   └── marketplace.json     # local marketplace (for one-command install)
 ├── commands/                # 32 slash commands → /cwk:build (plugin) or /cwk-build (personal), …
 ├── skills/                  # 31 skills (the methodology — also usable standalone)
-│   ├── cwk-build/          #   13-step pipeline   (+ bundled review checklist)
+│   ├── cwk-build/          #   14-step pipeline   (+ bundled review checklist)
 │   ├── cwk-scan/           #   KB generation       (+ bundled kb-steps spec)
 │   ├── cwk-rescan/         #   incremental KB update
 │   ├── cwk-review/         #   two-phase review    (+ bundled review checklist)
@@ -64,8 +64,8 @@ read-only specialists the build/review steps fan out to in parallel.
   Claude Code. The shell scripts in `scripts/` and the `hooks/file-guard.sh` hook are **bash**,
   so they need **Git Bash** (ships with Git for Windows) or **WSL**. If you want a pure
   PowerShell install, use **Option B** below — it is plain file copying and needs no bash.
-  There is no PowerShell port of `personal-install.sh`: it creates symlinks and merges
-  `settings.json`, and shipping an untested installer for a platform I cannot test on would be
+  There is no PowerShell port of `personal-install.sh`: it creates symlinks and prints the
+  `settings.json` hook entry for you to add, and shipping an untested installer for a platform I cannot test on would be
   worse than telling you this plainly.
 
 ---
@@ -158,6 +158,10 @@ Copy-Item -Recurse -Force <PLUGIN_DIR>\commands\* $HOME\.claude\commands\
 Copy-Item -Recurse -Force <PLUGIN_DIR>\agents\*   $HOME\.claude\agents\
 ```
 
+Then rename the help command so it does not collide with Claude Code's built-in `/help`:
+`mv .claude/commands/help.md .claude/commands/cwk-help.md` (per user: `~/.claude/commands/…`; in
+PowerShell `Rename-Item .claude\commands\help.md cwk-help.md`).
+
 > The **file-guard hook is not installed by this route** on any platform — Option A ships it with the
 > plugin, Option C installs it via the script. On Windows without bash the hook cannot run at all;
 > rely on Claude Code's own permission prompts instead, and know that is a weaker guarantee.
@@ -184,7 +188,7 @@ all generated artifacts to a machine-wide gitignore.
 
 # 2) make every Workflow Kit artifact invisible to git, machine-wide (no per-repo edits)
 touch ~/.gitignore_global
-printf '%s\n' 'cwk-sessions/' 'spec-kit-sessions/' 'knowledge-base/' 'CLAUDE.local.md' >> ~/.gitignore_global
+printf '%s\n' 'cwk-sessions/' 'spec-kit-sessions/' 'knowledge-base/' '.provenlens/' 'CLAUDE.local.md' >> ~/.gitignore_global
 git config --global core.excludesfile ~/.gitignore_global
 ```
 
@@ -217,7 +221,7 @@ summary is in [SECURITY.md](SECURITY.md#recommended-enterprise-hardening).
 
 1. In a Claude Code session, type `/` and confirm the `cwk:` commands (Option A) or
    `/build`, `/scan`… (Option B) appear.
-2. Run `/cwk-help` (or `/help` for plain skills) — it prints all commands **and** checks
+2. Run `/cwk:help` (Option A) or `/cwk-help` (Options B and C) — it prints all commands **and** checks
    whether the current repo has a `knowledge-base/`.
 3. Plugin only: run `/plugin` → you should see **cwk** listed as installed/enabled.
 
@@ -227,8 +231,9 @@ Version 3.0.0 dropped the personal prefix. Commands are `/cwk:build` (plugin) or
 (personal), the artifact folder is `cwk-sessions/`, the hook was `hooks/cwk-git-guard.sh` (retired in 4.0.0). After
 `git pull`: reinstall (Option A: uninstall `namht`, re-add the marketplace, install `cwk`; Option C:
 rerun `scripts/personal-install.sh`), run `scripts/migrate-sessions.sh <repo>` in each repo that has
-a `namht-sessions/`, add `cwk-sessions/` to `~/.gitignore_global`, and rename the hook in
-`~/.claude/settings.json`. The installer keeps the old hook name alive as an alias until you do.
+a `namht-sessions/`, and add `cwk-sessions/` to `~/.gitignore_global`. Any git-guard entry left in
+`~/.claude/settings.json` must be removed (4.0.0): `personal-install.sh` deletes the old hook links and
+prints the exact command if the entry is still there.
 Details in [CHANGELOG.md](CHANGELOG.md#300--2026-09-08).
 
 ## Update to the latest version
@@ -246,8 +251,12 @@ Details in [CHANGELOG.md](CHANGELOG.md#300--2026-09-08).
 
 - **Option A:** `/plugin uninstall cwk` (and optionally
   `/plugin marketplace remove cwk-marketplace`).
-- **Option B:** delete the copied folders, e.g.
-  run `<PLUGIN_DIR>/scripts/personal-install.sh uninstall` (removes only the symlinks that point back to this repo).
+- **Option B:** delete the copied files — the skills and agents are the `cwk-*` folders/files, the
+  commands are the names in `<PLUGIN_DIR>/commands` (plus the renamed `cwk-help.md`):
+  `rm -rf .claude/skills/cwk-* .claude/agents/cwk-*` and
+  `for f in <PLUGIN_DIR>/commands/*.md; do rm -f ".claude/commands/$(basename "$f")"; done; rm -f .claude/commands/cwk-help.md`
+  (use `~/.claude/…` for a per-user copy).
+- **Option C:** run `<PLUGIN_DIR>/scripts/personal-install.sh uninstall` (removes only the symlinks that point back to this repo).
 
 ## Troubleshooting
 
@@ -292,7 +301,7 @@ If you keep many repos under one parent folder (a "workspace"), follow this sepa
 |---------|--------------|
 | `/cwk-scan` | Generate the Knowledge Base from the codebase (16 docs + `review-skills.md` + per-module docs). Run first on a new repo. |
 | `/cwk-rescan` | Update the KB incrementally after code changes (git-diff aware). |
-| `/cwk-build <requirement>` | 13-step pipeline: clarify → plan (impact + business flow) → code → multi-lens review → tests → run tests → evidence → update KB. |
+| `/cwk-build <requirement>` | 14-step pipeline: clarify → plan (impact + business flow) → code → multi-lens review → tests → run tests → evidence → update KB. |
 | `/cwk-fix-bug <error/stack trace>` | Production hotfix: triage → locate (read the code) → root-cause → failing regression test → minimal surgical fix → verify (tests+build, rollback) → hotfix report + KB update. Does not deploy. |
 | `/cwk-review [file\|PR#]` | Two-phase review: quality checklist + business consistency vs the KB. Empty arg = current branch vs the default branch (or working-tree diff if uncommitted); accepts a PR #/URL (`gh pr diff`). |
 | `/cwk-ask <question>` | Q&A grounded in the KB — plain language + Mermaid diagram + technical detail. |
@@ -451,8 +460,8 @@ degraded to grep must say so — and `resources/kb-steps.md` makes structural cl
 graph where one exists, while forbidding graph output from being pasted into a KB page (a fan-in
 number is not a business meaning).
 
-Nine skills whose output someone acts on — `ask`, `document`, `user-story`, `plan`, `runbook`,
-`fix-bug`, `build`, `review`, `qa` — go further and carry the **evidence protocol**
+Eleven skills whose output someone acts on — `ask`, `document`, `user-story`, `plan`, `runbook`,
+`fix-bug`, `build`, `review`, `pr`, `qa`, `triage` — go further and carry the **evidence protocol**
 (`resources/provenlens-evidence.md`): an evidence line at the top, a **reach ledger** (every consumer
 the graph reaches is covered in the output or named as a gap — the anti-miss table), and the
 `provenlens export --format mermaid` / `path` graph pasted in. A runbook's playbooks each carry their
@@ -461,7 +470,7 @@ the graph reaches is covered in the output or named as a gap — the anti-miss t
 `scripts/onboard-project.sh` adds `.provenlens/` to the project's `.gitignore` (it is a rebuildable
 cache and must never reach a team repo) and reports the index status. The seven sub-agents in
 `agents/` are granted the **read-only MCP tools only** — never `Bash` — so the review specialists
-stay read-only. Full detail, including which five skills deliberately opt out and why:
+stay read-only. Full detail, including which three skills deliberately opt out and why:
 [`docs/provenlens.md`](docs/provenlens.md).
 
 ## Keeping docs and code from drifting apart
@@ -630,7 +639,8 @@ call-site lines only**: the source text a full-index page embeds is stripped on 
 (`scripts/strip-map-source.cjs`, run by `kb-export.sh` unless you pass `--with-source`, which warns),
 so a hub can be pushed and emailed without carrying the code. The repository's own
 `cwk-sessions/maps/*.html` keeps the source. `_meta.yml` records which one you got
-(`code_graph: stripped | with-source`).
+(`code_graph: stripped | with-source`, or `unchanged` with a warning when the page was not in a
+format the stripper knows).
 
 A KB older than 30 days gets an amber badge and a banner naming the commit it actually describes —
 the point being that a stale KB should not be able to pass itself off as current.
@@ -658,14 +668,19 @@ scripts/kb-import.sh ~/kb-hub taskflow ~/work/taskflow
 ```
 
 It refuses to overwrite an existing `knowledge-base/` (use `--force`, which keeps a timestamped
-backup — remember `knowledge-base/` is gitignored, so git will not save you), and it warns when the
+backup under `cwk-sessions/kb-backups/` — remember `knowledge-base/` is gitignored, so git will not
+save you), and it warns when the
 snapshot's commit is not in that checkout, which usually means the wrong repo.
 
 > ⚠️ **Keep the hub repo private.** A Knowledge Base is a readable distillation of your source:
 > business rules, data model, auth model, endpoints. Page for page it is often *more* sensitive than
-> the code, and it is far easier to read. `kb-export.sh` refuses to write into a repo it can see is
-> public (via `gh`), but that check is a backstop, not a policy — share it only with people who
-> already have access to the repos it came from.
+> the code, and it is far easier to read. `kb-export.sh` asks `gh` for the hub's visibility: it
+> refuses a **public** repo, warns on an **internal** one, and **stops when it cannot tell** (gh not
+> installed or not logged in to your GitHub Enterprise host, a GitLab/Bitbucket remote, offline) —
+> check the remote yourself, then pass `--allow-unverified-visibility` (also accepted by
+> `kb-pipeline.sh`). That check is a backstop, not a policy — share the hub only with people who
+> already have access to the repos it came from. The hub's `README.md` is regenerated on each export
+> only if the script wrote it; one you wrote yourself is left alone.
 
 ---
 
@@ -702,17 +717,17 @@ The suite is weighted toward the parts that can do damage, not the parts that ar
 
 | Suite | Cases | Why it exists |
 |---|---:|---|
-| `kb-hub.test.sh` | 125 | Export/import move real Knowledge Bases between repos; also pins the page generator's escaping and CSP |
-| `file-guard.test.sh` | 50 | The hook that stops the agent rewriting its own policy files (`settings.json`, the hooks) and the credential stores beside them — file tools and shell writes blocked, reads and ordinary files untouched, a deny audited without the command text |
-| `kb-pipeline.test.sh` | 27 | `kb-pipeline.sh` spends real tokens over other people's repos — behind stubbed `claude` and `provenlens`, so a scan already done is never redone and `--dry-run` runs nothing |
-| `schedule.test.sh` | 24 | Edits your **crontab** — behind a stubbed `crontab`, so the real one is never touched |
-| `smoke.test.sh` | 25 | The bundled Node tools (`render-html`, `build-map`, the provenlens graph, `check-mermaid`) still produce output from real input, the map's CSP stays nonce-only, a click on the code map never redraws it, and a vendored bundle is used only when its hash matches |
-| `migrate-sessions.test.sh` | 21 | Renames a folder full of your past work |
-| `webview-markdown.test.cjs` | 18 | The panel renders model output as HTML; pins escaping and that only `http(s)` links become links |
-| `onboard.test.sh` | 14 | Writes into **other people's repos** (`.gitignore`, `CLAUDE.md`) |
+| `kb-hub.test.sh` | 167 | Export/import move real Knowledge Bases between repos; also pins the page generator's escaping and CSP |
+| `file-guard.test.sh` | 383 | The hook that stops the agent rewriting its own policy files (`settings.json`, the hooks) and the credential stores beside them — file tools and shell writes blocked, reads and ordinary files untouched, a deny audited without the command text |
+| `kb-pipeline.test.sh` | 32 | `kb-pipeline.sh` spends real tokens over other people's repos — behind stubbed `claude` and `provenlens`, so a scan already done is never redone and `--dry-run` runs nothing |
+| `schedule.test.sh` | 39 | Edits your **crontab** — behind a stubbed `crontab`, so the real one is never touched |
+| `smoke.test.sh` | 51 | The bundled Node tools (`render-html`, `build-map`, the provenlens graph, `check-mermaid`) still produce output from real input, the map's CSP stays nonce-only, a click on the code map never redraws it, and a vendored bundle is used only when its hash matches |
+| `migrate-sessions.test.sh` | 23 | Renames a folder full of your past work |
+| `webview-markdown.test.cjs` | 19 | The panel renders model output as HTML; pins escaping and that only `http(s)` links become links |
+| `onboard.test.sh` | 17 | Writes into **other people's repos** (`.gitignore`, `CLAUDE.md`) |
 | `personal-install.test.sh` | 14 | The one script that **deletes** from `~/.claude` — including that a foreign symlink survives an uninstall |
 | `i18n.test.cjs` | 5 | Catches a card reworded out of its translation, and status text the host sends in English |
-| `consistency.test.sh` | 18 groups | Commands ↔ skills ↔ extension ↔ catalog ↔ counts ↔ the skill-anatomy trailer ↔ version sync (plugin, marketplace, changelog, README) ↔ zero footprint (no personal paths, e-mails or invisible characters ship) ↔ hooks wiring ↔ SHA-pinned Actions ↔ this table's own counts (each suite is re-run to check them) |
+| `consistency.test.sh` | 19 groups | Commands ↔ skills ↔ extension ↔ catalog ↔ counts ↔ the skill-anatomy trailer ↔ version sync (plugin, marketplace, changelog, README) ↔ zero footprint (no personal paths, e-mails or invisible characters ship) ↔ hooks wiring ↔ SHA-pinned Actions ↔ this table's own counts (each suite is re-run to check them) |
 
 Plus: bundle sync, skill-name == folder, the vendored libraries' pinned hashes, and `node --check` on
 the webview scripts (`tsc` only ever parses `src/`, so a syntax error in `media/` would otherwise ship

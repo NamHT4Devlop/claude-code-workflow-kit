@@ -49,8 +49,9 @@ found. In that case: keep the HTML and tell the user to **open it in a browser �
 PDF** (one step, and it renders Mermaid correctly), or install Chrome. Don't fail silently.
 
 ## Notes
-- 100% local — no upload/network. Output beside the source (or under `cwk-sessions/`); both are
-  gitignored so nothing lands in a repo.
+- 100% local — no upload/network. The PDF is written beside its source: under `cwk-sessions/` or
+  `knowledge-base/` that is git-ignored, but a PDF of any other `.md` lands next to it in the repo —
+  pass an output path under `cwk-sessions/` if it should not be committed.
 - Works great on the outputs of `/cwk-document`, `/cwk-qa`, `/cwk-security-audit`,
   `/cwk-plan`, `/cwk-retro`, etc.
 

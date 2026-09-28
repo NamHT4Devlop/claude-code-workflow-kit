@@ -20,8 +20,9 @@ it** — and hands the answer back as a reply the user approves before it goes a
 It **diagnoses; it does not fix.** No source file is edited. When the answer is "a code defect", the
 report is the intake for `/cwk-fix-bug`, which does the fix, the regression test and the rollback.
 It differs from `/cwk-splunk-report` (a per-app error digest, no code, no root cause) and from
-`/cwk-fix-bug` (starts from a known bug and changes code). The triage classes in step 5 are the ones
-`cwk-fix-bug` uses, so a hand-off loses nothing.
+`/cwk-fix-bug` (starts from a known bug and changes code). The triage classes in step 5 extend the
+ones `cwk-fix-bug` uses (adding *external dependency* and *cannot tell yet*), so a hand-off loses
+nothing.
 
 It needs three things on the machine it runs on: the **app's repository** checked out (with its
 `knowledge-base/` if one was built), a **Slack** MCP, and a **Splunk** MCP. **Rally** is optional.
@@ -33,7 +34,7 @@ It needs three things on the machine it runs on: the **app's repository** checke
 | **Slack thread link** (permalink to the parent message or any reply) | ✅ | Ask for it. Without a Slack MCP, ask the user to paste the thread text and say the reply cannot be posted from here. |
 | **Splunk filter** `index={A} cai_enviroment={B} cai_app={C}` | ask | Same convention as `cwk-splunk-report`: ask for each; **omit any clause the user does not give** — never guess an index or an app name. The field name `cai_enviroment` is kept verbatim. |
 | **Time window** | – | Derived from the thread (step 2). Say which window you used. |
-| **Deployed version** of the failing environment (tag, build, commit) | – | Derived from the logs if they carry it; otherwise ask once, and if nobody knows, mark the attribution `likely` at best (step 6). |
+| **Deployed version** of the failing environment (tag, build, commit) | – | Derived from the logs if they carry it; otherwise ask once. If nobody knows, the change cannot be labelled **introduced by** (step 6), and line numbers are read against `HEAD` with that caveat stated. |
 | **Rally** — create a defect? project? | – | Ask at step 8, not before. |
 | `--no-names` | – | Omit people's names from the Slack reply; the commit and PR links stay. |
 
@@ -63,7 +64,7 @@ Write the result as one line at the top of the report:
 ### 1. Preflight (the repo)
 ```bash
 git rev-parse --show-toplevel && git status --porcelain | head   # the right repo? (read-only)
-git log -1 --format='%h %cs %s'; git remote -v | head -2
+git log -1 --format='%h %cs %s'; git remote get-url origin | sed -E 's#//[^@/]*@#//#'   # no embedded token
 ls knowledge-base/ 2>/dev/null | head                          # KB present?
 ```
 If the clone may be behind the remote, `git fetch --quiet` (it does not touch the working tree).
@@ -96,9 +97,10 @@ all-time, `| head` on raw-event pulls. The standard plan:
    in the logs and yields the stack trace, the logger / class names and a correlation id.
 2. **Onset** — the same predicate, `| timechart span=5m count` over a wider window (e.g. 3 days):
    when did it **really** start, is it still happening, is it a spike or a steady state?
-3. **Shape** — `| stats count, dc(<user or client field>), earliest(_time), latest(_time) by
-   <error signature>, <host or pod>, <version field if present>`: how many, how widespread, one host
-   or all, one version or all.
+3. **Shape** — `| fillnull value="(none)" <host or pod> <version field> | stats count, dc(<user or
+   client field>), earliest(_time), latest(_time) by <error signature>, <host or pod>, <version
+   field if present>` (without `fillnull`, events missing a by-field silently drop out of the
+   counts): how many, how widespread, one host or all, one version or all.
 4. **Trace** — pass 1's correlation id across apps (drop `cai_app`): where in the call chain it
    first fails. The first failing service is where the root cause lives.
 5. **Version** — if events carry a version / build / commit field: `| stats earliest(_time) by
@@ -106,14 +108,17 @@ all-time, `| head` on raw-event pulls. The standard plan:
 
 Show the **whole query plan** (every SPL, with its window) and get one confirmation before running
 it. A query added later that is not in the approved plan is shown and confirmed again. Record the
-exact SPL, the window and the result count for each — the report cites them. Read-only: search only.
+SPL, the window and the result count for each — the report cites them, with any business id or
+personal value in the SPL replaced by a placeholder (`<order_id>`). Read-only: search only.
 
 Extract, not copy: error signatures, counts, first/last seen, hosts, versions, the stack frames.
 Redact concrete personal values (emails, names, phone numbers, tokens, account/order ids, URLs with
 query strings) everywhere downstream — the reply, the report and Rally.
 
 ### 4. Map the logs to the code
-The anchors, strongest first: **stack frames** (`file:line` → the exact line), the **log message
+The anchors, strongest first: **stack frames** (`file:line` → the exact line **as deployed**: read it
+with `git show <bad>:<file>` when step 3 found the failing version, and from the checkout — saying
+so — only when it did not), the **log message
 template** (search the literal text of the message, minus its variable parts, e.g.
 `grep -rn "Payment declined for order" src/` — the template is the one string that exists in both
 the log and the code), the **logger / class name**, the **endpoint path** or job name.
@@ -121,7 +126,7 @@ the log and the code), the **logger / class name**, the **endpoint path** or job
 Then the KB, to know what the code is supposed to do: `10-core-flows.md` (which flow, which step),
 `13-business-rules.md` (which rule the symptom breaks), `03-entry-points.md`, `14-integrations.md`
 (an external dependency in the path), `17-async-events.md` (a queue or event in the path), and the
-module page. Name the flow id and the rule id (`CF-03`, `BR-PAY2`) when the KB has them.
+module page. Name the flow id and the rule id (`CF-03`, `BR-C2`) when the KB has them.
 
 Build the chain from the entry point to the failing line (provenlens below). **A stack frame naming
 a file that does not exist at that line in your checkout** means a version mismatch or another
@@ -149,13 +154,15 @@ Confidence, stated in the reply and the report:
 - **likely** — two of the three;
 - **hypothesis** — one; say what would settle it.
 
-**The introducing change** — found from the code, then checked against the clock:
+**The introducing change** — found from the code, then checked against the clock. Stack-frame line
+numbers belong to the **deployed** build, so read them at `<bad>` (the failing version's tag or
+commit from step 3), not at `HEAD`:
 ```bash
-git log -L <start>,<end>:<file> --format='%h %cs %an %s'   # every change to the suspect lines
-git log -S '<token>' --format='%h %cs %an %s' -- <file>    # when a token appeared or vanished
-git blame -w -M -C <file> -L <start>,<end>                 # the last edit per line, ignoring moves
-git log --oneline <good>..<bad> -- <paths in the chain>    # the deploy range from step 3
-git branch -r --contains <sha> | head; git tag --contains <sha> | head   # did it ship in the bad version?
+git log -L <start>,<end>:<file> <bad> --format='%h %cs %an %s'   # every change to the suspect lines
+git log -S '<token>' --format='%h %cs %an %s' <bad> -- <file>    # when a token appeared or vanished
+git blame -w -M -C -L <start>,<end> <bad> -- <file>             # the last edit per line, ignoring moves
+git log --oneline <good>..<bad> -- <paths in the chain>          # the deploy range from step 3
+git merge-base --is-ancestor <sha> <bad> && echo shipped         # did it ship in the bad version?
 ```
 Find the PR: the `(#123)` in the subject, the merge commit, or `gh pr list --search <sha> --state
 merged` (on GitHub Enterprise, `gh` against that host). A work-item id in the commit or PR (`US1234`,
@@ -189,7 +196,8 @@ Three layers, each marked with who acts and whether it needs a deploy:
 ### 8. Rally (optional)
 Only if a Rally tool is connected. Ask: *create a defect, link to an existing one, or neither?*
 - **Search first** for an open defect on the same symptom (by keywords / the error signature) — a
-  duplicate is worse than none. Found → offer to link it and add a discussion note instead.
+  duplicate is worse than none. Found → offer to link it and add a discussion note instead; that
+  note is an outward write too, so it gets the same shown-payload-and-yes as a create.
 - **Create** — map only to fields the tool's schema has: Name (the symptom, ≤ 80 chars), Description
   (the report's plain summary + root cause + evidence, redacted), Severity / Priority from the
   impact, Environment, Found-in build (the bad version), the Slack thread link, and the work item of
@@ -281,10 +289,10 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
 waiting for a yes.
 
 ## Rules
-- **Read-only everywhere but the two approved writes.** No source file is edited, no git state
+- **Read-only everywhere but the approved writes.** No source file is edited, no git state
   changes (`git fetch` excepted), nothing is written to Splunk. The only outward actions are the
-  Slack reply / draft and the Rally defect, each on the user's yes in the current turn — not a flag,
-  a saved preference or an earlier approval.
+  Slack reply / draft and the Rally defect, link or note, each on the user's yes in the current turn —
+  not a flag, a saved preference or an earlier approval.
 - **Never state a cause the evidence does not carry.** A root cause cites a log result and a code
   line; a change label passes the checks in step 6; anything short of that is `likely` or
   `hypothesis`, and says what would settle it. "Could not determine" is a valid answer.
@@ -313,7 +321,8 @@ waiting for a yes.
 - The commit you labelled **introduced by** was merged **after** the first error in Splunk, or is not
   in the failing version.
 - The root cause has no log result or no `file:line` behind it.
-- A stack frame's line does not match the code at that line in your checkout, and you mapped it anyway.
+- A stack frame's line does not match the code at that line in the deployed revision (or, with no known
+  version, in your checkout), and you mapped it anyway.
 - The draft or the Rally payload contains an email, a token, a customer id or a raw request body.
 - You are about to call a send or create tool without a yes in this turn — or into a channel other
   than the thread's.

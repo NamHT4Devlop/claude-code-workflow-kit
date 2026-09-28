@@ -69,6 +69,15 @@ for t in Bash Edit Write WebFetch WebSearch; do
   sed -n '/^const READONLY_TOOLS = \[/,/^\];/p' vscode-extension/src/extension.ts | grep -q "'$t'" && { echo "  ✗ READONLY_TOOLS grants $t — that is not read-only"; bad=1; }
 done
 grep -q "'--permission-mode', 'default', '--allowedTools', READONLY_TOOLS.join(',')" vscode-extension/src/extension.ts || { echo "  ✗ readonly mode does not pass --permission-mode default + --allowedTools"; bad=1; }
+# an allowlist only ADDS to the user's allow rules, and a repo's own settings bring hooks: deny + user-only
+grep -q "'--disallowedTools', READONLY_DENY.join(','), '--settings', '{\"disableAllHooks\":true}'" vscode-extension/src/extension.ts || { echo "  ✗ readonly mode lost its deny list or its hooks-off setting"; bad=1; }
+# …and both launch paths must actually use it, not just define it
+grep -q 'return \[\.\.\.kept, \.\.\.READONLY_ARGS\]' vscode-extension/src/extension.ts || { echo "  ✗ permissionArgs() no longer applies READONLY_ARGS"; bad=1; }
+grep -q '(readonly ? READONLY_ARGS : \[\])' vscode-extension/src/extension.ts || { echo "  ✗ the Windows interactive launch no longer applies READONLY_ARGS"; bad=1; }
+grep -q 'READONLY_ARGS.map(q)' vscode-extension/src/extension.ts || { echo "  ✗ the interactive terminal launch no longer applies READONLY_ARGS"; bad=1; }
+for t in Bash Edit Write WebFetch; do
+  grep -E "^const READONLY_DENY = " vscode-extension/src/extension.ts | grep -q "'$t'" || { echo "  ✗ READONLY_DENY lacks $t"; bad=1; }
+done
 grep -q "\.\.\.this\.permissionArgs(extraArgs)\]" vscode-extension/src/extension.ts || { echo "  ✗ spawnClaude does not route extraArgs through permissionArgs()"; bad=1; }
 { grep -q "showWarningMessage" vscode-extension/src/extension.ts && grep -q "isBypass(extraArgs)" vscode-extension/src/extension.ts; } || { echo "  ✗ no warning when the user opts into bypassPermissions"; bad=1; }
 [ "$bad" -eq 0 ] && echo "  ✓ default is acceptEdits; readonly fences the CLI with a read-only allowlist; bypass is opt-in + warned" || fail=1
@@ -119,7 +128,58 @@ check_count docs/skills-catalog.html     '<b>[0-9]+</b> skills'              "$n
 check_count vscode-extension/README.md   'all [0-9]+ skills'                 "$n_skills" skills
 check_count docs/manual-setup-guide.html '# [0-9]+ skill →'                  "$n_skills" skills
 check_count docs/manual-setup-guide.html '# [0-9]+ command'                  "$n_cmds"   commands
-[ "$bad" -eq 0 ] && echo "  ✓ documented counts match ($n_skills skills / $n_cmds commands)" || fail=1
+# "N of the M skills use provenlens" — both numbers, everywhere it is claimed
+n_pl=$(grep -lF '### provenlens (optional)' skills/cwk-*/SKILL.md | wc -l | tr -d ' ')
+for f in README.md commands/help.md docs/setup-guide.html docs/company-setup-guide.html; do
+  claim=$(grep -oE '[0-9]+ of the [0-9]+ skills' "$f" | head -1)
+  [ -z "$claim" ] && { echo "  ✗ $f: could not find the 'N of the M skills' provenlens claim"; bad=1; continue; }
+  [ "$claim" = "$n_pl of the $n_skills skills" ] || { echo "  ✗ $f says '$claim', actual is '$n_pl of the $n_skills skills'"; bad=1; }
+done
+check_count docs/skills-catalog.html     '<b>[0-9]+</b> use <code>provenlens'  "$n_pl" "provenlens skills"
+# "N-step pipeline" for /cwk-build — the last numbered step in the skill
+n_steps=$(grep -oE '^## Steps? [0-9]+([–-][0-9]+)?' skills/cwk-build/SKILL.md | grep -oE '[0-9]+' | sort -n | tail -1)
+for f in README.md commands/help.md docs/setup-guide.html docs/skills-catalog.html vscode-extension/media/main.js; do
+  for got in $(grep -oE '[0-9]+-step pipeline' "$f" | grep -oE '^[0-9]+' | sort -u); do
+    [ "$got" = "$n_steps" ] || { echo "  ✗ $f says a $got-step pipeline, cwk-build has $n_steps steps"; bad=1; }
+  done
+done
+[ "$bad" -eq 0 ] && echo "  ✓ documented counts match ($n_skills skills / $n_cmds commands / $n_pl with provenlens)" || fail=1
+
+# Claude Code parses this frontmatter as YAML. A plain (unquoted) value containing ": " is invalid —
+# the command then loads with empty metadata, silently — and " #" truncates it to a comment.
+echo "consistency: skill / command / agent frontmatter is valid"
+bad=0
+if command -v node >/dev/null 2>&1; then
+  node -e '
+    const fs = require("fs"); let bad = 0;
+    for (const f of process.argv.slice(1)) {
+      const m = fs.readFileSync(f, "utf8").match(/^---\n([\s\S]*?)\n---\n/);
+      if (!m) { console.log("  ✗ " + f + ": no frontmatter"); bad = 1; continue; }
+      const keys = {};
+      m[1].split("\n").forEach((line, i) => {
+        const kv = line.match(/^([A-Za-z][\w-]*):[ ]?(.*)$/); if (!kv) return;
+        const [, k, v] = kv; keys[k] = v;
+        if (/^[>|]-?$/.test(v) || v === "") return;                 // folded/literal block or empty
+        if (/^"/.test(v)) { if (!/^"(?:[^"\\]|\\.)*"\s*$/.test(v)) { console.log("  ✗ " + f + ":" + (i + 2) + ": " + k + " has an unterminated or trailing-text double-quoted value"); bad = 1; } return; }
+        if (/^\x27/.test(v)) { if (!/^\x27(?:[^\x27]|\x27\x27)*\x27\s*$/.test(v)) { console.log("  ✗ " + f + ":" + (i + 2) + ": " + k + " has an unterminated or trailing-text single-quoted value"); bad = 1; } return; }
+        if (/^[\[{]/.test(v)) { console.log("  ✗ " + f + ":" + (i + 2) + ": " + k + " starts a flow collection — quote it"); bad = 1; return; }
+        if (/^[-?,] /.test(v) || /^[-?,]$/.test(v)) { console.log("  ✗ " + f + ":" + (i + 2) + ": " + k + " starts with a YAML indicator — quote it"); bad = 1; return; }
+        if (/: /.test(v) || / #/.test(v) || /^[@`!%&*]/.test(v)) { console.log("  ✗ " + f + ":" + (i + 2) + ": " + k + " is invalid as an unquoted YAML value — quote it"); bad = 1; }
+      });
+      if (!("description" in keys)) { console.log("  ✗ " + f + ": no description"); bad = 1; }
+      if (f.startsWith("skills/")) {
+        const want = f.split("/")[1];
+        if (keys.name !== want) { console.log("  ✗ " + f + ": name is not " + want); bad = 1; }
+        const d = m[1].replace(/^[\s\S]*?description:[ ]*>-?\n/, "").replace(/\n\s+/g, " ");
+        if (d.length > 1024) { console.log("  ✗ " + f + ": description is over 1024 characters"); bad = 1; }
+      }
+    }
+    process.exit(bad);
+  ' skills/cwk-*/SKILL.md commands/*.md agents/*.md || bad=1
+else
+  echo "  – note: node not found; frontmatter not checked"
+fi
+[ "$bad" -eq 0 ] && echo "  ✓ frontmatter: no unquoted ': ' / ' #', quotes closed, no stray indicators, names and description lengths right" || fail=1
 
 # A skill that edits code, or whose conclusions someone acts on, carries the three trailer sections
 # (see docs/skill-anatomy.md). Without a check they get written once and then omitted from the next
@@ -222,7 +282,7 @@ done
 # The investigating skills carry the evidence protocol (reach ledger + code graph) as a bundled copy and
 # must point at it — a bundle nobody references is a file, not a standard. The list mirrors
 # map_evidence in scripts/sync-bundles.sh; sync-bundles --check catches a copy that is not mapped.
-PROVENLENS_EVIDENCE="cwk-ask cwk-document cwk-user-story cwk-plan cwk-runbook cwk-fix-bug cwk-build cwk-review cwk-qa cwk-triage"
+PROVENLENS_EVIDENCE="cwk-ask cwk-document cwk-user-story cwk-plan cwk-runbook cwk-fix-bug cwk-build cwk-review cwk-qa cwk-triage cwk-pr"
 for sk in $PROVENLENS_EVIDENCE; do
   f="skills/$sk/SKILL.md"
   [ -f "skills/$sk/references/provenlens-evidence.md" ] || { echo "  ✗ $sk lacks references/provenlens-evidence.md (run scripts/sync-bundles.sh)"; bad=1; }

@@ -5,9 +5,9 @@ description: >-
   PRESERVING its contract and business behavior — e.g. Ruby on Rails + GraphQL → Java Spring
   Boot. Contract-first and parity-verified: freeze the contract, extract the business behavior
   from the source with parallel multi-lens agents, capture golden/shadow tests of the real
-  responses, re-implement on the target stack, and prove byte-for-byte parity with an INDEPENDENT
-  reviewer before cutover — endpoint by endpoint (strangler). Use when the user says "/port",
-  "migrate to another language", "rewrite in <language>", "Rails to Spring", "port these
+  responses, re-implement on the target stack, and prove canonical-JSON parity with an INDEPENDENT
+  reviewer before cutover — endpoint by endpoint (strangler). Use when the user says "/rails-to-spring",
+  "port this service", "migrate to another language", "rewrite in <language>", "Rails to Spring", "port these
   resolvers/APIs". Edits code — change discipline applies.
 ---
 
@@ -51,6 +51,18 @@ GraphQL** (or Netflix DGS). Confirm at step 0.
   OK. This keeps the port idiomatic Java rather than a transliteration of Ruby — and stops N copies of
   the same mapper appearing as endpoints are ported one by one.
 - Minimal, conventional, no drive-by refactors. The human deploys and controls cutover.
+- **Safety net — before the first edit on the target side, per endpoint.** Keep the kit's files out
+  of the check (`git check-ignore -q cwk-sessions/ || { f=$(git rev-parse --git-path info/exclude);
+  mkdir -p "${f%/*}"; printf '\ncwk-sessions/\n' >> "$f"; }`), run `git status --porcelain` — it must be
+  empty, untracked files included (ask the user to commit or `git stash push -u` first) — run the target's
+  gates once and record which tests were already failing, and save
+  `git diff HEAD > cwk-sessions/port/<endpoint>-<date>.pre-change.patch`. After each green step save
+  your change, new files included:
+  `cd "$(git rev-parse --show-toplevel)" && { git diff --binary --src-prefix=a/ --dst-prefix=b/; git ls-files -z --others --exclude-standard | xargs -0 -r -n1 git diff --binary --no-index --src-prefix=a/ --dst-prefix=b/ -- /dev/null; } > cwk-sessions/port/<endpoint>-<date>.change.diff`
+  (exit status 1 — 123 with GNU xargs — is normal there; check the file is not empty).
+  To undo use ONLY `git stash push -u` or `git apply -R` of that file, run from `git rev-parse --show-toplevel` — never `git restore`,
+  `git checkout .`/`--`, `git reset --hard` or `git clean -f`, which throw away the user's uncommitted
+  work along with yours.
 
 ### provenlens (optional)
 `.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
@@ -69,7 +81,7 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
   (`belongs_to`, concerns, `method_missing`) is exactly what a manual read loses.
 - `provenlens dead --public` — an endpoint nothing reaches is a **scope question for Step 0**, not
   work. Porting dead code is the most expensive way to be thorough.
-- After the port, `provenlens init .` on the target side and compare `provenlens impact` for the paired
+- After the port, index the target side (`provenlens init .` — ask first, it walks the whole tree) and compare `provenlens impact` for the paired
   symbols: a consumer present on the source side and missing on the target means the port dropped a
   path. That is a parity check the golden tests do not make.
 
@@ -89,7 +101,8 @@ Spawn sub-agents (`Task`) in parallel at two stages; keep code-writing single-th
   where it actually matters.
 - **Verification (per endpoint, parallel, INDEPENDENT of the author)** — an adversarial panel:
   `cwk-business-consistency-reviewer` (rule parity vs source/KB), `cwk-security-reviewer` (auth /
-  IDOR / role allow-deny parity), `cwk-performance-reviewer` (N+1, query-count parity vs the Ruby),
+  IDOR / role allow-deny parity), `cwk-performance-reviewer` (N+1 and query shape, read statically —
+  the query COUNT is measured, from the SQL log of a parity run on each side, not asked of an agent),
   plus a **parity auditor** that reads the Ruby and the Java side by side and lists every behavioral
   difference, plus a **reuse check** — did this endpoint add a service/mapper/DTO/util the target already
   had? An endpoint passes only if the panel finds no unresolved divergence, no avoidable duplication,
@@ -105,7 +118,7 @@ everything else OUT of scope) · DB (shared default) · async in scope (SQS/Came
 env / are there request specs or VCR cassettes to replay?).
 
 **Resume first — a port spans weeks and many sessions.** Before anything else, read
-`cwk-sessions/port/_progress.md` (also check the pre-rename `spec-kit-sessions/port/_progress.md`
+`cwk-sessions/port/_progress.md` (also check the pre-rename `spec-kit-sessions/port/_progress.md` and `namht-sessions/port/_progress.md`
 — an in-flight port must never restart because the folder was renamed). If it exists, **continue
 from it**: report where the port stands (how many endpoints at each stage), pick the next endpoint,
 and do NOT redo finished work.
@@ -140,7 +153,9 @@ Prefer the strongest oracle you can get:
 1. **Shadow/replay (best):** send the **same request to both** the running Rails and the new Spring
    endpoint and **diff canonicalized responses**. Generate cases by replaying **Rails request specs /
    VCR cassettes** and representative real queries (happy · boundary · invalid · auth-denied · empty ·
-   large). Capture the response AND the side effects (rows written, SQS messages).
+   large). Capture the response AND the side effects (rows written, SQS messages) — the harness
+   below compares responses only; side effects are checked separately, from a DB diff or the
+   message log of each run.
 2. **Recorded golden fixtures:** if you can't run both live, record real Rails responses once and
    assert Spring reproduces them.
 3. **No runnable source:** say so — parity is weaker; lean harder on the extraction spec + reviewer
@@ -150,8 +165,8 @@ timestamps/UUIDs/volatile ids; decimal scale (Ruby `BigDecimal` ↔ Java `BigDec
 GraphQL error masking. Keep an explicit **allowed-diff list** the user signs off — anything else is a
 real failure.
 
-**Bundled harness — don't rebuild it.** `references/shadow-parity.cjs` (Node ≥18, no deps) does exactly
-this: fill a `cases.json` (copy `references/cases.example.json`). Resolve this skill's `references/`
+**Bundled harness — don't rebuild it.** `references/shadow-parity.cjs` (Node ≥18, no deps) runs the
+response half of this: fill a `cases.json` (copy `references/cases.example.json`). Resolve this skill's `references/`
 dir first (call it `$SKILL_DIR`): `${CLAUDE_PLUGIN_ROOT}/skills/cwk-rails-to-spring/references` if
 `CLAUDE_PLUGIN_ROOT` is set, else the `references/` folder next to this SKILL.md, else
 `$HOME/.claude/skills/cwk-rails-to-spring/references`. Then run
@@ -161,6 +176,11 @@ prefer the `SOURCE_TOKEN` / `TARGET_TOKEN` env vars (they win over the flags; ar
 `ps`/shell history/CI logs). It sends each
 case to both, canonicalizes (sorts keys, redacts `ignore` paths like `**.updatedAt`, sorts
 `sortArraysAt` arrays), diffs, prints per-field failures, and **exits non-zero if any case diverges** —
+write cases (non-GET REST, GraphQL mutations) are not sent without `--allow-writes`, because the same
+write sent to two services on one shared database lands twice; run them against separate or
+disposable databases, and mark a case that is rejected before writing `"readOnly": true`. Per-case
+`headers` override the global ones (an empty value removes a header — that is how the auth-denied case
+drops the token) —
 use it as the per-endpoint gate and in CI. Grow `cases.json` per endpoint (happy · boundary · invalid ·
 auth-denied · empty · large); it IS the parity oracle.
 
@@ -253,7 +273,8 @@ DTO mapping.
 ## Verification
 
 - [ ] Golden/shadow responses captured from the **source** system before porting.
-- [ ] Byte-for-byte parity proven, or every difference is on the frozen allowed-diff list.
+- [ ] Canonical-JSON parity proven (and side effects compared), or every difference is on the frozen allowed-diff list.
+- [ ] The safety net was saved before the first edit, and the change diff includes the files you created.
 - [ ] An **independent** reviewer confirmed parity — not the implementer.
 - [ ] `cwk-sessions/port/_progress.md` reflects reality, endpoint by endpoint.
 - [ ] Cutover for this endpoint is reversible, and the reversal was stated.

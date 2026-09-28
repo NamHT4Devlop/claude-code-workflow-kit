@@ -64,19 +64,25 @@ Write like a person, not a report generator.
 
 ## Before and after
 
+**Before:**
 > Rollback — What rollback does NOT undo, and this line matters more than the rest of the
 > section: ...
 
+**After:**
 > A rollback does not undo: ...
 
+**Before:**
 > ⚠ This endpoint is reachable by **any logged-in member**, which is itself a finding.
 
-> Any customer token works, which is a problem in itself, but it does make this usable in an
-> emergency.
+**After:**
+> Any logged-in customer's token works here, so it can be used in an emergency. The missing admin
+> check is listed under Gaps.
 
+**Before:**
 > ## In plain words
 > `mall-portal` is the shop customers actually use. When it is down, **nobody can buy anything.**
 
+**After:**
 > ## What this service is
 > mall-portal is the customer side of the shop: catalogue, cart, checkout, payment, coupons, order
 > history and return requests. If it is down, nobody can buy anything.

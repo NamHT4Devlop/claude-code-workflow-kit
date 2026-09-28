@@ -12,7 +12,19 @@ OUT="${2:-${IN%.*}.pdf}"
 [ -f "$IN" ] || { echo "input not found: $IN" >&2; exit 1; }
 abs() { case "$1" in /*) printf '%s' "$1";; *) printf '%s/%s' "$PWD" "$1";; esac; }
 INABS="$(abs "$IN")"; OUTABS="$(abs "$OUT")"
+# -ef compares the files, not their spellings: ./x.html, a symlink or a hard link to the input all
+# name the input, and a path-string compare let every one of them through.
+if [ -e "$OUTABS" ] && [ "$INABS" -ef "$OUTABS" ]; then echo "output would overwrite the input: $OUT" >&2; exit 1; fi
+[ ! -d "$OUTABS" ] || { echo "output is a directory: $OUT" >&2; exit 1; }
 mkdir -p "$(dirname "$OUTABS")"
+# Every engine writes to $PART, a fresh file beside the output, and success is judged by $PART alone:
+# a PDF left by an earlier run can never pass for this run's result. The output is replaced (mv, an
+# atomic rename on one filesystem) only once a new PDF exists; on failure it is left as it was.
+TMPDIR_D=""
+PARTDIR="$(mktemp -d "$(dirname "$OUTABS")/.cwk-pdf.XXXXXX")"
+trap 'rm -rf "$PARTDIR" ${TMPDIR_D:+"$TMPDIR_D"}' EXIT
+PART="$PARTDIR/out.pdf"
+publish() { mv -f "$PART" "$OUTABS" || { echo "could not write $OUT" >&2; exit 1; }; echo "$OUTABS"; exit 0; }
 
 # Give Mermaid time to draw; complex diagrams need more than a second or two.
 BUDGET="${PDF_VIRTUAL_TIME_BUDGET:-15000}"
@@ -27,8 +39,7 @@ if [ -z "${PDF_NO_PRINT_FIX:-}" ] && command -v node >/dev/null 2>&1 && [ -f "$H
   # Explicit template, not `-t cwk-pdf`: BSD mktemp (macOS) accepts a bare -t prefix, GNU
   # coreutils rejects it ("too few X's in template") — so under `set -e` the whole script died on
   # Linux before it ever tried an engine. Only macOS testing hid it.
-  TMPDIR_D="$(mktemp -d "${TMPDIR:-/tmp}/cwk-pdf.XXXXXX")"
-  trap 'rm -rf "$TMPDIR_D"' EXIT
+  TMPDIR_D="$(mktemp -d "${TMPDIR:-/tmp}/cwk-pdf.XXXXXX")"   # removed by the EXIT trap above
   TMPHTML="$TMPDIR_D/print.html"
   if node "$HERE/print-fix.cjs" "$INABS" "$TMPHTML" 2>/dev/null && [ -s "$TMPHTML" ]; then
     INABS="$TMPHTML"
@@ -45,14 +56,15 @@ for c in "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
     # --no-pdf-header-footer drops Chrome's URL/date/page-number stamps.
     # --run-all-compositor-stages-before-draw waits for layout+paint to settle before printing.
     # No --no-sandbox: this renders HTML built from repo content, so the renderer sandbox stays on.
+    rm -f "$PART"
     "$c" --headless=new --disable-gpu \
          --virtual-time-budget="$BUDGET" --run-all-compositor-stages-before-draw \
          --no-pdf-header-footer --print-to-pdf-no-header \
-         --print-to-pdf="$OUTABS" "file://$INABS" >/dev/null 2>&1 \
+         --print-to-pdf="$PART" "file://$INABS" >/dev/null 2>&1 \
       || "$c" --headless=new --disable-gpu --virtual-time-budget="$BUDGET" \
-              --print-to-pdf="$OUTABS" "file://$INABS" >/dev/null 2>&1 \
-      || "$c" --headless --disable-gpu --print-to-pdf="$OUTABS" "file://$INABS" >/dev/null 2>&1 || true
-    [ -s "$OUTABS" ] && { echo "$OUTABS"; exit 0; }
+              --print-to-pdf="$PART" "file://$INABS" >/dev/null 2>&1 \
+      || "$c" --headless --disable-gpu --print-to-pdf="$PART" "file://$INABS" >/dev/null 2>&1 || true
+    [ -s "$PART" ] && publish
   fi
 done
 
@@ -62,9 +74,10 @@ if command -v wkhtmltopdf >/dev/null 2>&1; then
     echo "WARN: falling back to wkhtmltopdf — it cannot render Mermaid diagrams (they will be missing or raw text)." >&2
     echo "      Install Google Chrome for a faithful PDF, or open the HTML in a browser and use Print > Save as PDF." >&2
   fi
+  rm -f "$PART"
   wkhtmltopdf --enable-local-file-access --print-media-type \
     --margin-top 14mm --margin-bottom 14mm --margin-left 12mm --margin-right 12mm \
-    "$INABS" "$OUTABS" >/dev/null 2>&1 && { echo "$OUTABS"; exit 0; }
+    "$INABS" "$PART" >/dev/null 2>&1 && [ -s "$PART" ] && publish
 fi
 
 echo "NO_PDF_TOOL" >&2

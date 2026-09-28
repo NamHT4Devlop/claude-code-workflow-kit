@@ -33,6 +33,8 @@ ensure_ignore() {
   local pattern="$1"
   touch "$GI"
   if ! grep -qxF "$pattern" "$GI" 2>/dev/null; then
+    # a last line with no newline would swallow the pattern: `.env` + `cwk-sessions/` → `.envcwk-sessions/`
+    if [ -s "$GI" ] && [ -n "$(tail -c 1 "$GI")" ]; then printf '\n' >> "$GI"; fi
     printf '%s\n' "$pattern" >> "$GI"
     echo "   ✅ .gitignore += $pattern"
   else

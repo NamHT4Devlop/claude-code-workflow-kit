@@ -105,7 +105,7 @@ function blocks(file) {
   const lines = fs.readFileSync(file, 'utf8').split('\n');
   const found = [];
   for (let i = 0; i < lines.length; i++) {
-    const openFence = lines[i].match(/^(\s*)```mermaid\s*$/);
+    const openFence = lines[i].match(/^(\s*)```\s*mermaid(?:\s[^`]*)?$/i);   // same rule as check-mermaid
     if (!openFence) continue;
     const indent = openFence[1].length;
     const start = i + 1;

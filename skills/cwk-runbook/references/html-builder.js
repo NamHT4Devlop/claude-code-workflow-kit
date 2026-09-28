@@ -508,20 +508,35 @@ const crypto = __importStar(require("crypto"));
 // Used by the /document command. All text is HTML-escaped before formatting.
 // ═══════════════════════════════════════════════════════════════════════════
 function mdInline(s) {
-    let t = esc(s);
-    t = t.replace(/`([^`]+)`/g, (_m, c) => `<code>${c}</code>`);
+    // NUL is the placeholder delimiter below; an HTML parser turns it into U+FFFD anyway.
+    let t = esc(s).replace(/\u0000/g, '\uFFFD');
+    // Code spans, images and link URLs are literal: emphasis reaching inside them turned
+    // `order_line_item_id` into order<em>line</em>item_id and cut `_`/`*` out of URLs. Each is swapped
+    // for a placeholder before the emphasis passes and put back after. A link's TEXT stays exposed,
+    // so [**bold**](url) still works.
+    const held = [];
+    const hold = (html) => `\u0000${held.push(html) - 1}\u0000`;
+    const restore = (x) => x.replace(/\u0000(\d+)\u0000/g, (_m, n) => restore(held[+n]));
+    // A value placed inside an attribute gets a held fragment's TEXT, never its markup, and no bare
+    // quote: restoring an <img src="…"> inside href="…" closed the attribute and let the URL add its own.
+    const attr = (v) => restore(v).replace(/<[^>]*>/g, '').replace(/"/g, '&quot;');
+    // Code spans pair by backtick-run length, as CommonMark does: `` a ` b `` is one span holding a
+    // backtick. A longer run drops the one space that lets its content start or end with a backtick.
+    t = t.replace(/(?<!`)(`+)(?!`)([\s\S]*?[^`])\1(?!`)/g, (_m, run, c) => hold(`<code>${run.length > 1 && /^ [\s\S]* $/.test(c) && /[^ ]/.test(c) ? c.slice(1, -1) : c}</code>`));
     // Images ![alt](src) — before links, since the syntaxes differ only by the leading '!'.
-    // Only http(s), a relative path or a data: URI; anything else stays literal text.
-    t = t.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+|data:image\/[^\s)]+|[^\s):]+)\)/g,
-        (_m, alt, src) => `<img src="${src}" alt="${alt}">`);
+    // Only http(s), a relative path or a data: URI; anything else stays literal text. No URL may
+    // take in a placeholder (\u0000): whatever it holds would be restored inside the attribute.
+    t = t.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)\u0000]+|data:image\/[^\s)\u0000]+|[^\s):\u0000]+)\)/g,
+        (_m, alt, src) => hold(`<img src="${attr(src)}" alt="${attr(alt)}">`));
+    // Only allow http(s) links; everything else stays literal text.
+    t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)\u0000]+)\)/g, (_m, txt, url) => `${hold(`<a href="${attr(url)}" rel="noopener noreferrer" target="_blank">`)}${txt}${hold('</a>')}`);
     t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     // Single-asterisk italics — run AFTER ** so bold is already consumed and cannot be re-matched.
     t = t.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
-    t = t.replace(/(^|[^_])_([^_]+)_(?!_)/g, '$1<em>$2</em>');
+    // `_` emphasis only at word boundaries: _foo_ is emphasis, snake_case_name is an identifier.
+    t = t.replace(/(^|[^\p{L}\p{N}_])_(?![\s_])([^_\n]*?[^_\s])_(?![\p{L}\p{N}_])/gu, '$1<em>$2</em>');
     t = t.replace(/~~([^~]+)~~/g, '<del>$1</del>');
-    // Only allow http(s) links; everything else stays literal text.
-    t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, txt, url) => `<a href="${url}" rel="noopener noreferrer" target="_blank">${txt}</a>`);
-    return t;
+    return restore(t);
 }
 function renderMdTable(rows) {
     const parse = (line) => line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
@@ -556,8 +571,10 @@ function markdownToHtml(md) {
     };
     while (i < lines.length) {
         const line = lines[i];
-        // Code fence
-        const fence = line.match(/^(\s*)```(\w*)\s*$/);
+        // Code fence. The language is the info string's first word, whatever its characters:
+        // `(\w*)\s*$` refused ```c#, ```c++, ```objective-c and ```js title=x, and every line after
+        // such a fence then rendered inside one <pre>. A backtick after the fence means inline code.
+        const fence = line.match(/^(\s*)```\s*([^\s`]*)[^`]*$/);
         if (fence) {
             // An indented fence under a list item belongs to that item. Closing the list here
             // restarted every numbered procedure at 1 after its first code block.
@@ -575,7 +592,9 @@ function markdownToHtml(md) {
                 out[out.length - 1] = out[out.length - 1].replace(/<\/li>$/, `<pre><code>${esc(buf.join('\n'))}</code></pre></li>`);
                 continue;
             }
-            const lang = (fence[2] || '').toLowerCase();
+            // Lowercased and reduced to class-name characters (c#, c++ and objective-c survive).
+            // scripts/check-mermaid.cjs finds diagrams by this same rule — change both together.
+            const lang = (fence[2] || '').toLowerCase().replace(/[^a-z0-9_+#-]/g, '');
             if (lang === 'mermaid') {
                 // Mermaid renders the div's text as a diagram. Strip any tags defensively.
                 // HTML-escape rather than regex-strip: /<[^>]*>/g only removes COMPLETE tags, so an
@@ -714,7 +733,7 @@ function recolourDiagrams(host) {
     var srcIdx = {}, n = 0;
     paths.forEach(function (p, i) {
       var cls = p.getAttribute('class') || '';
-      var m = /LS-([^\s]+)/.exec(cls);
+      var m = /LS-([^\\s]+)/.exec(cls);   // doubled backslash: this code is emitted from a template literal
       var src = m ? m[1] : ('e' + i);
       if (!(src in srcIdx)) srcIdx[src] = n++;
       var color = PAL[srcIdx[src] % PAL.length], dash = false;

@@ -27,12 +27,21 @@ LIBS=(
   "cytoscape:3.30.2:package/dist/cytoscape.min.js:cytoscape/3.30.2/cytoscape.min.js"
 )
 
-sha() { shasum -a 256 "$1" 2>/dev/null | awk '{print $1}'; }
+# macOS ships shasum (perl); Fedora and Alpine images often have only sha256sum. Same output, same -c
+# format. With neither, say so — an empty hash would otherwise read as "does NOT match".
+if command -v shasum >/dev/null 2>&1; then sha256() { shasum -a 256 "$@"; }
+elif command -v sha256sum >/dev/null 2>&1; then sha256() { sha256sum "$@"; }
+else
+  echo "✖ neither shasum nor sha256sum is installed — cannot verify the vendored libraries against"
+  echo "  $VENDOR/SHA256SUMS, so nothing is checked or installed. Install one (perl or coreutils) and re-run."
+  exit 1
+fi
+sha() { sha256 "$1" 2>/dev/null | awk '{print $1}'; }
 want() { awk -v f="$1" '$2==f {print $1}' "$VENDOR/SHA256SUMS" 2>/dev/null; }
 
 verify_all() {
   [ -f "$VENDOR/SHA256SUMS" ] || { echo "✖ $VENDOR/SHA256SUMS missing — cannot verify"; return 1; }
-  ( cd "$VENDOR" && shasum -a 256 -c SHA256SUMS )
+  ( cd "$VENDOR" && sha256 -c SHA256SUMS )
 }
 
 if [ "$MODE" = "--check" ]; then

@@ -38,6 +38,7 @@
     {
       "name": "create task — validation error (empty title)",
       "type": "graphql",
+      "readOnly": true,
       "graphql": {
         "query": "mutation($input: CreateTaskInput!) { createTask(input: $input) { task { id } errors } }",
         "variables": { "input": { "title": "" } }

@@ -1,5 +1,5 @@
 ---
-description: Query Splunk for per-app errors over a window (default today), aggregate into a table, and post to Slack
+description: Query Splunk for per-app errors over a window (default last 24h), aggregate into a table, and post to Slack
 argument-hint: "[index=A cai_enviroment=B cai_app=C + window | empty = the skill asks]"
 ---
 

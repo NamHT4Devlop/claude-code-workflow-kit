@@ -27,15 +27,18 @@ fall back to Grep/Glob and write `⚠️ grep-depth only (no provenlens index)` 
 is never a resolved call — do not report it as one. Playbook: `docs/provenlens.md`.
 
 **Here:**
-- **PREPARE** — `git diff --name-only origin/main...HEAD | provenlens affected` fills the
+- **Protocol:** `references/provenlens-evidence.md` — the evidence line and the **reach ledger** a review carries (Mode B step 4) are defined there.
+- **PREPARE** — `git diff --name-only <base>...HEAD | provenlens affected` fills the
   "Risk + blast radius" section with resolved consumers, and its `tests:` list is the honest answer
   to "Tests done". An empty `tests:` on changed production code belongs in the PR body, not hidden.
 - **REVIEW** — the same over `gh pr diff --name-only`. A consumer the author did not mention is the
   review's first finding, and now it is citable rather than a hunch.
 
 ## Mode A — PREPARE a PR (default; from the current branch)
-1. **Gather the change.** `git diff <base>...HEAD` (base = the default branch, or one the user
-   names) + `git log <base>..HEAD` for the commits + `git diff --stat`. (All read-only git — allowed.)
+1. **Gather the change.** `git diff <base>...HEAD` (base = the default branch — `git symbolic-ref
+   --short refs/remotes/origin/HEAD`, else the first of `origin/main` / `origin/master` /
+   `origin/develop` that `git rev-parse -q --verify` finds — the remote-tracking ref, not a local branch
+   that may be behind; or one the user names) + `git log <base>..HEAD` for the commits + `git diff --stat`. (All read-only git — allowed.)
 2. **Assess impact.** **Grep for callers** of the changed symbols → downstream consumers & any with
    no covering tests. Ground business effects in the KB (flows/rules touched).
 3. **Draft the PR** (dual-audience Markdown, ready to paste):
@@ -101,7 +104,7 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
 `${CLAUDE_PLUGIN_ROOT}/skills/cwk-pr/references` if `CLAUDE_PLUGIN_ROOT` is set, else the
 `references/` folder next to this SKILL.md, else `$HOME/.claude/skills/cwk-pr/references`.
 ```bash
-node "$SKILL_DIR/render-html.cjs" "<the .md just saved>" "<same path>.html" "PR — <branch>"
+node "$SKILL_DIR/render-html.cjs" "<the .md just saved>" "<the same path with .md replaced by .html>" "PR — <branch>"
 ```
 Then open it and give the user the path. (This is also what the VS Code panel's **📄 Report** button
 looks for — without it the button has nothing to open.)

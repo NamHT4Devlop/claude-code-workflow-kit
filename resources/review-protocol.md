@@ -103,7 +103,7 @@ wrong or misfiled. Severity follows impact, not the category:
 
 | Severity | Means |
 |---|---|
-| CRITICAL | Security hole, data loss or corruption, money or stock wrong, auth bypass, crash on a main path. Blocks merge |
+| CRITICAL | Security hole, data loss or corruption, money or stock wrong, auth bypass, crash on a main path — when it is reachable and likely; the same impact with low likelihood is MAJOR (matrix in `review-skills-universal.md` §13). Blocks merge |
 | MAJOR | Wrong behaviour a user or operator will hit, a broken contract, a missing test for changed business logic. Blocks unless the author accepts a follow-up |
 | MINOR | Real but narrow: an edge case, a misleading name that will cause a bug later, a missing log |
 | NIT | Style and taste. Never inline on a PR; goes in the summary |
@@ -121,7 +121,8 @@ only when one of these is shown by a specific line you can point to:
 
 - **A. Not in the diff.** The code it describes is not in the diff of the file it is filed against
   (it is about a sibling file, or code that did not change). Move it to the right file if it belongs
-  there; otherwise drop it.
+  there; otherwise drop it. In a file or whole-repository review there is no diff: read "the diff" as
+  "the target", and a defect that was already there stays.
 - **B. Contradicted.** A line in the diff plainly says the opposite: the "missing" check is there, the
   "unused" variable is used, the "hardcoded" value is read from config.
 

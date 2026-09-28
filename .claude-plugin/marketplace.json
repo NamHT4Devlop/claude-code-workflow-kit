@@ -10,8 +10,8 @@
     {
       "name": "cwk",
       "source": "./",
-      "version": "4.1.0",
-      "description": "Spec-driven dev workflow for Claude Code: /build, /fix-bug, /scan, /rescan, /review, /ask, /plan, /map, /system-map, /document. Ships a read/sync-in-only git guard hook."
+      "version": "5.0.0",
+      "description": "Spec-driven dev workflow for Claude Code: /cwk:build, /cwk:fix-bug, /cwk:scan, /cwk:review, /cwk:ask, /cwk:plan, /cwk:triage and more. Ships a file-guard hook that keeps the agent from rewriting its own settings, hooks and credential files."
     }
   ]
 }

@@ -119,9 +119,13 @@ fails the build if a card is reworded and leaves its translation stranded.
   "Ask anything" card (a raw prompt can ask for anything), and **follow-ups** (a follow-up resumes
   the same session with the same permissions, so "now edit src/foo.ts" typed after an innocent run
   used to land). And the CLI itself is fenced: every run is launched with **`--permission-mode
-  default --allowedTools Read,Grep,Glob,mcp__provenlens__…`** — `extraArgs` cannot widen it (its
-  permission flags are dropped) — so even a skill that *is* allowed cannot be talked into running a
-  shell command, writing a file or fetching a URL. Hiding the cards is a convenience; the host check
+  default --allowedTools Read,Grep,Glob,mcp__provenlens__… --disallowedTools
+  Bash,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch --settings '{"disableAllHooks":true}'`** —
+  `extraArgs` cannot widen it (its permission and settings flags are dropped). The deny list beats any
+  allow rule in your own settings, and hooks are off for the run, so a hook the opened repository
+  declares in its `.claude/settings.json` does not execute — while that repository's own
+  `permissions.deny` rules and project skills still apply. So even a skill that *is* allowed cannot
+  be talked into running a shell command, writing a file or fetching a URL. Hiding the cards is a convenience; the host check
   and the allowlist are the control. Package a separate `.vsix` with this default flipped and hand
   that one out.
 - `cwkUi.usdToVnd` — VND rate to show next to the USD cost (0 = off; e.g. `25400`).

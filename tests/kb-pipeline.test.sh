@@ -112,5 +112,24 @@ check "dry run logs nothing"      "$([ -e "$AUD" ] && echo yes || echo no)" no
 CWK_AUDIT_LOG=off "$PIPE" --yes --hub "$TMP/hub3" "$r" >/dev/null 2>&1
 check "off: nothing written"      "$([ -e "$AUD" ] && echo yes || echo no)" no
 
+echo "kb-pipeline: an option missing its value is an error, not an endless loop"
+# `shift 2` with one argument left fails WITHOUT shifting, so `… api --depth` spun forever.
+r=$(mk_repo novalue kb runbook map index)
+"$PIPE" --dry-run "$r" --depth >/dev/null 2>&1 & pid=$!
+for _ in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$pid" 2>/dev/null || break; sleep 0.5; done
+if kill -0 "$pid" 2>/dev/null; then kill "$pid" 2>/dev/null; hung=yes; else hung=no; fi
+wait "$pid" 2>/dev/null; rc=$?
+check "--depth with no value returns"   "$hung" no
+check "and fails"                       "$([ "$rc" -ne 0 ] && echo yes || echo no)" yes
+out=$("$PIPE" --dry-run --hub --yes "$r" 2>&1)
+check "the next flag is not taken as the value" "$(printf '%s' "$out" | grep -c -- '--hub needs a value')" 1
+
+echo "kb-pipeline: a relative --hub lands where you ran it, not inside the last repo"
+# The loop cd's into each repo before the export, so a relative hub used to resolve inside it.
+r=$(mk_repo relhub kb runbook map index)
+( cd "$TMP" && "$PIPE" --yes --hub rel-hub "$r" >/dev/null 2>&1 )
+check "hub written where the command ran" "$([ -d "$TMP/rel-hub/projects/relhub" ] && echo yes || echo no)" yes
+check "nothing inside the repo"           "$([ -e "$r/rel-hub" ] && echo yes || echo no)" no
+
 echo "kb-pipeline: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

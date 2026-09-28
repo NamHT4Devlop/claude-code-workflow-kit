@@ -118,7 +118,7 @@
   <p><b>It is not</b> a sandbox, a DLP control, or something that changes what Claude Code may do with the model.
   <b>The model reads code — that is inherent</b> to using an AI coding agent: when Claude reads a file, that text enters
   the model context under your company's Claude plan terms (Team/Enterprise: commercial terms, no training on your data
-  by default). The kit adds <b>no other egress</b>:</p>
+  by default). Beyond that, everything the kit itself sends or starts is listed here — each only when someone runs it:</p>
   <table>
     <thead><tr><th>Network / process use</th><th>When</th><th>Where to</th></tr></thead>
     <tbody>
@@ -128,6 +128,10 @@
       <tr><td><code>/cwk-splunk-report</code> (a prompt)</td><td>only when a user runs it</td><td>Splunk / Slack through MCP or env credentials the company configured; nothing hardcoded</td></tr>
       <tr><td><code>/cwk-triage</code> (a prompt)</td><td>only when a user runs it</td><td>reads Slack / Splunk / Rally through the MCP connectors the company configured; posts a Slack reply or creates a Rally defect only on the user's yes in that turn</td></tr>
       <tr><td>VS Code extension (optional)</td><td>on a button click</td><td>spawns the local <code>claude</code> CLI; no network of its own</td></tr>
+      <tr><td><code>scripts/fetch-vendor.sh</code></td><td>only when run (install time)</td><td>the npm registry you configure, else <code>cdnjs.cloudflare.com</code>; every file is checked against <code>vendor/SHA256SUMS</code></td></tr>
+      <tr><td><code>scripts/kb-export.sh</code></td><td>when exporting a KB hub</td><td>GitHub (or your GHE host) via <code>gh</code>, only to read the hub repository's visibility</td></tr>
+      <tr><td><code>scripts/kb-pipeline.sh</code>, <code>scripts/schedule.sh</code></td><td>when run / on the cron schedule you approved</td><td>start the local <code>claude</code> CLI (and <code>provenlens</code>) in the repos you name</td></tr>
+      <tr><td><code>/cwk-pdf</code> (<code>html-to-pdf.sh</code>), <code>/cwk-map</code></td><td>when run</td><td>local processes only: a headless Chrome / wkhtmltopdf, the <code>provenlens</code> CLI</td></tr>
     </tbody>
   </table>
   <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># reproduce the surface audit in the kit checkout (expected hits: RegExp .exec, shadow-parity fetch, the extension's spawn)</span>
@@ -143,7 +147,7 @@ bash tests/run.sh          <span class="cmt"># every guard rule and every script
   <table>
     <thead><tr><th>Hook</th><th>Matcher</th><th>What it does</th></tr></thead>
     <tbody>
-      <tr><td><code>hooks/file-guard.sh</code></td><td><code>Edit|Write|MultiEdit|NotebookEdit</code> and <code>Bash</code></td><td>Blocks Edit/Write and shell writes to <code>settings.json</code>, the hooks, <code>~/.gitconfig</code>, <code>.git/config</code>, <code>~/.ssh</code>, <code>~/.aws</code> (and <code>~/.config/gh</code>, <code>~/.netrc</code>, the audit log). Reads stay allowed. git commands are not inspected. Fails closed without <code>jq</code>.</td></tr>
+      <tr><td><code>hooks/file-guard.sh</code></td><td><code>Edit|Write|MultiEdit|NotebookEdit</code> and <code>Bash</code></td><td>Blocks Edit/Write and shell writes to <code>settings.json</code>, the hooks, <code>~/.claude.json</code>, <code>~/.gitconfig</code>, <code>.git/config</code>, <code>~/.ssh</code>, <code>~/.aws</code> (and <code>~/.config/gh</code>, <code>~/.netrc</code>, the audit log), and removing or replacing a <code>.claude/</code> directory. Reads stay allowed. git is not restricted as git — it is only kept from rewriting those files by another route (<code>--work-tree</code>, <code>checkout</code>/<code>restore</code> of them, …). A guard against accidents and planted instructions, not a sandbox. Fails closed without <code>jq</code>.</td></tr>
     </tbody>
   </table>
   <div class="box danger"><div class="ti">⚠️ The kit does not restrict git (since 4.0.0)</div>
@@ -236,7 +240,7 @@ scripts/fetch-vendor.sh                  <span class="cmt"># if missing: pulls t
 
   <!-- A5 -->
   <h2 id="a5">A5. Windows</h2>
-  <p>Both hooks are <b>bash</b> scripts and need <code>jq</code>. They run under <b>Git Bash</b> or <b>WSL</b> only. A Windows
+  <p>The file-guard hook is a <b>bash</b> script and needs <code>jq</code>. They run under <b>Git Bash</b> or <b>WSL</b> only. A Windows
   install of Claude Code that does not route hooks through one of those has <b>no guard at all</b> — the
   <code>permissions.deny</code> list from A2 still applies (it is enforced by Claude Code itself), the hooks do not. Treat
   such a machine as "deny list only" in your risk register, or standardise on WSL, where the Linux path
@@ -337,7 +341,7 @@ tail -F ~/.claude/cwk-audit.jsonl | logger -t cwk-audit               <span clas
     <li>Every team repo ignores <code>knowledge-base/</code>, <code>cwk-sessions/</code>, <code>.provenlens/</code>, and a pre-commit/CI check refuses them when staged.</li>
     <li>Hub repos are private and same-access-as-source; no hub of a company repo is published; <code>--with-source</code> is not used for shared hubs.</li>
     <li>Classification levels are agreed (<code>internal</code> default; which repos are <code>confidential</code>/<code>restricted</code>) and the hub page shows them.</li>
-    <li><code>~/.claude/cwk-audit.jsonl</code> (or <code>CWK_AUDIT_LOG</code>) is shipped to the SIEM; someone reviews <code>decision: deny</code> lines and allowed pushes.</li>
+    <li><code>~/.claude/cwk-audit.jsonl</code> (or <code>CWK_AUDIT_LOG</code>) is shipped to the SIEM; someone reviews the <code>decision: deny</code> lines.</li>
     <li>KBs used for decisions are <code>deep</code> scans, re-scanned on a schedule, and their <code>_meta.yml</code> commit is checked before use.</li>
     <li>Branch protection is enabled on team repositories — the control that holds where the hook cannot see.</li>
   </ul>
@@ -348,7 +352,7 @@ tail -F ~/.claude/cwk-audit.jsonl | logger -t cwk-audit               <span clas
   <h2 id="pre">B0. Prerequisites</h2>
   <ul class="chk">
     <li><b>Claude Code</b> installed &amp; working: open a terminal and run <code>claude --version</code> to see a version number. (If <code>/plugin</code> is unknown → update Claude Code.)</li>
-    <li><b>git</b>: <code>git --version</code>. <b>Node.js</b> (for map &amp; HTML): <code>node --version</code> (ideally ≥ 18). <b>jq</b>: <code>jq --version</code> — both guards deny everything without it.</li>
+    <li><b>git</b>: <code>git --version</code>. <b>Node.js</b> (for map &amp; HTML): <code>node --version</code> (ideally ≥ 18). <b>jq</b>: <code>jq --version</code> — the file guard denies everything without it.</li>
     <li><b>Your company's Claude plan is Team/Enterprise</b> (a commercial plan — Anthropic does not train on your code). Ask your admin if unsure.</li>
     <li><b>Access to the toolkit repo</b> <code>NamHT4Devlop/claude-code-workflow-kit</code> (public) — or the tag your security team approved, copied over.</li>
   </ul>
@@ -358,8 +362,10 @@ tail -F ~/.claude/cwk-audit.jsonl | logger -t cwk-audit               <span clas
   <!-- 1 -->
   <h2 id="get">B1. Get the toolkit onto your machine</h2>
   <p>Put it in a fixed location so you can later update with <code>git pull</code>. For example <code>~/claude-code-workflow-kit</code>:</p>
-  <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># option 1: clone from GitHub, at the tag your company approved</span>
-git clone --branch v3.7.0 https://github.com/NamHT4Devlop/claude-code-workflow-kit.git ~/claude-code-workflow-kit
+  <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># option 1: clone from GitHub, then pin the commit your company approved</span>
+<span class="cmt"># (the repo publishes no release tags — pin a commit SHA; the version is in .claude-plugin/plugin.json)</span>
+git clone https://github.com/NamHT4Devlop/claude-code-workflow-kit.git ~/claude-code-workflow-kit
+git -C ~/claude-code-workflow-kit checkout &lt;approved-commit-sha&gt;
 
 <span class="cmt"># option 2: if given a zip/folder → extract it into ~/claude-code-workflow-kit</span></code></pre></div>
   <p class="muted">Below this folder is referred to as <b>&lt;TOOL&gt;</b>. Windows: replace <code>~</code> with <code>%USERPROFILE%</code> and run everything in Git Bash or WSL (see A5).</p>
@@ -375,8 +381,8 @@ git clone --branch v3.7.0 https://github.com/NamHT4Devlop/claude-code-workflow-k
 
   <!-- 3 -->
   <h2 id="safe">B3. Enable the guards — on a machine <i>without</i> managed settings</h2>
-  <p>If your company deployed A2, both hooks are already active and you can skip to B4 (you will see
-  <span class="kbd">/hooks</span> list them). Otherwise, arm them yourself:</p>
+  <p>If your company deployed A2, the file-guard hook is already active and you can skip to B4 (you will
+  see <span class="kbd">/hooks</span> list it). Otherwise, arm it yourself:</p>
 
   <div class="step"><div class="num">A</div><div class="body">
     <h3>Global gitignore — keep artifacts out of commits</h3>
@@ -430,7 +436,7 @@ claude --permission-mode acceptEdits</code></pre></div>
 
   <!-- ============ PROVENLENS (optional) ============ -->
   <h2 id="provenlens">🔗 B4b. Optional: <code>provenlens</code> — the call graph</h2>
-  <p>Nothing here needs it. But <b>27 of the 30 skills</b> use it when a repository has a
+  <p>Nothing here needs it. But <b>28 of the 31 skills</b> use it when a repository has a
   <code>.provenlens/</code> index, and grep when it does not — and when they fall back they
   <b>say so</b>, marking the output <code>⚠️ grep-depth only (no provenlens index)</code>. That
   sentence is the point: a caller list from grep and one from a resolved call graph are not the
@@ -510,7 +516,7 @@ cd /path/to/your/repo &amp;&amp; provenlens init .</code></pre>
   <!-- 8 -->
   <h2 id="maintain">B7. Update / Uninstall</h2>
   <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># update the toolkit (to the next tag your security team approved)</span>
-cd ~/claude-code-workflow-kit && git fetch --tags && git checkout v3.8.0 && bash tests/run.sh   <span class="cmt"># symlinked, so it applies immediately</span>
+cd ~/claude-code-workflow-kit && git fetch && git checkout &lt;approved-commit-sha&gt; && bash tests/run.sh   <span class="cmt"># symlinked, so it applies immediately</span>
 <span class="cmt"># uninstall (only removes symlinks in ~/.claude, touches no repo)</span>
 ~/claude-code-workflow-kit/scripts/personal-install.sh uninstall</code></pre></div>
 
@@ -522,8 +528,8 @@ cd ~/claude-code-workflow-kit && git fetch --tags && git checkout v3.8.0 && bash
       <tr><td>Don't see the <code>/cwk-*</code> commands</td><td>Reload/restart Claude Code; check <code>ls ~/.claude/skills | grep cwk-</code>.</td></tr>
       <tr><td><code>/plugin</code> or <code>/hooks</code> is unknown</td><td>Update Claude Code to a newer build.</td></tr>
       <tr><td>A command says “no knowledge-base”</td><td>Run <code>/cwk-scan</code> once in that repo.</td></tr>
-      <tr><td>The git guard isn't blocking</td><td>Open <span class="kbd">/hooks</span> or restart to load <code>settings.json</code>. On Windows: are you in Git Bash/WSL? (A5)</td></tr>
-      <tr><td>Every command is denied with “jq is not installed”</td><td>Both guards fail closed without <code>jq</code>. Install it (<code>brew install jq</code> / <code>apt install jq</code>).</td></tr>
+      <tr><td>The file guard isn't blocking</td><td>Open <span class="kbd">/hooks</span> or restart to load <code>settings.json</code>. On Windows: are you in Git Bash/WSL? (A5). Git itself is not restricted by the kit since 4.0.0 — use <code>permissions.deny</code> for that.</td></tr>
+      <tr><td>Every command is denied with “jq is not installed”</td><td>The file guard fails closed without <code>jq</code>. Install it (<code>brew install jq</code> / <code>apt install jq</code>).</td></tr>
       <tr><td>The agent's push is denied</td><td>The kit restricts no git since 4.0.0, so the refusal comes from a <code>permissions.deny</code> rule such as <code>Bash(git push:*)</code> in user or managed settings. If that is the policy, push from your own terminal.</td></tr>
       <tr><td><code>git clone</code> asks for a password</td><td>Public repo — clone the HTTPS URL (no auth), or set up an SSH key for the git@ URL.</td></tr>
       <tr><td>Map/HTML doesn't render diagrams</td><td>Needs Node; with <code>vendor/</code> present the page is offline. Run <code>scripts/fetch-vendor.sh --check</code>.</td></tr>

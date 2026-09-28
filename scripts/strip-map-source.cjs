@@ -12,10 +12,15 @@
 // This keeps everything except `source` (set to {}), marks `stats.sourceStripped = true` so the
 // page can say so, and re-packs the block exactly the way pack() did (gzip level 9, base64).
 //
+// The sampled viewer (a plain-JSON block) leaks too when it was drawn from provenlens:
+// provenlens-graph.cjs gives every node a `source` excerpt, the first 25 lines of its symbol. Those
+// are deleted, `metadata.sourceStripped` is set, and the JSON is re-escaped the way build-map.cjs
+// wrote it. A sampled page drawn by the regex scan carries no excerpt and is left alone.
+//
 // Exit codes:
 //   0  stripped and written
-//   2  not a full-index page: no graph-data block, or a plain-JSON block (the older sampled
-//      viewer, which embeds no source) — nothing is written; the caller copies the page as-is
+//   2  nothing to strip: no graph-data block, a block in no format this knows, or a sampled viewer
+//      whose nodes carry no `source` — nothing is written; the caller copies the page as-is
 //   1  any other failure (unreadable input, corrupt block, cannot write)
 //
 // Zero dependencies: Node's zlib only. The write is atomic (temp file in the same directory,
@@ -58,8 +63,33 @@ const body = html.slice(bodyStart, bodyEnd);
 const trimmed = body.trim();
 
 if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-  console.error(`· ${path.basename(inFile)}: plain-JSON graph-data block (sampled viewer, embeds no source) — copy it unchanged`);
-  process.exit(2);
+  let graph;
+  try {
+    graph = JSON.parse(trimmed);
+  } catch (err) {
+    console.error(`✗ ${path.basename(inFile)}: plain-JSON graph-data block does not parse (${err.message})`);
+    process.exit(1);
+  }
+  if (!graph || !Array.isArray(graph.nodes)) {
+    console.error(`✗ ${path.basename(inFile)}: plain-JSON graph-data block has no nodes — not the sampled-viewer format`);
+    process.exit(2);
+  }
+  const excerpts = graph.nodes.filter((n) => n && typeof n === 'object' && 'source' in n);
+  if (!excerpts.length) {
+    console.error(`· ${path.basename(inFile)}: sampled viewer, no node embeds source — copy it unchanged`);
+    process.exit(2);
+  }
+  for (const n of excerpts) delete n.source;
+  if (graph.metadata && typeof graph.metadata === 'object') graph.metadata.sourceStripped = true;
+  // Same escaping as build-map.cjs: < and > as \u escapes (a "</script>" in a symbol must not end
+  // the block), and the JS line terminators U+2028/9 too.
+  const json = JSON.stringify(graph)
+    .replace(/</g, '\\u003c').replace(/>/g, '\\u003e')
+    .replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+  const page = html.slice(0, bodyStart) + json + html.slice(bodyEnd);
+  writeAtomic(page);
+  console.log(`✔ ${path.basename(outFile)}: source excerpts of ${excerpts.length} node(s) stripped · ${graph.nodes.length} nodes and ${Array.isArray(graph.edges) ? graph.edges.length : 0} edges kept`);
+  process.exit(0);
 }
 if (!/^[A-Za-z0-9+/=\s]+$/.test(trimmed)) {
   console.error(`✗ ${path.basename(inFile)}: graph-data block is neither base64 nor JSON — not the full-index format`);
@@ -87,15 +117,18 @@ data.stats.sourceStripped = true;
 // with DecompressionStream('gzip') and nothing else.
 const packed = zlib.gzipSync(Buffer.from(JSON.stringify(data), 'utf8'), { level: 9 }).toString('base64');
 const out = html.slice(0, bodyStart) + packed + html.slice(bodyEnd);
+writeAtomic(out);
 
-const tmp = path.join(path.dirname(path.resolve(outFile)), `.${path.basename(outFile)}.${process.pid}.tmp`);
-try {
-  fs.writeFileSync(tmp, out, 'utf8');
-  fs.renameSync(tmp, outFile);
-} catch (err) {
-  try { fs.unlinkSync(tmp); } catch { /* nothing to clean */ }
-  console.error(`✗ cannot write ${outFile}: ${err.message}`);
-  process.exit(1);
+function writeAtomic(text) {
+  const tmp = path.join(path.dirname(path.resolve(outFile)), `.${path.basename(outFile)}.${process.pid}.tmp`);
+  try {
+    fs.writeFileSync(tmp, text, 'utf8');
+    fs.renameSync(tmp, outFile);
+  } catch (err) {
+    try { fs.unlinkSync(tmp); } catch { /* nothing to clean */ }
+    console.error(`✗ cannot write ${outFile}: ${err.message}`);
+    process.exit(1);
+  }
 }
 
 const kb = (n) => `${Math.round(n / 1024)} KB`;

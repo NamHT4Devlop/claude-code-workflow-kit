@@ -30,7 +30,9 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
 - `provenlens impact <symbol|handler>` — every transitive consumer, including the ones grep cannot
   reach through an interface or a mixin. This is the consumer list the expand→migrate→contract plan
   is built from; a missed consumer is a broken contract.
-- **Across services:** index each repo (`provenlens init .`), then query from the workspace root — a
+- **Across services:** index each repo (`provenlens init .` — ask first, indexing is the user's call and
+  walks the whole tree), then query across them through the MCP server or `provenlens serve` on the
+  workspace root (the CLI answers one repo at a time) — a
   shared queue name or endpoint URI links a producer in one repo to a consumer in another, across
   languages. Those are precisely the consumers a contract change breaks and the ones prose misses.
 - A consumer you cannot find in the graph is not proof of absence: say which repos were indexed.
@@ -57,7 +59,8 @@ Default: **expand → migrate → contract**, shipped as separate, independently
 
 ## Step 3 — deprecation path for the old thing
 Mark deprecated (annotation/comment/doc) → emit a **warning + a metric/log** when the old path is used
-(so you can watch usage drop to zero via `/cwk-observe` + `/cwk-splunk-report`) → give a grace
+(so you can watch usage drop to zero via `/cwk-observe` + your log search — Splunk through its MCP,
+as `/cwk-triage` does; `/cwk-splunk-report` only counts errors) → give a grace
 window → remove only when usage is zero.
 
 ## Method
@@ -84,10 +87,17 @@ with per-step rollback, migration scripts, and the deprecation timeline.
   green, and record the run**. `/cwk-qa` only *designs* cases — it does not execute them; run them
   here, or via `/cwk-qa-integration` against a running app. **Never contract on a design document.**
 - **Safety net — before the first edit.** `git status --porcelain` (ask the user to commit/stash first)
-  and save `git diff HEAD > <session>/00-pre-change.patch`. To undo use ONLY `git stash push -u` or
-  `git apply -R <your diff>` — never `git restore`, `git checkout .`/`--`, `git reset --hard`
+  and save `git diff HEAD > cwk-sessions/migrate/<change>-<date>.pre-change.patch`. To undo use ONLY `git stash push -u` or
+  `cd "$(git rev-parse --show-toplevel)" && git apply -R cwk-sessions/migrate/<change>-<date>.change.diff` (re-capture it first when undoing from a red state, then confirm with `git status --porcelain`) — never `git restore`, `git checkout .`/`--`, `git reset --hard`
   or `git clean -f`, which throw away the user's uncommitted work along with yours. (Note this is separate from a **DB** rollback: every migration
   step still needs its own reversible down-migration.)
+  Keep the kit's own files out of that check first: `git check-ignore -q cwk-sessions/ || { f=$(git rev-parse --git-path info/exclude); mkdir -p
+  "${f%/*}"; printf '\ncwk-sessions/\n' >> "$f"; }` (a worktree's `.git` is a file, so never write
+  `.git/info/exclude` by hand). **The tree must be clean before the first edit — untracked files included**
+  (`git stash push -u` parks them); if the user will not commit or stash, do not start.
+  `cwk-sessions/migrate/<change>-<date>.change.diff` is your own change, rewritten after each green step with
+  `cd "$(git rev-parse --show-toplevel)" && { git diff --binary --src-prefix=a/ --dst-prefix=b/; git ls-files -z --others --exclude-standard | xargs -0 -r -n1 git diff --binary --no-index --src-prefix=a/ --dst-prefix=b/ -- /dev/null; } > cwk-sessions/migrate/<change>-<date>.change.diff`
+  (exit status 1 — 123 with GNU xargs — is normal there; check the file is not empty) — plain `git diff` omits the files you created and binary content.
 - Change-discipline: scope-lock, minimal diff, verify + rollback, never touch secrets, confirm outward/destructive actions.
 
 ## Common rationalizations

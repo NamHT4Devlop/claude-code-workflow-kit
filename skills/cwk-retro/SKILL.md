@@ -12,14 +12,20 @@ description: >-
 A periodic look-back grounded in real history.
 
 ## Gather (read-only git + artifacts)
-- Window: default last 7 days (or what the user names). `git log --since=<window> --stat`,
-  `git shortlog -sn --since`, `git diff --stat <since>..HEAD` for churn by area.
+- Window: default last 7 days (or what the user names). Translate it into words git parses — `7d`
+  → `"7 days ago"`, `2w` → `"2 weeks ago"`, or an ISO date; a bare `--since=7d` is read as the 7th
+  of the month. Then find the window's starting commit, `start=$(git rev-list -1 --before="<since>"
+  HEAD)` (empty → the whole history is inside the window: use the empty tree,
+  `start=$(git hash-object -t tree /dev/null)`), and run
+  `git log --since="<since>" --stat`, `git shortlog -sn --since="<since>" HEAD` (without `HEAD` it
+  reads stdin and returns nothing in a non-interactive shell), `git diff --stat $start..HEAD` for
+  churn by area.
 - **Read the journals first** — `cwk-sessions/answers/_journal.md` (questions asked),
   `builds/_journal.md` (what was built + the key decision) and `fixes/_journal.md` (bugs + root
   causes). They are one-line-per-entry indexes built for exactly this: the cheapest high-signal
   source for *what shipped*, *what people kept having to ask*, and *what keeps breaking*. A root
   cause or an area appearing repeatedly in the fix journal is a retro finding on its own.
-- **Legacy folder:** if the repo has `spec-kit-sessions/` (the pre-rename name) and no
+- **Legacy folder:** if the repo has `spec-kit-sessions/` or `namht-sessions/` (pre-rename names) and no
   `cwk-sessions/`, read the journals from there — that history still counts.
 - Optional signals: `cwk-sessions/` reports (fixes/reviews/qa) from the window; open TODO/FIXME
   added; test coverage gaps on changed areas (test-debt trend).
@@ -38,7 +44,7 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
 **Here:**
 - `provenlens hotspots` crossed with the window's churn — a period that repeatedly touched a hub is
   the concrete signal for **Quality & risk signals**, replacing "this area felt painful".
-- `git diff --name-only <since>..HEAD | provenlens affected --fail-if-untested` — test debt as a fact
+- `git diff --name-only $start..HEAD | provenlens affected --fail-if-untested` — test debt as a fact
   with a symbol list, which is what makes an action item ownable.
 
 ## Produce (dual-audience; chat + save `cwk-sessions/retro/<date>.md`)
@@ -60,7 +66,7 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
 `${CLAUDE_PLUGIN_ROOT}/skills/cwk-retro/references` if `CLAUDE_PLUGIN_ROOT` is set, else the
 `references/` folder next to this SKILL.md, else `$HOME/.claude/skills/cwk-retro/references`.
 ```bash
-node "$SKILL_DIR/render-html.cjs" "<the .md just saved>" "<same path>.html" "Retrospective — <window>"
+node "$SKILL_DIR/render-html.cjs" "<the .md just saved>" "<the same path with .md replaced by .html>" "Retrospective — <window>"
 ```
 Then open it and give the user the path. (This is also what the VS Code panel's **📄 Report** button
 looks for — without it the button has nothing to open.)

@@ -2,7 +2,7 @@
   "name": "cwk-ui",
   "displayName": "Workflow Kit UI",
   "description": "Point-and-click UI over the cwk-* Workflow Kit skills for non-technical roles (PM/SM). Runs Claude Code under the hood.",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "publisher": "cwk",
   "private": true,
   "license": "UNLICENSED",
@@ -83,11 +83,11 @@
           ],
           "enumDescriptions": [
             "Every skill, including the seven that change code.",
-            "Only skills that never touch your source — for PM/SM. The code-editing cards are hidden, the host refuses them even if requested, and every run is launched with `--permission-mode default` and a read-only tool allowlist (Read, Grep, Glob, provenlens), so no prompt can run a shell command, write a file or reach the network."
+            "Only skills that never touch your source — for PM/SM. The code-editing cards are hidden, the host refuses them even if requested, and every run is launched with `--permission-mode default`, a read-only tool allowlist (Read, Grep, Glob, provenlens), a deny list for Bash/Edit/Write/Web tools and hooks switched off (a hook the repository declares does not run; its deny rules still apply), so no prompt can run a shell command, write a file or reach the network."
           ],
           "default": "full",
           "scope": "machine",
-          "description": "Which skills this panel offers, and what a run may do. 'readonly' hides the seven code-editing skills (build, fix-bug, migrate, simplify, perf, observe, rails-to-spring), blocks them plus free chat and follow-ups in the extension host, AND runs the CLI with `--permission-mode default --allowedTools Read,Grep,Glob,mcp__provenlens__*` — cwkUi.extraArgs cannot widen that. Use it for the .vsix you hand to non-developers."
+          "description": "Which skills this panel offers, and what a run may do. 'readonly' hides the seven code-editing skills (build, fix-bug, migrate, simplify, perf, observe, rails-to-spring), blocks them plus free chat and follow-ups in the extension host, AND runs the CLI with `--permission-mode default --allowedTools Read,Grep,Glob,mcp__provenlens__* --disallowedTools Bash,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch --settings {\"disableAllHooks\":true}` — cwkUi.extraArgs cannot widen that. Use it for the .vsix you hand to non-developers."
         },
         "cwkUi.language": {
           "type": "string",

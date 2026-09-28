@@ -17,7 +17,9 @@ to fix a mistake. Review the plan (from `/cwk-plan`, `/cwk-discover`, or pasted)
 ## Input
 The plan / user stories (pasted, or a file under `cwk-sessions/`). Identify the feature + the
 modules/entities it targets. Ground in KB (`13-business-rules`, `16-architecture-patterns`,
-`10-core-flows`) and by tracing callers (blast radius of the proposed changes).
+`10-core-flows`) and by tracing callers (blast radius of the proposed changes). No
+`knowledge-base/` → ground in the source instead, say the review is weaker without documented rules,
+and suggest `/cwk-scan`.
 
 ### provenlens (optional)
 `.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
@@ -70,11 +72,11 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
 - If the plan is solid, say so plainly — don't invent objections.
 - After revisions, hand to **`/cwk-build`** (or `/cwk-qa` for test design).
 
-**Render it to HTML too.** Resolve this skill's `references/` dir first (call it `$SKILL_DIR`):
+**Render it to HTML too — when you saved it.** Resolve this skill's `references/` dir first (call it `$SKILL_DIR`):
 `${CLAUDE_PLUGIN_ROOT}/skills/cwk-plan-review/references` if `CLAUDE_PLUGIN_ROOT` is set, else the
 `references/` folder next to this SKILL.md, else `$HOME/.claude/skills/cwk-plan-review/references`.
 ```bash
-node "$SKILL_DIR/render-html.cjs" "<the .md just saved>" "<same path>.html" "Plan review — <slug>"
+node "$SKILL_DIR/render-html.cjs" "<the .md just saved>" "<the same path with .md replaced by .html>" "Plan review — <slug>"
 ```
 Then open it and give the user the path. (This is also what the VS Code panel's **📄 Report** button
 looks for — without it the button has nothing to open.)

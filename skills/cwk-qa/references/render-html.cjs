@@ -79,7 +79,10 @@ function inlineVendored(html) {
   );
   // If no cdnjs <script src> remains, drop cdnjs from the CSP allowlist too → zero external refs.
   if (!/src="https:\/\/cdnjs\.cloudflare\.com/i.test(out)) {
-    out = out.replace(/\s*https:\/\/cdnjs\.cloudflare\.com/gi, '');
+    // Only inside the CSP <meta>: over the whole page this also cut the URL out of document text
+    // ("loaded from https://cdnjs.cloudflare.com/ajax/…" became "loaded from/ajax/…").
+    out = out.replace(/(<meta\s+http-equiv="Content-Security-Policy"\s+content=")([^"]*)/gi,
+      (_m, head, csp) => head + csp.replace(/\s*https:\/\/cdnjs\.cloudflare\.com/gi, ''));
   }
   return out;
 }

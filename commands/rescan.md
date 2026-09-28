@@ -15,7 +15,8 @@ test names, evidence reports and journals cite those ids and this rescan cannot 
 Renumbering is the one edit that silently invalidates work outside the KB.
 
 Refresh `_meta.yml` (at minimum `commit`, `branch`, `generated`) so a stale KB stops passing as
-current, and update the Mermaid architecture diagram itself if the topology changed — not just the
+current — except in a **scoped update** (a list of KB pages handed over by `/cwk-drift --fix-docs`),
+which re-checks only those pages and records them under `patched:` instead, and update the Mermaid architecture diagram itself if the topology changed — not just the
 prose around it.
 
 Base ref to diff against (optional): $ARGUMENTS

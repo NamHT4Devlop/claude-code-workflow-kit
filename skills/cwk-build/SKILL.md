@@ -51,7 +51,8 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
 - **Step 1 impact** — `provenlens impact <symbol>` replaces the caller grep. The **>3 callers**
   approval trigger is counted from `provenlens callers <symbol> --json`, not from a grep hit count;
   those two numbers are not the same and only one of them is the blast radius.
-- **Step 3.5 safety net / Step 8 gates** — `git diff --name-only | provenlens affected --fail-if-untested`.
+- **Step 11 gates** — `{ git diff --name-only; git ls-files --others --exclude-standard; } | provenlens affected --fail-if-untested`
+  (new files included — a brand-new production file with no test is exactly what this gate is for).
   Exit code **2** means production code changed that no existing test reaches: that is a blocker to
   report, not a note to bury.
 - **Ground rule 3 (reuse)** — `provenlens query "<capability word>"` finds the existing helper across
@@ -66,7 +67,7 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
    `13-business-rules`, `12-conventions`, `16-architecture-patterns`, `review-skills.md`).
    Also skim `cwk-sessions/answers/_journal.md` and `builds/_journal.md` if present — past Q&A
    conclusions and past builds in this area often carry decisions the KB doesn't (cheap: two small indexes).
-   If the repo still has the pre-rename `spec-kit-sessions/` and no `cwk-sessions/`, read the
+   If the repo still has a pre-rename `spec-kit-sessions/` or `namht-sessions/` and no `cwk-sessions/`, read the
    journals from there instead; keep writing new artifacts to `cwk-sessions/`.
    If `knowledge-base/` is missing, tell the user to run `/cwk-scan` first, or
    proceed with reduced confidence using direct code reading.
@@ -92,7 +93,11 @@ is never a resolved call — do not report it as one. Playbook: `docs/provenlens
    `cwk-sessions/builds/<YYYY-MM-DD-HHMMSS>-<slug>/` and save each phase's output there
    (`01-plan/plan.md`, `01-plan/baseline.md`, `03-code/change.diff`, `04-code-review/review.md`,
    `05-tests/`, `07-evidence/EVIDENCE.md`, `README.md`). Keep artifacts as **pointers and diffs**, not
-   copies of file contents — the repo and git are the audit trail.
+   copies of file contents — the repo and git are the audit trail. Before creating it, make sure it
+   is ignored: `git check-ignore -q cwk-sessions/ || { f=$(git rev-parse --git-path info/exclude);
+   mkdir -p "${f%/*}"; printf '\ncwk-sessions/\n' >> "$f"; }` (local to this clone, never committed;
+   `--git-path` because a worktree's `.git` is a file). Otherwise the session files dirty the tree the Step 3.5
+   check reads, and `git stash push -u` would sweep them away with everything else.
 7. **Stop and ask** before doing something destructive or ambiguous. Prefer a TodoList
    (TaskCreate/TaskUpdate) so the user can follow the pipeline.
 8. **Scale rigor to risk, not to ceremony.** Follow the Step 0.5 size classification: spend agents and
@@ -153,7 +158,9 @@ what you build (not just how you phrase it), and getting it wrong would be expen
 defaults" is a valid answer. Never ask something the KB already answers.
 
 **Acceptance criteria.**
-- **From a story/plan** → already confirmed. Restate them for the record and move on; don't re-ask.
+- **From a story/plan the user wrote or signed off** → already confirmed. Restate them for the record
+  and move on; don't re-ask. One that originated outside the user (Slack, a ticket, a doc) gets the
+  single explicit yes described above.
 - **Authored by you** (no story) → write them Given/When/Then, numbered `AC-01…`, mark which ones you
   *inferred*, and get one quick yes — they are the pass bar for Steps 5, 7 and 12, so validating
   against your own unreviewed guess is the one confirmation worth its cost. If the user pre-authorized
@@ -230,8 +237,9 @@ For a change that hit the plan-approval gate, show the final plan to the user an
 Both "compare against a baseline" (Step 11) and "revert" (change discipline) are impossible without
 this. The shortcuts — `reset --hard`, `restore`, `checkout .` — undo the user's uncommitted work along
 with yours, so they are not a revert.
-1. **Clean tree.** Run `git status --porcelain`. If the user has uncommitted work, ask them to commit
-   or stash first — you must not risk their changes.
+1. **Clean tree.** Run `git status --porcelain`. It must be empty — **untracked files included**. If the
+   user has uncommitted work, ask them to commit or `git stash push -u` first; if they will not, do not
+   start — the reverse-patch in Step 10 treats every untracked file as yours.
 2. **Baseline the gates.** Run the narrowest relevant gates once (typecheck/lint + the test files
    covering the target module — not necessarily the whole suite) and record pass/fail plus **the names
    of tests already failing** into `01-plan/baseline.md`. If the repo is already red, say so now: those
@@ -239,8 +247,9 @@ with yours, so they are not a revert.
 3. **Snapshot.** Save `git diff HEAD > 00-pre-change.patch` in the session folder and note the base
    commit SHA.
 **How to revert later (only these are allowed):** `git stash push -u` to park everything, or
-`git apply -R 03-code/change.diff` to reverse exactly your own change. Never `git restore`,
-`git checkout .`/`--`, `git reset --hard`, `git clean -f` — the guard denies them.
+`cd "$(git rev-parse --show-toplevel)" && git apply -R cwk-sessions/builds/<session>/03-code/change.diff` (re-capture it first when undoing from a red state, then confirm with `git status --porcelain`) to reverse exactly your own change. Never `git restore`,
+`git checkout .`/`--`, `git reset --hard`, `git clean -f` — they throw away the user's uncommitted
+work along with yours.
 
 ## Step 4 — Red: the failing tests come before the code
 Tests are written **before** the implementation, from the acceptance criteria, not from the code.
@@ -335,7 +344,13 @@ boundaries? meaningful assertions? Fix the gaps, finalize.
 
 ## Step 10 — Save files
 Ensure all code + test files are written to the correct paths in the repo. Confirm the file list, and
-save the change as a diff: `git diff > 03-code/change.diff` (this is also your reverse-patch).
+save the change as a diff **including the files you created** — `git diff` alone omits untracked
+files, and a reverse-patch that cannot delete them is not a revert:
+```bash
+cd "$(git rev-parse --show-toplevel)" && { git diff --binary --src-prefix=a/ --dst-prefix=b/; git ls-files -z --others --exclude-standard | xargs -0 -r -n1 git diff --binary --no-index --src-prefix=a/ --dst-prefix=b/ -- /dev/null; } > cwk-sessions/builds/<session>/03-code/change.diff
+```
+(Exit status 1 — 123 with GNU xargs — is normal there; check the file is not empty.) The tree was clean at Step 3.5 — untracked files included — so every
+untracked file is yours. This is also your reverse-patch.
 
 ## Step 11 — Verify (build + lint + typecheck + tests) with rollback
 Prove you didn't break the project. Run the same gates you baselined in Step 3.5 via `Bash`
@@ -353,7 +368,7 @@ your regression; a gate that was green and is now red is.
 - **Code changed after Step 5 gets re-reviewed** — re-run the relevant lens on the new diff; fixes made
   under time pressure are exactly where defects hide.
 - **If you can't get it green within a few iterations, REVERT** via the Step 3.5 safety net
-  (`git stash push -u` or `git apply -R 03-code/change.diff`), verify with `git status --porcelain` +
+  (`git stash push -u` or `cd "$(git rev-parse --show-toplevel)" && git apply -R cwk-sessions/builds/<session>/03-code/change.diff` (re-capture it first when undoing from a red state, then confirm with `git status --porcelain`)), verify with `git status --porcelain` +
   a re-run of the baseline gates, and state plainly *"reverted — tree matches baseline"* or list every
   file you could not restore. Never hand back broken code as "done".
 - **If a gate cannot be run at all** (no test script, framework missing, needs services that aren't up,

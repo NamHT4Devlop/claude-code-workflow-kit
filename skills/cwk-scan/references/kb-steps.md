@@ -271,6 +271,8 @@ catalogs are put side by side.
   files_analyzed: 412
   provenlens: 93.4%                # in-repo resolution at scan time, or "none" if unindexed
   classification: internal         # public | internal | confidential | restricted — default internal
+  patched:                         # only from a rescan SCOPED update (/cwk-drift --fix-docs):
+    - {date: 2026-09-01, pages: [13-business-rules.md]}   # commit/generated stay at the last rebuild
   ```
   `classification` says how far this KB may travel: it records permission matrices, unpatched
   defects, integration auth and env var names, and the hub copies it, so a reader must see what they

@@ -55,4 +55,4 @@ jobs:
       - name: shellcheck
         run: |
           sudo apt-get update -qq && sudo apt-get install -y shellcheck
-          shellcheck --severity=error hooks/*.sh scripts/*.sh tests/*.sh
+          shellcheck --severity=error hooks/*.sh scripts/*.sh tests/*.sh skills/*/references/*.sh

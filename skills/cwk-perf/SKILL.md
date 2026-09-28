@@ -21,7 +21,8 @@ Ground in the KB (`10-core-flows`, `08-database-schema`) and get real data befor
 - **Java:** async-profiler / JFR flame graphs; Micrometer timers; Hibernate SQL log for N+1.
 - **Rails:** `rack-mini-profiler`, the **bullet** gem for N+1, `pg_hero`/`EXPLAIN` for slow SQL.
 - **Node:** `clinic.js` / `--prof`; DB driver timing.
-- Or pull real latency/slow-query data from `/cwk-observe` metrics + `/cwk-splunk-report`.
+- Or pull real latency/slow-query data from `/cwk-observe` metrics and your log search (Splunk through
+  its MCP; `/cwk-splunk-report` counts errors, not latency).
 
 ### provenlens (optional)
 `.provenlens/` present → prefer `provenlens` over grep for anything about **who calls what**: it resolves
@@ -78,9 +79,16 @@ Chat + `cwk-sessions/perf/<area>-<date>.md`: the bottleneck, the fix, and **befo
   under the same conditions, write **`NOT MEASURED (<reason>)`** and mark the change **UNVERIFIED** —
   never claim a win you didn't measure.
 - **Safety net — before the first edit.** `git status --porcelain` (ask the user to commit/stash their
-  own work first) and save `git diff HEAD > <session>/00-pre-change.patch`. To undo use ONLY
-  `git stash push -u` or `git apply -R <your diff>` — never `git restore`, `git checkout .`/`--`,
+  own work first) and save `git diff HEAD > cwk-sessions/perf/<area>-<date>.pre-change.patch`. To undo use ONLY
+  `git stash push -u` or `cd "$(git rev-parse --show-toplevel)" && git apply -R cwk-sessions/perf/<area>-<date>.change.diff` (re-capture it first when undoing from a red state, then confirm with `git status --porcelain`) — never `git restore`, `git checkout .`/`--`,
   `git reset --hard` or `git clean -f`, which throw away the user's uncommitted work along with yours.
+  Keep the kit's own files out of that check first: `git check-ignore -q cwk-sessions/ || { f=$(git rev-parse --git-path info/exclude); mkdir -p
+  "${f%/*}"; printf '\ncwk-sessions/\n' >> "$f"; }` (a worktree's `.git` is a file, so never write
+  `.git/info/exclude` by hand). **The tree must be clean before the first edit — untracked files included**
+  (`git stash push -u` parks them); if the user will not commit or stash, do not start.
+  `cwk-sessions/perf/<area>-<date>.change.diff` is your own change, rewritten after each green step with
+  `cd "$(git rev-parse --show-toplevel)" && { git diff --binary --src-prefix=a/ --dst-prefix=b/; git ls-files -z --others --exclude-standard | xargs -0 -r -n1 git diff --binary --no-index --src-prefix=a/ --dst-prefix=b/ -- /dev/null; } > cwk-sessions/perf/<area>-<date>.change.diff`
+  (exit status 1 — 123 with GNU xargs — is normal there; check the file is not empty) — plain `git diff` omits the files you created and binary content.
 - Change-discipline: scope-lock, minimal diff, verify + rollback, never touch secrets, confirm outward actions.
 
 ## Common rationalizations
