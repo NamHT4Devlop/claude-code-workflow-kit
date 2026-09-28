@@ -113,6 +113,7 @@ No `.provenlens/`, no `provenlens` command, or a language it does not cover:
 | `build` · `fix-bug` | one regression test per ledger row, or an explicit "not covered" | the plan (§2) and the evidence / hotfix report |
 | `review` · `pr` · `qa` | Phase 2 "no logic removed" · the traceability matrix evidence column | the review when a finding rests on a chain |
 | `runbook` | the service card: what falls over with each hotspot | the service card, and a `path` chain in every playbook |
+| `sre` | each flow through a code finding's suspect × also slow/erroring in the metrics / fine / not measured | the finding's Code path, route handler → suspect |
 | `triage` | the incident scope: each flow through the suspect × seen failing in the logs / not failing / not checked | the Code path section, entry point → failing line |
 
 ## Verification — before the output is called done

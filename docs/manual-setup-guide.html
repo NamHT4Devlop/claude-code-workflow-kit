@@ -116,12 +116,12 @@
   <div class="cb"><button class="copy">Copy</button><pre><code>ROOT=~/claude-code-workflow-kit          <span class="cmt"># ⬅ đổi thành BẤT KỲ đường dẫn nào bạn muốn</span>
 mkdir -p "$ROOT"/{commands,agents,scripts,resources}
 
-<span class="cmt"># 31 skill → mỗi skill 1 file SKILL.md</span>
+<span class="cmt"># 32 skill → mỗi skill 1 file SKILL.md</span>
 for s in cwk-ask cwk-build cwk-design-review cwk-discover cwk-document \
          cwk-drift cwk-fix-bug cwk-issues cwk-map cwk-migrate cwk-observe cwk-pdf \
          cwk-perf cwk-plan cwk-plan-review cwk-pr cwk-qa cwk-qa-integration \
          cwk-rails-to-spring cwk-rescan cwk-retro cwk-review cwk-runbook cwk-scan \
-         cwk-security-audit cwk-simplify cwk-skillify cwk-splunk-report \
+         cwk-security-audit cwk-simplify cwk-skillify cwk-splunk-report cwk-sre \
          cwk-system-map cwk-triage cwk-user-story; do
   mkdir -p "$ROOT/skills/$s"; touch "$ROOT/skills/$s/SKILL.md"
 done
@@ -137,10 +137,10 @@ touch "$ROOT/skills/cwk-runbook/references/writing-style.md"
 <span class="cmt"># 9 file gốc (sync-bundles sẽ nhân ra các skill khác — thiếu 1 file là nó dừng)</span>
 touch "$ROOT/resources/"{check-mermaid.cjs,html-builder.js,kb-steps.md,provenlens-evidence.md,render-html.cjs,review-protocol.md,review-skills-universal.md,review-traps.md,untrusted-input.md}
 
-<span class="cmt"># 32 command</span>
+<span class="cmt"># 33 command</span>
 for c in ask build design-review discover document drift fix-bug help issues map \
          migrate observe pdf perf plan-review plan pr qa-integration qa rails-to-spring \
-         rescan retro review runbook scan security-audit simplify skillify splunk-report \
+         rescan retro review runbook scan security-audit simplify skillify splunk-report sre \
          system-map triage user-story; do touch "$ROOT/commands/$c.md"; done
 
 <span class="cmt"># 7 agent</span>
@@ -160,7 +160,7 @@ echo "✅ Tạo khung xong. Danh sách file cần dán nội dung:"; find "$ROOT
   <div class="cb"><button class="copy">Copy</button><pre><code>https://raw.githubusercontent.com/NamHT4Devlop/claude-code-workflow-kit/main/&lt;đường-dẫn&gt;</code></pre></div>
   <p class="muted">Ví dụ: <code>.../main/skills/cwk-build/SKILL.md</code>, <code>.../main/commands/build.md</code>,
   <code>.../main/scripts/personal-install.sh</code>.</p>
-  <p><b>Phải dán (92 file):</b> 31 × <code>skills/*/SKILL.md</code> · 32 × <code>commands/*.md</code> ·
+  <p><b>Phải dán (94 file):</b> 32 × <code>skills/*/SKILL.md</code> · 33 × <code>commands/*.md</code> ·
   7 × <code>agents/*.md</code> · 9 × <code>resources/*</code> ·
   <code>scripts/personal-install.sh</code> · <code>scripts/sync-bundles.sh</code> ·
   11 file riêng của map/pdf/rails-to-spring/runbook.</p>

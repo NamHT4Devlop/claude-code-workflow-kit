@@ -10,7 +10,7 @@
     {
       "name": "cwk",
       "source": "./",
-      "version": "6.0.0",
+      "version": "6.1.0",
       "description": "Spec-driven dev workflow for Claude Code: /cwk:build, /cwk:fix-bug, /cwk:scan, /cwk:review, /cwk:ask, /cwk:plan, /cwk:triage and more."
     }
   ]

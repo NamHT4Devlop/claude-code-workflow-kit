@@ -2,7 +2,7 @@
   "name": "cwk-ui",
   "displayName": "Workflow Kit UI",
   "description": "Point-and-click UI over the cwk-* Workflow Kit skills for non-technical roles (PM/SM). Runs Claude Code under the hood.",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "publisher": "cwk",
   "private": true,
   "license": "UNLICENSED",

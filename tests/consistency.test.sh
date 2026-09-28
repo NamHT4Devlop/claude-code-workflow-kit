@@ -202,7 +202,7 @@ done
 
 echo "consistency: high-stakes skills carry rationalizations / red flags / verification"
 HIGH_STAKES="cwk-build cwk-fix-bug cwk-migrate cwk-simplify cwk-perf cwk-observe
-  cwk-rails-to-spring cwk-review cwk-drift cwk-runbook cwk-triage"
+  cwk-rails-to-spring cwk-review cwk-drift cwk-runbook cwk-triage cwk-sre"
 bad=0
 for sk in $HIGH_STAKES; do
   f="skills/$sk/SKILL.md"
@@ -282,7 +282,7 @@ done
 # The investigating skills carry the evidence protocol (reach ledger + code graph) as a bundled copy and
 # must point at it — a bundle nobody references is a file, not a standard. The list mirrors
 # map_evidence in scripts/sync-bundles.sh; sync-bundles --check catches a copy that is not mapped.
-PROVENLENS_EVIDENCE="cwk-ask cwk-document cwk-user-story cwk-plan cwk-runbook cwk-fix-bug cwk-build cwk-review cwk-qa cwk-triage cwk-pr"
+PROVENLENS_EVIDENCE="cwk-ask cwk-document cwk-user-story cwk-plan cwk-runbook cwk-fix-bug cwk-build cwk-review cwk-qa cwk-triage cwk-pr cwk-sre"
 for sk in $PROVENLENS_EVIDENCE; do
   f="skills/$sk/SKILL.md"
   [ -f "skills/$sk/references/provenlens-evidence.md" ] || { echo "  ✗ $sk lacks references/provenlens-evidence.md (run scripts/sync-bundles.sh)"; bad=1; }

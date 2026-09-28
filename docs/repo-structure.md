@@ -1,7 +1,7 @@
 # claude-code-workflow-kit — repository structure
 
 The folder layout and file names of the kit, and what each area is for. **Structure only — no file
-contents.** Generated from `git ls-files` at release 6.0.0, 242 tracked files.
+contents.** Generated from `git ls-files` at release 6.1.0, 248 tracked files.
 
 Read this to know where a thing lives before you go looking for it, or to recreate the same shape in
 another repository.
@@ -19,8 +19,8 @@ generated, never hand-edited.
 | Folder | Holds | Count |
 |---|---|---|
 | `.claude-plugin/` | Plugin manifest and the local marketplace definition | 2 |
-| `commands/` | Slash-command entry points, one Markdown file each | 32 |
-| `skills/` | The methodology. One folder per skill: `SKILL.md` plus its `references/` | 31 skills, 134 files |
+| `commands/` | Slash-command entry points, one Markdown file each | 33 |
+| `skills/` | The methodology. One folder per skill: `SKILL.md` plus its `references/` | 32 skills, 140 files |
 | `agents/` | Read-only sub-agents the build and review steps call in parallel | 7 |
 | `resources/` | Canonical copies of shared files, mirrored into skills by `scripts/sync-bundles.sh` | 9 |
 | `scripts/` | Installers, the KB pipeline, the hub builder, diagram tooling, this scaffold | 15 |
@@ -78,6 +78,7 @@ claude-code-workflow-kit/
 │   ├── simplify.md
 │   ├── skillify.md
 │   ├── splunk-report.md
+│   ├── sre.md
 │   ├── system-map.md
 │   ├── triage.md
 │   └── user-story.md
@@ -295,6 +296,13 @@ claude-code-workflow-kit/
 │   │   ├── references/
 │   │   │   └── untrusted-input.md
 │   │   └── SKILL.md
+│   ├── cwk-sre/
+│   │   ├── references/
+│   │   │   ├── html-builder.js
+│   │   │   ├── provenlens-evidence.md
+│   │   │   ├── render-html.cjs
+│   │   │   └── untrusted-input.md
+│   │   └── SKILL.md
 │   ├── cwk-system-map/
 │   │   ├── references/
 │   │   │   ├── html-builder.js
@@ -365,7 +373,7 @@ skills/<skill-name>/
 ```
 
 The folder name is the skill name and matches its command: `commands/build.md` ↔ `skills/cwk-build/`.
-All 31 skills follow this without exception.
+All 32 skills follow this without exception.
 
 ## Shared files and their copies
 
@@ -378,9 +386,9 @@ working when it is copied out on its own, and the copies are regenerated rather 
 
 | Canonical file in `resources/` | Mirrored into |
 |---|---|
-| `untrusted-input.md` | all 31 skills |
-| `html-builder.js` + `render-html.cjs` | the 17 skills that render HTML |
-| `provenlens-evidence.md` | `cwk-ask`, `cwk-build`, `cwk-document`, `cwk-fix-bug`, `cwk-plan`, `cwk-qa`, `cwk-pr`, `cwk-review`, `cwk-runbook`, `cwk-triage`, `cwk-user-story` |
+| `untrusted-input.md` | all 32 skills |
+| `html-builder.js` + `render-html.cjs` | the 18 skills that render HTML |
+| `provenlens-evidence.md` | `cwk-ask`, `cwk-build`, `cwk-document`, `cwk-fix-bug`, `cwk-plan`, `cwk-qa`, `cwk-pr`, `cwk-review`, `cwk-runbook`, `cwk-sre`, `cwk-triage`, `cwk-user-story` |
 | `review-skills-universal.md` | `cwk-build`, `cwk-pr`, `cwk-rescan`, `cwk-review`, `cwk-scan`, `cwk-security-audit` |
 | `review-protocol.md` + `review-traps.md` | `cwk-pr`, `cwk-review` |
 | `check-mermaid.cjs` | `cwk-document`, `cwk-rescan`, `cwk-runbook`, `cwk-scan` |
@@ -446,11 +454,11 @@ bash scaffold-cwk.sh                      # → ./claude-code-workflow-kit/
 bash scaffold-cwk.sh my-docs-project      # → ./my-docs-project/
 ```
 
-It produces **242 files in 77 directories**, and the paths were diffed against the real repository —
+It produces **248 files in 79 directories**, and the paths were diffed against the real repository —
 they match exactly.
 
 Nothing is overwritten. Re-running it after you have started filling files in reports
-`0 file(s) created, 242 already present` and leaves your work alone, so it is safe to run again when
+`0 file(s) created, 248 already present` and leaves your work alone, so it is safe to run again when
 the structure grows.
 
 To turn the result into a git repository:
@@ -461,7 +469,7 @@ git init -b main && git add -A && git commit -m "Scaffold: kit structure"
 ```
 
 Note that `git add` ignores empty files by default in the sense that it stores them as empty blobs —
-they are committed, but a reviewer sees 242 empty files. If you would rather commit only what you
+they are committed, but a reviewer sees 248 empty files. If you would rather commit only what you
 have written, fill the files first and commit in batches.
 
 ### Regenerating the script from a real repository

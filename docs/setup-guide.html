@@ -214,7 +214,7 @@ claude
 
   <!-- ============ PROVENLENS (optional) ============ -->
   <h2 id="provenlens">🔗 3b. Optional: <code>provenlens</code> — the call graph</h2>
-  <p>Nothing here needs it. But <b>28 of the 31 skills</b> use it when a repository has a
+  <p>Nothing here needs it. But <b>29 of the 32 skills</b> use it when a repository has a
   <code>.provenlens/</code> index, and grep when it does not — and when they fall back they
   <b>say so</b>, marking the output <code>⚠️ grep-depth only (no provenlens index)</code>. That
   sentence is the point: a caller list from grep and one from a resolved call graph are not the
@@ -270,6 +270,7 @@ cd /path/to/your/repo &amp;&amp; provenlens init .</code></pre>
       <tr><td><code>/cwk-observe</code></td><td>Structured logs + correlation IDs + metrics — <b>edits code</b></td><td>Observability</td></tr>
       <tr><td><code>/cwk-rails-to-spring</code></td><td>Contract-first stack port (e.g. Rails+GraphQL → Spring Boot), golden-test parity — <b>edits code</b></td><td>Migrations between stacks</td></tr>
       <tr><td><code>/cwk-splunk-report</code></td><td>Per-app Splunk error digest → one table → Slack (needs network + env creds)</td><td>Ops / on-call</td></tr>
+      <tr><td><code>/cwk-sre</code></td><td>SRE review of an AWS Elastic Beanstalk / EC2 app: metrics vs baseline, deploys, logs → code → fixes + issue drafts (read-only aws CLI)</td><td>Ops / SRE</td></tr>
       <tr><td><code>/cwk-triage</code></td><td>Slack incident thread → Splunk logs → root cause + the change behind it → reply draft / Rally defect (needs Slack + Splunk MCP; sends nothing without your yes)</td><td>Ops / on-call</td></tr>
       <tr><td><code>/cwk-pdf</code></td><td>Export a .md/.html report to PDF</td><td>Sharing</td></tr>
       <tr><td><code>/cwk-retro</code></td><td>Retrospective from git history → action items</td><td>End of week/sprint</td></tr>

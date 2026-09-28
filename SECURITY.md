@@ -16,7 +16,8 @@ verify it yourself.
      (whitelisted commands only); it makes no network calls of its own.
   3. `cwk-splunk-report` and `cwk-triage` (prompts, not code) — the agent queries Splunk and reads or
      posts to Slack (triage: also Rally) through the connected MCP servers or env credentials, never
-     hardcoded; nothing is posted or created without the user's yes in that turn.
+     hardcoded; nothing is posted or created without the user's yes in that turn. `cwk-sre` (a
+     prompt) calls AWS through the `aws` CLI and the profile the user names, read-only verbs only.
   4. `scripts/kb-pipeline.sh` runs `claude -p` in the repos you name; `scripts/schedule.sh` writes
      your crontab (after showing the change) so cron runs `claude -p` later.
   5. `scripts/fetch-vendor.sh` downloads the pinned Mermaid/Cytoscape builds (`npm pack` / `curl`

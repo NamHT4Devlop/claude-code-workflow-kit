@@ -14,6 +14,30 @@ noted per release when it changed.
 
 ---
 
+## [6.1.0] — 2026-09-28
+
+### Added
+- **`/cwk-sre`** — an SRE health and performance review of an application on AWS Elastic Beanstalk /
+  EC2, read-only through the `aws` CLI.
+  - It maps the environment and its deploys (application version → commit).
+  - It checks what can be observed and reports gaps as findings with the fix: EC2 has no memory
+    metric without the CloudWatch Agent; enhanced health; logs in CloudWatch.
+  - It pulls CPU (and CPU credits), memory, swap, disk, network, EBS, ALB traffic, 4xx/5xx,
+    latency p50/p99, fleet health and RDS against a 7-day baseline, with charts.
+  - It reads the top log errors with Logs Insights, after one confirmation: it is billed, and log
+    lines hold customer data.
+  - It reads the signals USE/RED-style, with runtime-specific suspects for Java/Spring, Node.js,
+    Ruby/Rails and Python, and traces code findings into the repo through the KB and provenlens,
+    with a reach ledger.
+  - The output is a report with prioritised findings (P1–P3), each with class, confidence, evidence,
+    a concrete fix, a verification step and the skill to carry it out (`/cwk-perf`, `/cwk-fix-bug`,
+    `/cwk-observe`), plus one ready-to-paste issue draft per finding.
+  - It changes nothing in AWS or the repo and creates no issue. Only read verbs are allowed, and
+    environment-property values are never printed.
+- VS Code extension **v0.21.0**: an *SRE health review (AWS EB/EC2)* card.
+
+---
+
 ## [6.0.0] — 2026-09-28
 
 ### Removed

@@ -33,6 +33,7 @@ Commands — `/cwk-<name>` with the personal install, `/cwk:<name>` with the plu
 | `/cwk-runbook [service]` | Operational runbook from the KB + real deploy/CI config: health checks, deploy/rollback, incident playbooks, alerts→action, escalation. Never invents a command or an owner. |
 | `/cwk-retro [window]` | Engineering retrospective from git history — shipped, pain, action items. |
 | `/cwk-skillify <name+purpose>` | Scaffold a new cwk-* skill + command (self-extend the kit). |
+| `/cwk-sre [app env]` | SRE review of an Elastic Beanstalk / EC2 app: CPU, memory, network, latency, 5xx vs baseline, deploys, logs → code → report with fixes + issue drafts. Read-only (aws CLI). |
 | `/cwk-triage <Slack thread link>` | Slack incident → Splunk logs → KB + code → root cause + the commit/PR behind it → reply draft (+ Rally defect). Read-only; nothing sent without your yes. |
 | `/cwk-splunk-report [apps+window]` | Query Splunk for per-app errors (default last 24h) → one table → post to Slack. Read-only; creds from env. |
 | `/cwk-observe [area]` | Instrument code: structured logs, correlation/trace IDs, metrics, error context — matches the backend schema. |
@@ -109,7 +110,7 @@ the same six everywhere:
 
 ## Optional: `provenlens`
 
-If the repo has a `.provenlens/` index, **28 of the 31 skills** answer "who calls what" from a resolved
+If the repo has a `.provenlens/` index, **29 of the 32 skills** answer "who calls what" from a resolved
 call graph rather than grep — real callers, blast radius, and the tests that already cover a change.
 Without it they fall back and label the output `⚠️ grep-depth only (no provenlens index)`, so you can
 always tell which a finding rests on. Covers **Java · Ruby · TypeScript/JavaScript** only.

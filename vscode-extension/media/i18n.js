@@ -43,6 +43,11 @@ const I18N_VI = {
   'Docs vs reality check': 'Đối chiếu tài liệu với code',
   'Splunk error digest': 'Tổng hợp lỗi từ Splunk',
   'Triage a Slack incident': 'Phân tích sự cố từ Slack',
+  'SRE health review (AWS EB/EC2)': 'Rà soát sức khoẻ SRE (AWS EB/EC2)',
+  'CPU, memory, network, latency, 5xx vs baseline → code → fixes + issue drafts. Read-only.':
+    'CPU, bộ nhớ, mạng, độ trễ, 5xx so với mức nền → code → gợi ý fix + nháp issue. Chỉ đọc.',
+  'EB application + environment': 'Ứng dụng + môi trường EB',
+  'AWS profile / region / window (blank = it asks)': 'AWS profile / region / khoảng thời gian (bỏ trống = sẽ hỏi)',
   'Operational runbook': 'Runbook vận hành',
   'Export to PDF': 'Xuất ra PDF',
   'Create a new skill': 'Tạo skill mới',

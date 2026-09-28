@@ -19,8 +19,8 @@ claude-code-workflow-kit/
 ├── .claude-plugin/
 │   ├── plugin.json          # plugin manifest
 │   └── marketplace.json     # local marketplace (for one-command install)
-├── commands/                # 32 slash commands → /cwk:build (plugin) or /cwk-build (personal), …
-├── skills/                  # 31 skills (the methodology — also usable standalone)
+├── commands/                # 33 slash commands → /cwk:build (plugin) or /cwk-build (personal), …
+├── skills/                  # 32 skills (the methodology — also usable standalone)
 │   ├── cwk-build/          #   14-step pipeline   (+ bundled review checklist)
 │   ├── cwk-scan/           #   KB generation       (+ bundled kb-steps spec)
 │   ├── cwk-rescan/         #   incremental KB update
@@ -104,7 +104,7 @@ commands are typed into Claude Code, not your shell):
 After install, commands are namespaced by the plugin (type `/` to see them):
 `/cwk:scan`, `/cwk:rescan`, `/cwk:build`, `/cwk:fix-bug`, `/cwk:review`, `/cwk:ask`,
 `/cwk:plan`, `/cwk:map`, `/cwk:system-map`, `/cwk:document`, `/cwk:help`.
-The 31 skills and 7 sub-agents load automatically (skills also activate from plain English). The
+The 32 skills and 7 sub-agents load automatically (skills also activate from plain English). The
 plugin ships **no hooks** (since 6.0.0): what the agent may do is decided by Claude Code's permission
 mode and your `permissions` rules alone.
 (The personal symlink install — Option C — exposes the same commands as `/cwk-build`, etc.)
@@ -315,6 +315,7 @@ If you keep many repos under one parent folder (a "workspace"), follow this sepa
 | `/cwk-runbook [service]` | Turn the KB + the repo's real deploy/CI/error-handling config into an **operational runbook**: health checks, deploy and rollback (incl. what rollback does *not* undo), symptom→fix incident playbooks, alerts→action, data recovery. Marks what only a human knows instead of inventing it. |
 | `/cwk-skillify <name+purpose>` | Scaffold a new `cwk-*` skill + command following the conventions (self-extend the kit). |
 | `/cwk-splunk-report [apps + window]` | Query Splunk for per-app errors over a window (default today), aggregate into one table, and post it to Slack. Read-only on Splunk; credentials from env/MCP, never hardcoded. Needs network. |
+| `/cwk-sre [app env]` | SRE health and performance review of an AWS Elastic Beanstalk / EC2 app, read-only through the `aws` CLI: CPU, memory (CloudWatch Agent), disk, network, ALB latency and 5xx against a 7-day baseline, deploy correlation and top log errors, traced into the code via the KB → a report with prioritised findings, fixes, verification steps and ready-to-paste issue drafts. Changes nothing, creates no issue. |
 | `/cwk-triage <Slack thread link>` | Triage an incident reported in a Slack thread: pull the matching Splunk logs, map them to the code through the KB, classify it (code / config / data / flag / dependency / spec), find the root cause and the commit / PR that introduced it, and draft a reply — issue · root cause · change · fix — plus an optional Rally defect. Read-only on code; posts or creates nothing without your yes. Needs Slack + Splunk MCP. |
 | `/cwk-user-story <requirement or Slack link>` | Deep-investigate a requirement (or comprehend a Slack thread) → features + INVEST user stories with maximally granular Given/When/Then ACs. |
 | `/cwk-rails-to-spring <endpoint set>` | Contract-first port to another stack (e.g. Rails+GraphQL → Spring Boot/MyBatis) — golden-test parity per endpoint, strangler cutover. Edits code. |
@@ -412,7 +413,7 @@ The Knowledge Base above is what the system **means**. [`provenlens`](https://gi
 is what it **does**: a pre-built graph of symbols and who-calls-what, so a skill can ask for the real
 callers of a symbol instead of grepping for its name.
 
-Nothing here requires it. **28 of the 31 skills** use it when a `.provenlens/` index is present and
+Nothing here requires it. **29 of the 32 skills** use it when a `.provenlens/` index is present and
 fall back to Grep/Glob when it is not — and when they fall back they say so, marking the output
 `⚠️ grep-depth only (no provenlens index)`. That sentence is the point: a caller list from grep and one
 from a resolved call graph are not the same claim, and an impact analysis that hides which one it
@@ -452,8 +453,8 @@ degraded to grep must say so — and `resources/kb-steps.md` makes structural cl
 graph where one exists, while forbidding graph output from being pasted into a KB page (a fan-in
 number is not a business meaning).
 
-Eleven skills whose output someone acts on — `ask`, `document`, `user-story`, `plan`, `runbook`,
-`fix-bug`, `build`, `review`, `pr`, `qa`, `triage` — go further and carry the **evidence protocol**
+Twelve skills whose output someone acts on — `ask`, `document`, `user-story`, `plan`, `runbook`,
+`fix-bug`, `build`, `review`, `pr`, `qa`, `triage`, `sre` — go further and carry the **evidence protocol**
 (`resources/provenlens-evidence.md`): an evidence line at the top, a **reach ledger** (every consumer
 the graph reaches is covered in the output or named as a gap — the anti-miss table), and the
 `provenlens export --format mermaid` / `path` graph pasted in. A runbook's playbooks each carry their
