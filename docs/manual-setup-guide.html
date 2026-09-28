@@ -114,7 +114,7 @@
   <p>Dán đoạn này 1 lần vào terminal máy đích. Nó tạo đúng cây thư mục + file rỗng (bạn điền nội dung ở
   bước 2). Các file reference được cố tình bỏ qua — <code>sync-bundles.sh</code> sẽ sinh chúng ở bước 3.</p>
   <div class="cb"><button class="copy">Copy</button><pre><code>ROOT=~/claude-code-workflow-kit          <span class="cmt"># ⬅ đổi thành BẤT KỲ đường dẫn nào bạn muốn</span>
-mkdir -p "$ROOT"/{commands,agents,hooks,scripts,resources}
+mkdir -p "$ROOT"/{commands,agents,scripts,resources}
 
 <span class="cmt"># 31 skill → mỗi skill 1 file SKILL.md</span>
 for s in cwk-ask cwk-build cwk-design-review cwk-discover cwk-document \
@@ -148,8 +148,8 @@ for a in cwk-architecture-reviewer cwk-business-consistency-reviewer \
          cwk-business-flow-tracer cwk-codebase-analyzer cwk-impact-detector \
          cwk-performance-reviewer cwk-security-reviewer; do touch "$ROOT/agents/$a.md"; done
 
-<span class="cmt"># hook + script</span>
-touch "$ROOT/hooks/file-guard.sh" "$ROOT/scripts/personal-install.sh" "$ROOT/scripts/sync-bundles.sh"
+<span class="cmt"># script</span>
+touch "$ROOT/scripts/personal-install.sh" "$ROOT/scripts/sync-bundles.sh"
 
 echo "✅ Tạo khung xong. Danh sách file cần dán nội dung:"; find "$ROOT" -type f | sort</code></pre></div>
 
@@ -159,9 +159,9 @@ echo "✅ Tạo khung xong. Danh sách file cần dán nội dung:"; find "$ROOT
   Raw cho text thuần (không dính HTML). Mẫu URL:</p>
   <div class="cb"><button class="copy">Copy</button><pre><code>https://raw.githubusercontent.com/NamHT4Devlop/claude-code-workflow-kit/main/&lt;đường-dẫn&gt;</code></pre></div>
   <p class="muted">Ví dụ: <code>.../main/skills/cwk-build/SKILL.md</code>, <code>.../main/commands/build.md</code>,
-  <code>.../main/hooks/file-guard.sh</code>.</p>
-  <p><b>Phải dán (93 file):</b> 31 × <code>skills/*/SKILL.md</code> · 32 × <code>commands/*.md</code> ·
-  7 × <code>agents/*.md</code> · 9 × <code>resources/*</code> · <code>hooks/file-guard.sh</code> ·
+  <code>.../main/scripts/personal-install.sh</code>.</p>
+  <p><b>Phải dán (92 file):</b> 31 × <code>skills/*/SKILL.md</code> · 32 × <code>commands/*.md</code> ·
+  7 × <code>agents/*.md</code> · 9 × <code>resources/*</code> ·
   <code>scripts/personal-install.sh</code> · <code>scripts/sync-bundles.sh</code> ·
   11 file riêng của map/pdf/rails-to-spring/runbook.</p>
   <table>
@@ -169,7 +169,7 @@ echo "✅ Tạo khung xong. Danh sách file cần dán nội dung:"; find "$ROOT
     <tbody>
       <tr><td><code>skills/cwk-map/references/graph-builder.js</code></td><td>File lớn (compiled) — chỉ cho <code>/cwk-map</code>. Không cần map thì bỏ luôn 6 file của map.</td></tr>
       <tr><td><code>vendor/*.min.js</code></td><td><b>Không cần dán tay.</b> Chạy <code>scripts/fetch-vendor.sh</code> để máy tự tải (ưu tiên <b>npm</b> — dùng đúng registry nội bộ công ty đã duyệt; không có npm thì lấy từ cdnjs), rồi tự đối chiếu <code>vendor/SHA256SUMS</code>. Bỏ qua cũng được nếu máy có mạng — lúc đó diagram lấy từ CDN. Chỉ bắt buộc khi mạng chặn CDN hoặc máy air-gapped.</td></tr>
-      <tr><td><code>README / SECURITY / LICENSE / docs / tests / .github / .claude-plugin / hooks.json</code></td><td>Không cần để chạy bản cài cá nhân.</td></tr>
+      <tr><td><code>README / SECURITY / LICENSE / docs / tests / .github / .claude-plugin</code></td><td>Không cần để chạy bản cài cá nhân.</td></tr>
     </tbody>
   </table>
 
@@ -178,7 +178,7 @@ echo "✅ Tạo khung xong. Danh sách file cần dán nội dung:"; find "$ROOT
   <div class="cb"><button class="copy">Copy</button><pre><code>ROOT=~/claude-code-workflow-kit          <span class="cmt"># ⬅ cùng đường dẫn đã chọn ở bước 1</span>
 
 <span class="cmt"># 1) cấp quyền chạy (file tạo bằng editor KHÔNG có execute bit — bắt buộc)</span>
-chmod +x "$ROOT"/scripts/*.sh "$ROOT"/hooks/file-guard.sh \
+chmod +x "$ROOT"/scripts/*.sh \
          "$ROOT"/skills/cwk-pdf/references/html-to-pdf.sh 2&gt;/dev/null
 
 <span class="cmt"># 2) nhân các file reference dùng chung ra mọi skill (từ resources/)</span>
@@ -192,13 +192,17 @@ touch ~/.gitignore_global
 printf '%s\n' 'cwk-sessions/' 'spec-kit-sessions/' 'knowledge-base/' 'CLAUDE.local.md' &gt;&gt; ~/.gitignore_global
 git config --global core.excludesfile ~/.gitignore_global</code></pre></div>
 
-  <h3>5) Lắp rào bảo vệ file cấu hình</h3>
-  <p>Mở <code>~/.claude/settings.json</code> và gộp khối sau vào (đừng xoá phần đang có). Hook này chặn AI sửa
-  <code>settings.json</code>, các hook, <code>~/.gitconfig</code>, <code>.git/config</code>, <code>~/.ssh</code>, <code>~/.aws</code>:</p>
+  <h3>5) Chặn AI sửa file cấu hình &amp; khoá bí mật</h3>
+  <p>Kit <b>không kèm hook nào</b> (từ 6.0.0) — việc này do chính Claude Code lo, qua <code>permissions.deny</code>.
+  Mở <code>~/.claude/settings.json</code> và gộp khối sau vào (đừng xoá phần đang có). Các luật này chặn công cụ sửa file của AI
+  đụng vào <code>settings.json</code>, <code>~/.claude.json</code>, <code>~/.gitconfig</code>, <code>.git/config</code>, <code>~/.ssh</code>, <code>~/.aws</code>
+  (luật <code>Edit(…)</code> không chặn được lệnh shell ghi file — hãy đọc kỹ lệnh Bash trước khi duyệt). Máy công ty thì để IT
+  triển khai qua <i>managed settings</i>:</p>
   <div class="cb"><button class="copy">Copy</button><pre><code>{
-  "hooks": { "PreToolUse": [
-    { "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit", "hooks": [
-      { "type": "command", "command": "~/.claude/hooks/cwk-file-guard.sh", "timeout": 10 } ] }
+  "permissions": { "deny": [
+    "Edit(~/.claude/settings.json)", "Edit(~/.claude/settings.local.json)", "Edit(~/.claude.json)",
+    "Edit(~/.gitconfig)", "Edit(**/.git/config)", "Edit(~/.ssh/**)", "Edit(~/.aws/**)",
+    "Read(~/.ssh/**)", "Read(~/.aws/**)", "Bash(rm -rf ~/.claude*)"
   ] }
 }</code></pre></div>
   <div class="box danger"><div class="ti">⚠️ Kit không chặn lệnh git (từ 4.0.0)</div>
@@ -208,16 +212,14 @@ git config --global core.excludesfile ~/.gitignore_global</code></pre></div>
     Sau đó <b>restart Claude Code</b> để có hiệu lực.</div>
 
   <h3>6) Kiểm tra</h3>
-  <div class="cb"><button class="copy">Copy</button><pre><code>ls -la ~/.claude/skills | grep cwk-     <span class="cmt"># thấy 30 skill</span>
-<span class="cmt"># rào file → phải in ra JSON "deny"</span>
-printf '{"tool_name":"Write","tool_input":{"file_path":"%s/.claude/settings.json"}}' "$HOME" | ~/.claude/hooks/cwk-file-guard.sh</code></pre></div>
-  <p>Trong Claude Code gõ <span class="kbd">/</span> → thấy <code>/cwk-*</code>; chạy <code>/cwk-help</code>.</p>
+  <div class="cb"><button class="copy">Copy</button><pre><code>ls -la ~/.claude/skills | grep cwk-     <span class="cmt"># thấy 31 skill</span></code></pre></div>
+  <p>Trong Claude Code gõ <span class="kbd">/</span> → thấy <code>/cwk-*</code>; chạy <code>/cwk-help</code>; gõ <span class="kbd">/permissions</span> → thấy các luật <code>deny</code> ở bước 5.</p>
 
   <!-- 4 -->
   <h2 id="notes">⚠️ 4. Lưu ý quan trọng</h2>
   <ul>
     <li><b>Dán nguyên văn</b> — giữ nguyên dòng đầu (vd <code>#!/usr/bin/env bash</code> trong
-      <code>file-guard.sh</code>, và các file <code>.cjs</code>/<code>.js</code>/<code>.sh</code>). Sai 1 ký tự đầu là script lỗi.</li>
+      <code>personal-install.sh</code>, và các file <code>.cjs</code>/<code>.js</code>/<code>.sh</code>). Sai 1 ký tự đầu là script lỗi.</li>
     <li><b>Execute bit</b> không được giữ khi bạn tạo file bằng editor — bước <code>chmod +x</code> ở mục 3 là bắt buộc.</li>
     <li><b>Không có <code>git pull</code></b> (bạn không clone). Muốn cập nhật: dán lại nội dung các file đã đổi, rồi chạy lại <code>sync-bundles.sh</code> + <code>personal-install.sh</code>.</li>
     <li><b>Chính sách công ty:</b> dựng lại tool ngoài trên máy công ty vẫn có thể thuộc diện quản lý của IT/Security — xác nhận trước khi dùng.</li>

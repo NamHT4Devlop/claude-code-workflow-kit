@@ -14,6 +14,30 @@ noted per release when it changed.
 
 ---
 
+## [6.0.0] — 2026-09-28
+
+### Removed
+- **The file-guard hook.** `hooks/file-guard.sh`, `hooks/hooks.json` and its 383 tests are gone, and so
+  is every instruction to install, deploy or verify it. The kit now ships **no hooks at all**. The
+  plugin registers none, `personal-install.sh` links none, and nothing in the kit stops the agent
+  from editing `settings.json`, `.git/config`, `~/.ssh` or similar. What the agent may do is decided
+  by Claude Code's permission mode and your `permissions` rules alone. SECURITY.md lists the
+  `permissions.deny` rules that take over the guard's job, ideally deployed from managed settings.
+
+### You have to do this after updating
+- **If you registered the hook by hand** (personal install, or a company managed-settings entry),
+  remove it from `settings.json`. A registered hook whose file no longer exists fails on every call
+  it matches. `personal-install.sh` deletes the old `~/.claude/hooks/cwk-file-guard.sh` link and
+  prints the exact `jq` command when it finds the entry. It also does this for the git-guard retired
+  in 4.0.0.
+
+### Changed
+- `tests/consistency.test.sh` checks that no `hooks/` directory comes back and that no doc still
+  tells you to install the hook. This replaces the hook-wiring check.
+- VS Code extension **v0.20.0**: wording only (no hook to mention). Readonly mode is unchanged.
+
+---
+
 ## [5.0.0] — 2026-09-28
 
 A whole-kit review: six parallel reviews of the scripts, the Node generators, all 31 skills, the

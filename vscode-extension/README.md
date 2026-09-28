@@ -67,8 +67,8 @@ webview (cards + form)  --run{command,args}-->  extension host
 - Runs use `--permission-mode acceptEdits` by default (writes inside the workspace only; no
   arbitrary Bash, no network) — see `cwkUi.extraArgs`. In `readonly` mode the CLI gets
   `--permission-mode default` plus a read-only tool allowlist, whatever `extraArgs` says.
-- The **file-guard hook** still applies in every mode (PreToolUse runs before the permission check).
-  It protects the policy and credential files only; the kit restricts no git command since 4.0.0.
+- The kit ships **no hooks** (since 6.0.0) and restricts no git command (since 4.0.0): the permission
+  mode and your own `permissions` rules are the only boundary.
 
 ## Cost & tokens
 Each run shows a **cost chip** — the tokens used (`input→output`, plus **`… cached`** = KB context
@@ -112,8 +112,8 @@ fails the build if a card is reworded and leaves its translation stranded.
   in a scanned repository** (a README, a comment, a test fixture) can drive all of it. Anthropic
   recommends that mode only in an isolated environment; the panel shows a warning once per session
   when it is set. **Nothing in the kit restricts git** since 4.0.0, so in that mode a destructive or
-  remote git command (`push --force`, `reset --hard`) runs with no prompt. The file-guard hook still
-  protects the policy and credential files, but it is **defense-in-depth, not a sandbox**.
+  remote git command (`push --force`, `reset --hard`) runs with no prompt, and so does an edit to
+  `settings.json` or `~/.ssh` — the kit ships no hook that would stop it.
 - `cwkUi.mode` — `full` (default) or `readonly`. In **readonly** the host refuses **every path
   that could reach an edit**, not just the cards: the seven code-editing skills, the free-chat
   "Ask anything" card (a raw prompt can ask for anything), and **follow-ups** (a follow-up resumes

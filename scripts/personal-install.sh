@@ -40,7 +40,7 @@ unlink_ours() {
 if [ "${1:-install}" = "uninstall" ]; then
   echo "▶  Uninstalling (personal)…"
   unlink_ours
-  # cwk-git-guard.sh / namht-git-guard.sh are links to a hook this kit no longer ships (removed in 4.0.0).
+  # links to hooks this kit no longer ships (git-guard removed in 4.0.0, file-guard in 6.0.0)
   for h in cwk-file-guard.sh cwk-git-guard.sh namht-git-guard.sh; do
     [ -L "$DEST/hooks/$h" ] && rm -f "$DEST/hooks/$h" && echo "   - removed hooks/$h"
   done
@@ -62,24 +62,17 @@ for f in "$SRC"/commands/*.md; do [ -f "$f" ] && ln -sfn "$f"     "$DEST/command
 
 echo "   ✅ linked $n_s skills, $n_a agents, $n_c commands"
 
-# ── guard hook: file-guard (policy files and credentials stay read-only to the agent) ──
-mkdir -p "$DEST/hooks"
-ln -sfn "$SRC/hooks/file-guard.sh" "$DEST/hooks/cwk-file-guard.sh"
-echo "   ✅ linked hooks/cwk-file-guard.sh"
-# The git-guard hook was removed in 4.0.0. Its old links now point at nothing; drop them, and say so if
-# settings.json still names one — a registered hook whose file is gone fails on every Bash call.
-for h in cwk-git-guard.sh namht-git-guard.sh; do
+# The kit ships no hooks: git-guard was removed in 4.0.0, file-guard in 6.0.0. Their old links now
+# point at nothing; drop them, and say so if settings.json still names one — a registered hook whose
+# file is gone fails on every call it matches.
+for h in cwk-file-guard.sh cwk-git-guard.sh namht-git-guard.sh; do
   [ -L "$DEST/hooks/$h" ] && rm -f "$DEST/hooks/$h" && echo "   - removed the retired link hooks/$h"
 done
-if [ -f "$DEST/settings.json" ] && grep -q 'git-guard' "$DEST/settings.json"; then
-  echo "   ⚠  $DEST/settings.json still registers the retired git-guard hook. Remove that entry:"
-  echo "        jq '.hooks.PreToolUse |= map(select(any(.hooks[]; .command | test(\"git-guard\")) | not))' \\"
+if [ -f "$DEST/settings.json" ] && grep -Eq 'file-guard|git-guard' "$DEST/settings.json"; then
+  echo "   ⚠  $DEST/settings.json still registers a retired cwk hook (file-guard or git-guard). Remove it:"
+  echo "        jq '.hooks.PreToolUse |= map(select(any(.hooks[]; .command | test(\"file-guard|git-guard\")) | not))' \\"
   echo "          $DEST/settings.json > /tmp/s.json && mv /tmp/s.json $DEST/settings.json"
 fi
-echo "   ⚠  To ARM the file guard, add this to $DEST/settings.json (one time; see SECURITY.md):"
-echo '        hooks.PreToolUse += { "matcher":"Bash|Edit|Write|MultiEdit|NotebookEdit", "hooks":[{"type":"command",'
-echo "          \"command\":\"$DEST/hooks/cwk-file-guard.sh\",\"timeout\":10}] }"
-echo "   A company deploys the hook read-only from managed settings instead — see docs/company-setup-guide.html."
 
 echo "✔  Done. Open Claude Code in any project and use /cwk-build, /cwk-ask, /cwk-review, …"
 echo "   Upgrading from 2.x? Rename each repo's namht-sessions/ with scripts/migrate-sessions.sh and add cwk-sessions/ to ~/.gitignore_global."

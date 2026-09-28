@@ -60,12 +60,12 @@
     <div class="eyebrow">Claude Code · Company deployment · Security approval + install</div>
     <h1>🏢 “Workflow Kit” (the <code>/cwk-*</code> commands) on company machines</h1>
     <p class="sub"><b>Part A</b> is written for the security team that has to approve the kit: what it is, what it is
-    not, how to deploy its guards as <i>policy</i> rather than as a suggestion, what leaves the machine, and a
+    not, how to deploy the protections around it as <i>policy</i> rather than as a suggestion, what leaves the machine, and a
     checklist. <b>Part B</b> is the engineer's step-by-step install, unchanged in substance from earlier versions
     of this page.</p>
     <div style="margin-top:10px">
       <span class="pill">📄 Prompts + short scripts</span><span class="pill">📡 No telemetry</span>
-      <span class="pill">🔒 Guards enforceable from managed settings</span><span class="pill">🧾 Audit trail (JSONL)</span>
+      <span class="pill">🔒 Deny rules enforceable from managed settings</span><span class="pill">🧾 Audit trail (JSONL)</span>
       <span class="pill">🙈 Zero footprint on team repos</span>
     </div>
   </header>
@@ -76,7 +76,7 @@
       <tr><td><b>Claude Code</b></td><td>Anthropic's AI coding agent in the terminal/IDE. The kit runs <i>inside</i> it; it has no runtime of its own.</td></tr>
       <tr><td><b>Skill / command</b></td><td>A Markdown prompt. <code>/cwk-scan</code>, <code>/cwk-review</code>, … are instructions the agent follows, not programs.</td></tr>
       <tr><td><b>Knowledge Base (KB)</b></td><td><code>knowledge-base/</code> — a written distillation of one repo: business rules, data model, auth model, endpoints, integrations. Page for page, often more sensitive than the code.</td></tr>
-      <tr><td><b>Hook</b></td><td>A script Claude Code runs <i>before</i> a tool call and that can deny it. Installed from <b>managed settings</b> it cannot be switched off by the user or the agent.</td></tr>
+      <tr><td><b>Deny rule</b></td><td>An entry in <code>permissions.deny</code>, such as <code>Edit(~/.ssh/**)</code> or <code>Bash(sudo:*)</code>: Claude Code refuses every matching tool call. Set from <b>managed settings</b> it cannot be switched off by the user or the agent. (The kit ships no hooks.)</td></tr>
       <tr><td><b>Managed settings</b></td><td>A settings file owned by the machine administrator that overrides every user/project setting: <code>/Library/Application Support/ClaudeCode/managed-settings.json</code> (macOS), <code>/etc/claude-code/managed-settings.json</code> (Linux/WSL), <code>C:\Program Files\ClaudeCode\managed-settings.json</code> (Windows).</td></tr>
     </table>
   </div>
@@ -85,7 +85,7 @@
     <strong>Part A — for the security team</strong>
     <ol>
       <li><a href="#a1">What the kit is, and is not</a></li>
-      <li><a href="#a2">Deploying the guards as policy (managed settings)</a></li>
+      <li><a href="#a2">Deploying the deny list as policy (managed settings)</a></li>
       <li><a href="#a3">Baseline <code>permissions.deny</code> and permission mode per role</a></li>
       <li><a href="#a4">GitHub Enterprise Server, proxies, offline</a></li>
       <li><a href="#a5">Windows</a></li>
@@ -100,7 +100,7 @@
       <li><a href="#pre">Prerequisites</a></li>
       <li><a href="#get">Get the toolkit</a></li>
       <li><a href="#install">Install for yourself</a></li>
-      <li><a href="#safe">Enable the guards on a machine without managed settings</a></li>
+      <li><a href="#safe">Protect settings and credentials on a machine without managed settings</a></li>
       <li><a href="#first">First use on a repo</a> · <a href="#provenlens">provenlens</a></li>
       <li><a href="#daily">Command table</a> · <a href="#verify">Verify</a> · <a href="#maintain">Update</a> · <a href="#trouble">Issues</a></li>
     </ol>
@@ -111,7 +111,7 @@
   <!-- A1 -->
   <h2 id="a1">A1. What the kit is, and is not</h2>
   <p><b>It is</b> a Claude Code plugin: about thirty Markdown prompts (<code>skills/</code>, <code>commands/</code>,
-  <code>agents/</code>), a handful of shell scripts (<code>scripts/</code>, <code>hooks/</code>) and three small Node
+  <code>agents/</code>), a handful of shell scripts (<code>scripts/</code>) and three small Node
   programs that turn Markdown or a call graph into a self-contained HTML page. There is no daemon, no server, no
   account, no API key of its own, no package it installs. The full executable-surface audit, with the
   <code>grep</code> commands to reproduce it, is in <code>SECURITY.md</code>.</p>
@@ -137,61 +137,46 @@
   <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># reproduce the surface audit in the kit checkout (expected hits: RegExp .exec, shadow-parity fetch, the extension's spawn)</span>
 grep -rnE "child_process|execSync|spawn|\beval\(|new Function|http\.|https\.|fetch\(|net\.|dns\." \
   --include='*.js' --include='*.cjs' --include='*.sh' --include='*.ts' .
-bash tests/run.sh          <span class="cmt"># every guard rule and every script that writes outside the repo is pinned by a test</span></code></pre></div>
+bash tests/run.sh          <span class="cmt"># every script that writes outside the repo is pinned by a test</span></code></pre></div>
 
   <!-- A2 -->
-  <h2 id="a2">A2. Deploying the file guard as policy</h2>
-  <p>One PreToolUse hook ships with the kit. Installed by an engineer in their own <code>~/.claude/settings.json</code>
-  it is a habit; installed by you from <b>managed settings</b>, with the hook file owned by root/admin, it is
-  policy the user and the agent cannot remove.</p>
-  <table>
-    <thead><tr><th>Hook</th><th>Matcher</th><th>What it does</th></tr></thead>
-    <tbody>
-      <tr><td><code>hooks/file-guard.sh</code></td><td><code>Edit|Write|MultiEdit|NotebookEdit</code> and <code>Bash</code></td><td>Blocks Edit/Write and shell writes to <code>settings.json</code>, the hooks, <code>~/.claude.json</code>, <code>~/.gitconfig</code>, <code>.git/config</code>, <code>~/.ssh</code>, <code>~/.aws</code> (and <code>~/.config/gh</code>, <code>~/.netrc</code>, the audit log), and removing or replacing a <code>.claude/</code> directory. Reads stay allowed. git is not restricted as git — it is only kept from rewriting those files by another route (<code>--work-tree</code>, <code>checkout</code>/<code>restore</code> of them, …). A guard against accidents and planted instructions, not a sandbox. Fails closed without <code>jq</code>.</td></tr>
-    </tbody>
-  </table>
+  <h2 id="a2">A2. Deploying the deny list as policy</h2>
+  <p>The kit ships <b>no hooks</b> (the file guard it used to ship was removed in 6.0.0), so nothing in it keeps the agent
+  away from its own settings or from credential files. Claude Code does that itself: the <b>permission mode</b> and
+  <code>permissions.deny</code>. Set by an engineer in their own <code>~/.claude/settings.json</code> the deny list is a
+  habit; set by you from <b>managed settings</b>, with the file owned by root/admin, it is policy the user and the agent
+  cannot remove.</p>
   <div class="box danger"><div class="ti">⚠️ The kit does not restrict git (since 4.0.0)</div>
     Up to 3.x the kit shipped a git guard that limited pushes to a whitelist and refused destructive git. It was removed.
     The agent may now run any git or <code>gh</code> command its permission mode allows — <code>push</code> to any remote,
     <code>push --force</code>, <code>reset --hard</code>, <code>rebase</code>. If your policy needs git restricted, do it with the
-    <code>permissions.deny</code> rules in step 2: those are enforced by Claude Code itself, not by this kit.</div>
+    <code>permissions.deny</code> rules in step 1: those are enforced by Claude Code itself, not by this kit.</div>
 
   <div class="step"><div class="num">1</div><div class="body">
-    <h3>Install the hook file read-only, owned by root/admin</h3>
-    <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># macOS / Linux — from a reviewed checkout of the kit, pinned to a tag</span>
-sudo mkdir -p /usr/local/lib/cwk
-sudo install -o root -g wheel -m 0755 hooks/file-guard.sh /usr/local/lib/cwk/file-guard.sh   <span class="cmt"># Linux: -g root</span>
-ls -l /usr/local/lib/cwk/                       <span class="cmt"># -rwxr-xr-x root … — nobody but root can rewrite the policy</span>
-which jq || echo "install jq: the hook denies everything without it"</code></pre></div>
-  </div></div>
-
-  <div class="step"><div class="num">2</div><div class="body">
-    <h3>Wire the hook and the deny list from managed settings</h3>
+    <h3>Deploy the deny list from managed settings</h3>
     <p>Path per OS: <code>/Library/Application Support/ClaudeCode/managed-settings.json</code> (macOS) ·
     <code>/etc/claude-code/managed-settings.json</code> (Linux/WSL) · <code>C:\Program Files\ClaudeCode\managed-settings.json</code>
-    (Windows). Claude Code applies this file above every user, project and <code>--settings</code> value; hooks and
+    (Windows). Claude Code applies this file above every user, project and <code>--settings</code> value;
     <code>permissions.deny</code> set here cannot be overridden. Make the file itself root-owned and <code>0644</code>.</p>
     <div class="cb"><button class="copy">Copy</button><pre><code>{
   "permissions": {
     "deny": [
       "Read(~/.ssh/**)", "Read(~/.aws/**)", "Read(**/.env)", "Read(**/.env.*)",
+      "Edit(~/.claude/settings.json)", "Edit(~/.claude/settings.local.json)", "Edit(~/.claude.json)",
+      "Edit(~/.claude/cwk-audit.jsonl)", "Edit(~/.gitconfig)", "Edit(**/.git/config)", "Edit(**/.git/hooks/**)",
+      "Edit(~/.ssh/**)", "Edit(~/.aws/**)", "Edit(~/.config/gh/**)", "Edit(~/.netrc)",
+      "Bash(rm -rf ~/.claude*)",
       "Bash(curl *| sh*)", "Bash(curl *| bash*)", "Bash(wget *| sh*)", "Bash(sudo:*)",
       "WebFetch"
-    ]
-  },
-  "hooks": {
-    "PreToolUse": [
-      { "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit", "hooks": [
-        { "type": "command", "command": "/usr/local/lib/cwk/file-guard.sh", "timeout": 10 } ] }
     ]
   }
 }</code></pre></div>
     <p class="muted">To restrict git as well, add rules such as <code>"Bash(git push:*)"</code>, <code>"Bash(git reset --hard:*)"</code>,
     <code>"Bash(git rebase:*)"</code>, <code>"Bash(git commit --amend:*)"</code>, <code>"Bash(git branch -D:*)"</code>,
     <code>"Bash(git remote set-url:*)"</code> to <code>deny</code>. A deny rule matches command text, so it is all-or-nothing:
-    it cannot allow a push to one organisation and refuse another. Verify on a machine after a Claude Code restart:</p>
-    <div class="cb"><button class="copy">Copy</button><pre><code>printf '{"tool_name":"Write","tool_input":{"file_path":"%s/.claude/settings.json"}}' "$HOME" | /usr/local/lib/cwk/file-guard.sh
-<span class="cmt"># → …"permissionDecision":"deny"…</span></code></pre></div>
+    it cannot allow a push to one organisation and refuse another. Verify on a machine after a Claude Code restart:
+    <span class="kbd">/permissions</span> lists the managed rules, and asking the agent to edit <code>~/.claude/settings.json</code>
+    is refused without a prompt.</p>
   </div></div>
 
   <!-- A3 -->
@@ -201,12 +186,13 @@ which jq || echo "install jq: the hook denies everything without it"</code></pre
   <table>
     <thead><tr><th>Rule</th><th>Why</th></tr></thead>
     <tbody>
-      <tr><td><code>Read(~/.ssh/**)</code>, <code>Read(~/.aws/**)</code></td><td>Private keys and cloud credentials never need to be in a model context. (The file-guard blocks <i>writes</i> there; this blocks reads.)</td></tr>
+      <tr><td><code>Read(~/.ssh/**)</code>, <code>Read(~/.aws/**)</code></td><td>Private keys and cloud credentials never need to be in a model context. (The <code>Edit(…)</code> rules below block <i>writes</i> there; this blocks reads.)</td></tr>
       <tr><td><code>Read(**/.env)</code>, <code>Read(**/.env.*)</code></td><td>Local secrets. <code>/cwk-scan</code> already skips secret files and records only that one exists; this makes it a rule, not a habit.</td></tr>
+      <tr><td><code>Edit(~/.claude/settings.json)</code>, <code>Edit(~/.claude.json)</code>, <code>Edit(**/.git/config)</code>, <code>Edit(~/.ssh/**)</code>, … and <code>Bash(rm -rf ~/.claude*)</code></td><td>The agent cannot rewrite its own policy, its MCP server commands, git configuration, credential stores or the audit log through its file tools. An <code>Edit</code> rule does not cover a shell redirection or <code>sed -i</code>, and a <code>Bash</code> rule matches command text only — keep Bash commands prompting (<code>acceptEdits</code>, not <code>bypassPermissions</code>) so those still ask.</td></tr>
       <tr><td><code>Bash(curl *| sh*)</code>, <code>Bash(curl *| bash*)</code>, <code>Bash(wget *| sh*)</code></td><td>Piping a download into a shell is the one-liner every supply-chain incident starts with.</td></tr>
       <tr><td><code>Bash(sudo:*)</code></td><td>No privilege escalation from an agent session.</td></tr>
       <tr><td><code>WebFetch</code></td><td>No arbitrary outbound HTTP from the agent. Documentation lookups can go through an approved MCP server instead.</td></tr>
-      <tr><td>the <code>git …</code> rules</td><td>The same destructive/retargeting commands the hook denies, as a second layer that needs no <code>jq</code>.</td></tr>
+      <tr><td>the <code>git …</code> rules</td><td>Only if git must be restricted: the kit restricts no git command since 4.0.0, so these rules are the only layer.</td></tr>
     </tbody>
   </table>
   <h3>Permission mode by role</h3>
@@ -215,7 +201,7 @@ which jq || echo "install jq: the hook denies everything without it"</code></pre
     <tbody>
       <tr><td>Engineer</td><td><code>claude --permission-mode acceptEdits</code></td><td>File edits inside the workspace are accepted; every Bash command, install and network call still prompts. The kit's <code>kb-pipeline.sh</code> and the VS Code panel default to this mode.</td></tr>
       <tr><td>PM / analyst / reader (asks questions, reads KBs and reports, never edits)</td><td>The VS Code panel's <b><code>cwkUi.mode: "readonly"</code></b> — it launches the CLI with <code>--permission-mode default</code> plus a read-only tool allowlist and refuses code-editing skills. On the bare CLI: <code>--permission-mode plan</code>.</td><td>No writes at all; <code>/cwk-ask</code>, <code>/cwk-document</code>, <code>/cwk-plan</code>, <code>/cwk-qa</code> work from the KB.</td></tr>
-      <tr><td>Anyone</td><td><b>never</b> <code>bypassPermissions</code> on a company machine</td><td>It also permits any Bash command, writes outside the workspace and network calls. The hooks still run (PreToolUse precedes the mode check), but they are the only thing left.</td></tr>
+      <tr><td>Anyone</td><td><b>never</b> <code>bypassPermissions</code> on a company machine</td><td>It also permits any Bash command, writes outside the workspace and network calls. The kit ships no hooks, so <code>permissions.deny</code> is the only thing left.</td></tr>
     </tbody>
   </table>
 
@@ -240,11 +226,11 @@ scripts/fetch-vendor.sh                  <span class="cmt"># if missing: pulls t
 
   <!-- A5 -->
   <h2 id="a5">A5. Windows</h2>
-  <p>The file-guard hook is a <b>bash</b> script and needs <code>jq</code>. They run under <b>Git Bash</b> or <b>WSL</b> only. A Windows
-  install of Claude Code that does not route hooks through one of those has <b>no guard at all</b> — the
-  <code>permissions.deny</code> list from A2 still applies (it is enforced by Claude Code itself), the hooks do not. Treat
-  such a machine as "deny list only" in your risk register, or standardise on WSL, where the Linux path
-  (<code>/etc/claude-code/managed-settings.json</code>) applies inside the distribution.</p>
+  <p>The kit ships no hooks, so a Windows machine loses no protection the others have: the plugin and the
+  <code>permissions.deny</code> list from A2 are enforced by Claude Code itself. The kit's shell scripts
+  (<code>scripts/</code>) are <b>bash</b> and run under <b>Git Bash</b> or <b>WSL</b> only. Standardise on WSL if you want
+  one path everywhere: the Linux managed-settings path (<code>/etc/claude-code/managed-settings.json</code>) applies inside
+  the distribution.</p>
 
   <!-- A6 -->
   <h2 id="a6">A6. Data classification — where KB content can end up</h2>
@@ -298,7 +284,7 @@ fi</code></pre></div>
       <tr><td><code>ts</code>, <code>user</code>, <code>host</code>, <code>cwd</code></td><td>ISO-8601 UTC time, <code>$USER</code>, <code>hostname -s</code>, working directory.</td></tr>
       <tr><td><code>action</code></td><td><code>kb.scan</code>, <code>kb.rescan</code>, <code>kb.export</code>, <code>kb.import</code>, <code>kb.pipeline</code>, <code>review</code>, <code>pr.review</code>, <code>pr.prepare</code>, <code>runbook</code>, <code>project.onboard</code>, <code>schedule.install</code>, <code>schedule.remove</code>.</td></tr>
       <tr><td>per action</td><td><code>repo</code> (origin, credentials stripped), <code>commit</code>, <code>depth</code>, <code>classification</code>, <code>hub</code>, <code>code_graph</code>, <code>pr</code>, <code>verdict</code>, <code>preset</code>, <code>cron</code>, …</td></tr>
-      <tr><td>hook lines</td><td>The file guard writes to the <b>same file</b> with <code>guard: "file-guard"</code>, <code>tool</code> and <code>decision: deny</code> for every refused write. Pushes and <code>gh</code> writes are not logged: the kit restricts no git command since 4.0.0.</td></tr>
+      <tr><td>not logged</td><td>Tool calls Claude Code refuses under <code>permissions.deny</code>, pushes and <code>gh</code> writes: the kit ships no hooks and restricts no git command.</td></tr>
     </tbody>
   </table>
   <div class="cb"><button class="copy">Copy</button><pre><code><span class="cmt"># example lines</span>
@@ -310,7 +296,7 @@ tail -F ~/.claude/cwk-audit.jsonl | logger -t cwk-audit               <span clas
   <p class="muted">The scripts (<code>kb-export.sh</code>, <code>kb-import.sh</code>, <code>kb-pipeline.sh</code>, <code>onboard-project.sh</code>,
   <code>schedule.sh</code>) log unconditionally; the skills (<code>/cwk-scan</code>, <code>/cwk-rescan</code>, <code>/cwk-review</code>,
   <code>/cwk-pr</code>, <code>/cwk-runbook</code>) are prompts that are told to call <code>scripts/audit-log.sh</code> when they finish —
-  a prompt can be ignored by a model, so treat skill lines as best-effort and hook/script lines as reliable.</p>
+  a prompt can be ignored by a model, so treat skill lines as best-effort and script lines as reliable.</p>
 
   <!-- A9 -->
   <h2 id="a9">A9. Freshness and depth</h2>
@@ -332,18 +318,17 @@ tail -F ~/.claude/cwk-audit.jsonl | logger -t cwk-audit               <span clas
     <li>Company Claude plan is <b>Team/Enterprise</b>; personal Pro/Max accounts are not used for company code.</li>
     <li>The kit is pinned to a reviewed <b>tag/commit</b>; <code>bash tests/run.sh</code> passes on that revision; updates go through the same review.</li>
     <li>The surface audit in <code>SECURITY.md</code> was reproduced (no <code>eval</code>, no dynamic <code>require</code>, no telemetry, no secrets).</li>
-    <li><code>hooks/file-guard.sh</code> is installed <b>root/admin-owned</b> and wired from <b>managed settings</b>; <code>jq</code> is present on every machine.</li>
     <li>If git must be restricted, the git rules are in the managed <code>permissions.deny</code> — the kit itself no longer restricts git.</li>
-    <li>The baseline <code>permissions.deny</code> (A3) is in managed settings; <code>bypassPermissions</code> is not used on company machines.</li>
+    <li>The baseline <code>permissions.deny</code> (A2/A3, including the <code>Edit(…)</code> rules for settings, git config and credential files) is in <b>managed settings</b>, root/admin-owned; <code>bypassPermissions</code> is not used on company machines.</li>
     <li>Permission mode per role is documented: engineers <code>acceptEdits</code>, readers the panel's <code>readonly</code> / CLI <code>plan</code>.</li>
-    <li>Windows machines run the hooks under Git Bash/WSL, or are recorded as “deny list only”.</li>
+    <li>Windows machines that run the kit's scripts do so under Git Bash/WSL.</li>
     <li><code>vendor/</code> is present and <code>scripts/fetch-vendor.sh --check</code> passes (no CDN egress from generated HTML); proxy variables are set where needed.</li>
     <li>Every team repo ignores <code>knowledge-base/</code>, <code>cwk-sessions/</code>, <code>.provenlens/</code>, and a pre-commit/CI check refuses them when staged.</li>
     <li>Hub repos are private and same-access-as-source; no hub of a company repo is published; <code>--with-source</code> is not used for shared hubs.</li>
     <li>Classification levels are agreed (<code>internal</code> default; which repos are <code>confidential</code>/<code>restricted</code>) and the hub page shows them.</li>
-    <li><code>~/.claude/cwk-audit.jsonl</code> (or <code>CWK_AUDIT_LOG</code>) is shipped to the SIEM; someone reviews the <code>decision: deny</code> lines.</li>
+    <li><code>~/.claude/cwk-audit.jsonl</code> (or <code>CWK_AUDIT_LOG</code>) is shipped to the SIEM; someone reviews the <code>kb.export</code> and <code>schedule.install</code> lines.</li>
     <li>KBs used for decisions are <code>deep</code> scans, re-scanned on a schedule, and their <code>_meta.yml</code> commit is checked before use.</li>
-    <li>Branch protection is enabled on team repositories — the control that holds where the hook cannot see.</li>
+    <li>Branch protection is enabled on team repositories — the control that holds when a push gets past the agent's permissions.</li>
   </ul>
 
   <div class="part">Part B — Engineer install</div>
@@ -352,7 +337,7 @@ tail -F ~/.claude/cwk-audit.jsonl | logger -t cwk-audit               <span clas
   <h2 id="pre">B0. Prerequisites</h2>
   <ul class="chk">
     <li><b>Claude Code</b> installed &amp; working: open a terminal and run <code>claude --version</code> to see a version number. (If <code>/plugin</code> is unknown → update Claude Code.)</li>
-    <li><b>git</b>: <code>git --version</code>. <b>Node.js</b> (for map &amp; HTML): <code>node --version</code> (ideally ≥ 18). <b>jq</b>: <code>jq --version</code> — the file guard denies everything without it.</li>
+    <li><b>git</b>: <code>git --version</code>. <b>Node.js</b> (for map &amp; HTML): <code>node --version</code> (ideally ≥ 18).</li>
     <li><b>Your company's Claude plan is Team/Enterprise</b> (a commercial plan — Anthropic does not train on your code). Ask your admin if unsure.</li>
     <li><b>Access to the toolkit repo</b> <code>NamHT4Devlop/claude-code-workflow-kit</code> (public) — or the tag your security team approved, copied over.</li>
   </ul>
@@ -375,14 +360,14 @@ git -C ~/claude-code-workflow-kit checkout &lt;approved-commit-sha&gt;
   <p>This command creates <b>symlinks</b> for the skills/commands/agents into your personal <code>~/.claude</code> folder →
   usable in <b>every repo</b>, and stored in <b>no</b> repo (the team sees nothing).</p>
   <div class="cb"><button class="copy">Copy</button><pre><code>~/claude-code-workflow-kit/scripts/personal-install.sh</code></pre></div>
-  <p>It prints the number of skills/commands linked + a reminder of the file guard config snippet (step B3).
+  <p>It prints the number of skills/commands/agents linked, and warns if your <code>settings.json</code> still registers a retired cwk hook.
   Because it's symlinked, later a <code>cd ~/claude-code-workflow-kit &amp;&amp; git pull</code> updates everything instantly.</p>
   <div class="box info"><div class="ti">💡</div> A skill auto-activates when you speak naturally (e.g. “review this file”), or type <code>/cwk-...</code> directly. No API key needed — it runs on your own Claude Code.</div>
 
   <!-- 3 -->
-  <h2 id="safe">B3. Enable the guards — on a machine <i>without</i> managed settings</h2>
-  <p>If your company deployed A2, the file-guard hook is already active and you can skip to B4 (you will
-  see <span class="kbd">/hooks</span> list it). Otherwise, arm it yourself:</p>
+  <h2 id="safe">B3. Protect settings and credentials — on a machine <i>without</i> managed settings</h2>
+  <p>If your company deployed A2, the deny list is already active and you can skip to B4 (you will
+  see <span class="kbd">/permissions</span> list it). Otherwise, set it yourself:</p>
 
   <div class="step"><div class="num">A</div><div class="body">
     <h3>Global gitignore — keep artifacts out of commits</h3>
@@ -393,31 +378,28 @@ git config --global core.excludesfile ~/.gitignore_global</code></pre></div>
   </div></div>
 
   <div class="step"><div class="num">B</div><div class="body">
-    <h3>File guard — the agent cannot rewrite its own policy files</h3>
-    <p><code>personal-install.sh</code> has already placed the file guard at <code>~/.claude/hooks/cwk-file-guard.sh</code>.
-    Now “wire” it into Claude Code: open <code>~/.claude/settings.json</code> and add the block below (merge it in, don't delete what's there):</p>
+    <h3>Deny list — the agent cannot rewrite its own policy files</h3>
+    <p>The kit ships no hooks; Claude Code's own <code>permissions.deny</code> does this job. Open
+    <code>~/.claude/settings.json</code> and add the block below (merge it in, don't delete what's there):</p>
     <div class="cb"><button class="copy">Copy</button><pre><code>{
   "permissions": {
     "deny": [
       "Read(~/.ssh/**)", "Read(~/.aws/**)", "Read(**/.env)", "Read(**/.env.*)",
+      "Edit(~/.claude/settings.json)", "Edit(~/.claude/settings.local.json)", "Edit(~/.claude.json)",
+      "Edit(~/.gitconfig)", "Edit(**/.git/config)", "Edit(~/.ssh/**)", "Edit(~/.aws/**)",
+      "Bash(rm -rf ~/.claude*)",
       "Bash(curl *| sh*)", "Bash(curl *| bash*)", "Bash(wget *| sh*)", "Bash(sudo:*)", "WebFetch"
-    ]
-  },
-  "hooks": {
-    "PreToolUse": [
-      { "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit", "hooks": [
-        { "type": "command", "command": "~/.claude/hooks/cwk-file-guard.sh", "timeout": 10 } ] }
     ]
   }
 }</code></pre></div>
-    <p>Result: blocks the agent from editing <code>settings.json</code>, the hooks, <code>~/.gitconfig</code>, <code>.git/config</code>, <code>~/.ssh</code>, <code>~/.aws</code>.</p>
+    <p>Result: the agent's file tools cannot edit <code>settings.json</code>, <code>~/.claude.json</code>, <code>~/.gitconfig</code>, <code>.git/config</code>, <code>~/.ssh</code>, <code>~/.aws</code>. A shell redirection is not an <code>Edit</code>, so read the Bash commands you approve.</p>
     <div class="box danger"><div class="ti">⚠️ git is not restricted</div>
       The kit restricts no git command since 4.0.0: the agent may push anywhere and run destructive git if its permission mode allows.
       To restrict it, add rules such as <code>"Bash(git push:*)"</code> or <code>"Bash(git reset --hard:*)"</code> to <code>permissions.deny</code>
       above. A self-installed setting is a habit, not a policy; ask your security team for the managed-settings deployment in A2.
     </div>
   </div></div>
-  <div class="box warn"><div class="ti">🔁 Reload</div> After editing <code>settings.json</code>, open <span class="kbd">/hooks</span> once or restart Claude Code so the guards take effect.</div>
+  <div class="box warn"><div class="ti">🔁 Reload</div> After editing <code>settings.json</code>, restart Claude Code so the rules take effect; <span class="kbd">/permissions</span> shows them.</div>
 
   <!-- 4 -->
   <h2 id="first">B4. First use on a repo</h2>
@@ -508,8 +490,7 @@ cd /path/to/your/repo &amp;&amp; provenlens init .</code></pre>
   <ul class="chk">
     <li>In Claude Code, type <span class="kbd">/</span> → you see the <code>/cwk-*</code> commands.</li>
     <li>Run <code>/cwk-help</code> → it lists commands + reports whether the repo has a KB.</li>
-    <li><span class="kbd">/hooks</span> lists <code>file-guard</code> under PreToolUse.</li>
-    <li>file guard: <code>printf '{"tool_name":"Write","tool_input":{"file_path":"%s/.claude/settings.json"}}' "$HOME" | ~/.claude/hooks/cwk-file-guard.sh</code> → outputs JSON <code>deny</code>.</li>
+    <li><span class="kbd">/permissions</span> lists the deny rules from A2/B3 (e.g. <code>Edit(~/.claude/settings.json)</code>).</li>
     <li>audit trail: after a <code>/cwk-scan</code> or an export, <code>tail -1 ~/.claude/cwk-audit.jsonl</code> shows the line.</li>
   </ul>
 
@@ -526,10 +507,9 @@ cd ~/claude-code-workflow-kit && git fetch && git checkout &lt;approved-commit-s
     <thead><tr><th>Symptom</th><th>Fix</th></tr></thead>
     <tbody>
       <tr><td>Don't see the <code>/cwk-*</code> commands</td><td>Reload/restart Claude Code; check <code>ls ~/.claude/skills | grep cwk-</code>.</td></tr>
-      <tr><td><code>/plugin</code> or <code>/hooks</code> is unknown</td><td>Update Claude Code to a newer build.</td></tr>
+      <tr><td><code>/plugin</code> or <code>/permissions</code> is unknown</td><td>Update Claude Code to a newer build.</td></tr>
       <tr><td>A command says “no knowledge-base”</td><td>Run <code>/cwk-scan</code> once in that repo.</td></tr>
-      <tr><td>The file guard isn't blocking</td><td>Open <span class="kbd">/hooks</span> or restart to load <code>settings.json</code>. On Windows: are you in Git Bash/WSL? (A5). Git itself is not restricted by the kit since 4.0.0 — use <code>permissions.deny</code> for that.</td></tr>
-      <tr><td>Every command is denied with “jq is not installed”</td><td>The file guard fails closed without <code>jq</code>. Install it (<code>brew install jq</code> / <code>apt install jq</code>).</td></tr>
+      <tr><td>A deny rule isn't blocking</td><td>Restart Claude Code to load <code>settings.json</code> and check <span class="kbd">/permissions</span>. An <code>Edit(…)</code> rule does not stop a shell write; the kit ships no hooks and restricts no git since 4.0.0 — only <code>permissions.deny</code> and the permission mode apply.</td></tr>
       <tr><td>The agent's push is denied</td><td>The kit restricts no git since 4.0.0, so the refusal comes from a <code>permissions.deny</code> rule such as <code>Bash(git push:*)</code> in user or managed settings. If that is the policy, push from your own terminal.</td></tr>
       <tr><td><code>git clone</code> asks for a password</td><td>Public repo — clone the HTTPS URL (no auth), or set up an SSH key for the git@ URL.</td></tr>
       <tr><td>Map/HTML doesn't render diagrams</td><td>Needs Node; with <code>vendor/</code> present the page is offline. Run <code>scripts/fetch-vendor.sh --check</code>.</td></tr>

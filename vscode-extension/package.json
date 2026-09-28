@@ -2,7 +2,7 @@
   "name": "cwk-ui",
   "displayName": "Workflow Kit UI",
   "description": "Point-and-click UI over the cwk-* Workflow Kit skills for non-technical roles (PM/SM). Runs Claude Code under the hood.",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "publisher": "cwk",
   "private": true,
   "license": "UNLICENSED",
@@ -56,7 +56,7 @@
             "--permission-mode",
             "acceptEdits"
           ],
-          "description": "Extra args passed to `claude -p`. Default `--permission-mode acceptEdits`: skills may read and write inside the workspace (the KB, reports, code edits by the editing skills), and anything else a headless run would need a prompt for — arbitrary Bash (node for the map/PDF, npm/npx/jest, gh, curl), files outside the workspace, the network — is refused, so those steps surface as \"error\" here; use the Interactive button (a real terminal, where you answer the prompts) for them. Setting [\"--permission-mode\",\"bypassPermissions\"] makes every step run headlessly, but it also permits ANY shell command, reading/writing files such as .env outside the workspace, and network calls with no prompt — and a prompt injection in a scanned repository can drive all of it. Anthropic recommends that mode only in an isolated environment; the panel warns once per session when it is set. The kit restricts no git command since 4.0.0, so in that mode a destructive or remote git command runs with no prompt; the file-guard hook protects only the policy and credential files. In readonly mode this setting cannot widen permissions: its permission flags are dropped and the CLI runs with `--permission-mode default` and a read-only tool allowlist.",
+          "description": "Extra args passed to `claude -p`. Default `--permission-mode acceptEdits`: skills may read and write inside the workspace (the KB, reports, code edits by the editing skills), and anything else a headless run would need a prompt for — arbitrary Bash (node for the map/PDF, npm/npx/jest, gh, curl), files outside the workspace, the network — is refused, so those steps surface as \"error\" here; use the Interactive button (a real terminal, where you answer the prompts) for them. Setting [\"--permission-mode\",\"bypassPermissions\"] makes every step run headlessly, but it also permits ANY shell command, reading/writing files such as .env outside the workspace, and network calls with no prompt — and a prompt injection in a scanned repository can drive all of it. Anthropic recommends that mode only in an isolated environment; the panel warns once per session when it is set. The kit restricts no git command (since 4.0.0) and ships no hooks (since 6.0.0), so in that mode a destructive or remote git command, or an edit to settings.json or ~/.ssh, runs with no prompt. In readonly mode this setting cannot widen permissions: its permission flags are dropped and the CLI runs with `--permission-mode default` and a read-only tool allowlist.",
           "scope": "machine"
         },
         "cwkUi.usdToVnd": {

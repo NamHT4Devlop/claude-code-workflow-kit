@@ -4,7 +4,7 @@
 #   bash scaffold-cwk.sh [target-dir]      (default: claude-code-workflow-kit)
 #
 # Structure only: every file is created empty. Nothing is overwritten, so it is safe to re-run
-# after you have started filling files in. Generated from `git ls-files` at release 5.0.0.
+# after you have started filling files in. Generated from `git ls-files` at release 6.0.0.
 set -euo pipefail
 
 root="${1:-claude-code-workflow-kit}"
@@ -74,8 +74,6 @@ docs/repo-structure.md
 docs/setup-guide.html
 docs/skill-anatomy.md
 docs/skills-catalog.html
-hooks/file-guard.sh
-hooks/hooks.json
 resources/check-mermaid.cjs
 resources/html-builder.js
 resources/kb-steps.md
@@ -235,7 +233,6 @@ skills/cwk-user-story/references/provenlens-evidence.md
 skills/cwk-user-story/references/render-html.cjs
 skills/cwk-user-story/references/untrusted-input.md
 tests/consistency.test.sh
-tests/file-guard.test.sh
 tests/i18n.test.cjs
 tests/kb-hub.test.sh
 tests/kb-pipeline.test.sh

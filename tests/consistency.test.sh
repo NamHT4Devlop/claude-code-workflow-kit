@@ -378,35 +378,17 @@ hits=$(echo "$shipped" | tr '\n' '\0' | xargs -0 perl -CSD -ne '
 [ -z "$hits" ] || { echo "  ✗ zero-width / bidi control character in a shipped file:"; echo "$hits" | head -10 | sed 's/^/    /'; bad=1; }
 [ "$bad" -eq 0 ] && echo "  ✓ $(echo "$shipped" | wc -l | tr -d ' ') shipped text files carry no personal path, e-mail or invisible character" || fail=1
 
-# hooks.json is what Claude Code actually runs. A command that points at a renamed file, a file that
-# lost its +x bit in a checkout, or a syntax error in a hook all fail the same way: the guard does not
-# run and every git command sails through. The plugin loader gives no error for any of them.
-echo "consistency: hooks.json wiring — every command exists, is executable and parses"
+# The kit ships no hooks since 6.0.0 (git-guard went in 4.0.0, file-guard in 6.0.0). A hooks/ dir that
+# comes back would be loaded by the plugin; a doc that still tells people to arm file-guard sends them
+# to a file that is not there.
+echo "consistency: the kit ships no hooks, and nothing tells you to install one"
 bad=0
-if command -v node >/dev/null 2>&1; then
-  node -e 'JSON.parse(require("fs").readFileSync("hooks/hooks.json","utf8"))' 2>/dev/null || { echo "  ✗ hooks/hooks.json is not valid JSON"; bad=1; }
-elif command -v jq >/dev/null 2>&1; then
-  jq empty hooks/hooks.json 2>/dev/null || { echo "  ✗ hooks/hooks.json is not valid JSON"; bad=1; }
-fi
-cmds=$(grep -oE '"command": *"[^"]+"' hooks/hooks.json | sed -E 's/^"command": *"//; s/"$//')
-[ -n "$cmds" ] || { echo "  ✗ hooks/hooks.json declares no command hooks"; bad=1; }
-n_hooks=0
-for c in $cmds; do
-  case "$c" in
-    '${CLAUDE_PLUGIN_ROOT}/hooks/'*) f=${c#'${CLAUDE_PLUGIN_ROOT}/'} ;;
-    *) echo "  ✗ hooks.json command '$c' is not under \${CLAUDE_PLUGIN_ROOT}/hooks/ — it will not resolve when the plugin is installed"; bad=1; continue ;;
-  esac
-  [ -f "$f" ] || { echo "  ✗ hooks.json points at $f, which does not exist"; bad=1; continue; }
-  [ -x "$f" ] || { echo "  ✗ $f is not executable (chmod +x, and check core.fileMode)"; bad=1; }
-  n_hooks=$((n_hooks+1))
-done
-for f in hooks/*.sh; do
-  bash -n "$f" 2>/dev/null || { echo "  ✗ $f does not parse (bash -n)"; bad=1; }
-  [ -x "$f" ] || { echo "  ✗ $f is not executable"; bad=1; }
-  head -1 "$f" | grep -qE '^#!.*\b(bash|sh)\b' || { echo "  ✗ $f has no bash shebang"; bad=1; }
-  grep -qF "hooks/$(basename "$f")" hooks/hooks.json || echo "  – note: hooks/$(basename "$f") is not wired in hooks.json (deliberate?)"
-done
-[ "$bad" -eq 0 ] && echo "  ✓ $n_hooks hook command(s) wired to existing executable scripts; every hooks/*.sh parses" || fail=1
+[ -e hooks ] && { echo "  ✗ a hooks/ directory is back — the plugin would load hooks/hooks.json"; bad=1; }
+# allowed to name it: the changelog, the installer that removes its old link, the security note on
+# its removal, and tests
+left=$(git grep -lI 'file-guard' -- . ':!tests' ':!CHANGELOG.md' ':!SECURITY.md' ':!scripts/personal-install.sh' 2>/dev/null || true)
+[ -z "$left" ] || { echo "  ✗ still mentions file-guard:"; echo "$left" | sed 's/^/    /'; bad=1; }
+[ "$bad" -eq 0 ] && echo "  ✓ no hooks/ directory; only the changelog, SECURITY.md and the installer name the retired hook" || fail=1
 
 # A mutable tag (actions/checkout@v4) is a supply-chain door: whoever controls the tag controls the
 # CI runner. Every action is pinned to a full commit SHA, with the version it stands for in a trailing

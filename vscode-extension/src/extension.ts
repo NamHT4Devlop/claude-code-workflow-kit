@@ -31,8 +31,8 @@ const READONLY_TOOLS = [
 // .claude/settings.json hooks still run. So read-only also denies the writing tools outright —
 // deny beats every allow — and switches hooks off for the run. The project's settings still load,
 // so its own permissions.deny rules and project-scoped skills keep working (verified headless: the
-// repo's SessionStart hook ran without disableAllHooks and did not with it). The kit's file-guard
-// hook is off too, which is fine here: nothing in this run can write.
+// repo's SessionStart hook ran without disableAllHooks and did not with it). Any hook of the user's
+// own is off too, which is fine here: nothing in this run can write.
 const READONLY_DENY = ['Bash', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'WebFetch', 'WebSearch'];
 const READONLY_ARGS = ['--permission-mode', 'default', '--allowedTools', READONLY_TOOLS.join(','),
   '--disallowedTools', READONLY_DENY.join(','), '--settings', '{"disableAllHooks":true}'];
